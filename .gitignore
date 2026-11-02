@@ -1,0 +1,30 @@
+# Dependencies and build output
+node_modules/
+dist/
+out/
+release/
+
+# Test output
+test-results/
+playwright-report/
+tests/e2e/screenshots/
+coverage/
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
+
+# Local tool state (Supabase CLI link details, Vercel project link)
+supabase/.temp/
+supabase/.branches/
+.vercel/
+.claude/
+
+# Secrets — never commit. Only the two example files (placeholders) are tracked.
+.env
+.env.*
+!.env.example
+!.env.admin.example
+*.pem
+*.key

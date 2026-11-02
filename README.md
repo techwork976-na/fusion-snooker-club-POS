@@ -1,0 +1,118 @@
+# FUSION — Gaming Lounge management & POS
+
+FUSION runs FUSION Gaming Lounge: tables (snooker, pool, table tennis, PS5…), counter shifts, sales, expenses, inventory, customers and reports. It is a **web app**: the club opens one URL in a browser and signs in.
+
+- **Web app:** React 19, TypeScript, Vite, Tailwind CSS 4, Framer Motion, Recharts, jsPDF. Hosted on **Vercel**, deployed from **GitHub**.
+- **Backend:** Supabase (PostgreSQL, Auth, one Edge Function). An internet connection is required.
+- **Security:** the database is the authority. Browsers can only read through Row Level Security and call validated database functions. The app contains only the public Supabase URL and publishable key; the secret key never leaves Supabase and your own computer.
+
+**Deploying:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (GitHub → Vercel, migrations, Edge Function, backups, rollback) · More: [docs/DATABASE.md](docs/DATABASE.md) · [docs/SECURITY.md](docs/SECURITY.md) · [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+
+---
+
+## 1. Set up a club (once)
+
+1. **Supabase project:** create one at <https://supabase.com>. Turn **off** *Allow new users to sign up* (Authentication → Sign In / Providers).
+2. **Database:** apply the migrations in `supabase/migrations/` with `npx supabase db push` (see DEPLOYMENT.md §8). Optionally run `supabase/seed.sql` for starter floors and rates.
+3. **Edge Function:** `npx supabase functions deploy admin-users --use-api --no-verify-jwt`.
+4. **First administrator:** on your own computer, fill `.env.admin` (from `.env.admin.example`) and run `npm run setup:admin`; delete `.env.admin` afterwards.
+5. **Web app:** push to GitHub, import into Vercel, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (DEPLOYMENT.md §4–6).
+6. Sign in at the Vercel URL, then in **Settings** add floors, categories and rates per minute, and tables; in **Inventory** add products; in **Staff** create staff accounts.
+
+## 2. Daily use
+
+| Task | Who | Where |
+|---|---|---|
+| Open / close my counter, record expenses, see my Cash, Bank, Snacks, Total, Expenses, Net | Staff | **My counter** |
+| Start / pause / resume / end a table (open play, fixed minutes, or prepaid amount) | Staff, Admin | **Tables** |
+| Add snacks to a running table's tab | Staff, Admin | Click the table card → *Tab* |
+| Checkout (table charge + tab, custom rate per minute, discount in PKR or %, Cash or Bank Transfer, receipt) | Staff with an open counter | *End* → Checkout |
+| Sell products without a table | Staff with *Counter sales* | **Counter sale** (Tables or Dashboard) |
+| Watch every staff member's figures live; close a forgotten counter | Admin | **Dashboard → Staff today** |
+| Shift history, invoices, daily figures (Today / Weekly / Monthly / Custom) | Admin | **History** |
+| Financial summary for a period (Today / Yesterday / Week / Month / Custom), staff-wise and shift-wise, **Export PDF** | Admin | **Reports** |
+| Business expenses (rent, utilities, repairs…) and every counter expense, with charts | Admin | **Expenses** |
+| Products sold in a period, cost of goods and gross profit | Admin | **Inventory → Sales & profit** |
+| Finalise a business day's summary | Admin | **History → Close day** |
+| Reserve a table and start it when the customer arrives | Admin | **Pre-bookings** |
+| Regulars: most visits, most playing time, highest spending | Admin | **Customers → Rankings** |
+| How long detailed invoices are kept (1, 7 or 30 days) | Admin | **Settings → Data retention** |
+| Switch Admin → Staff (staff member's password) / Staff → Admin (Admin master password) | Everyone | Account button (bottom of the sidebar) |
+
+Every time of day in FUSION is shown in 12-hour form (e.g. 07:15 PM).
+
+### Billing rules
+Configured in **Settings → Billing rules** and applied identically by the timer, checkout, receipt and reports:
+
+- Rates are **rupees per minute** per category (tables may override), up to four decimals. The rate is **snapshotted when a session starts**.
+- Played time = elapsed time − paused time. Time is billed in blocks (default 1 minute), rounded **up** (default), **to nearest**, or **down**, with an optional minimum charge.
+- Table charge = billed minutes × rate per minute, rounded half-up to a whole rupee.
+- **Fixed time** bookings charge the booked minutes; **fixed amount** bookings convert PKR into whole seconds of play (e.g. PKR 400 at PKR 10/min = 40 min). Leaving early still pays the booking; extra time is billed at the rate per minute (without the minimum).
+- **Custom rate per minute (regulars):** at checkout a cashier with the *Discounts & custom rates* permission can enter another rate. It re-prices all of the played time with the same rules (a booking's time pro rata), e.g. 100 min at 10/min = 1,000 → at 9/min = 900. The discount (PKR or %) then applies to that bill: 900 − 30 = 870. The invoice and receipt show the custom rate and the standard rate it replaced; the counter, ledger, History and customer statistics record the amount actually paid, and only the discount counts as a discount.
+- *End* freezes the bill; *Reopen* resumes the clock without charging the time spent at checkout.
+
+### Counters, accounting and history
+- A staff member opens **their own counter** before taking payments or recording expenses. Every payment, void and expense is posted — in the same database transaction — to that counter shift and to a permanent per-day ledger. **Total sales = Cash + Bank Transfer**; **Snack sales** are shown separately but are already inside Cash/Bank; **Net = Total − Expenses**.
+- Closing a counter saves its final figures (checked against the ledger and the invoices). A closed shift never changes: its sales cannot be voided and its expenses cannot be edited. Table sessions still running when a counter closes are handed over and paid at whichever counter checks them out.
+- Administrators manage the business and **cannot take payments** — the database refuses it.
+- Staff can never read another staff member's sales, shifts or expenses (Row Level Security).
+
+### Close day
+Finalises a business day's Cash, Bank, Total, Expenses and Net in `daily_summaries`, once every counter that traded that day is closed. **It deletes nothing.** Closing again after late activity refreshes the summary (never double-counts).
+
+### Reports, expenses and product profit
+- **Reports** read the permanent shift ledger. Final figures come only from **closed** counters (plus amounts archived before counters existed); open counters are listed separately as live, provisional figures. Net = Total sales − counter expenses − business expenses. The PDF is built from the same data as the page.
+- **Business expenses** are recorded by an administrator with a date and category. They count in Reports and Expenses but never change a counter's cash, the shift ledger or History. Counter expenses are still recorded and voided by staff at their counter.
+- **Gross profit** (Inventory → Sales & profit) = product sales after their share of invoice discounts − the cost price recorded at each sale. Table time is never product revenue, and business expenses are not deducted. Products sold before cost tracking (migration 0900) show sales but no profit; FUSION does not guess past costs.
+
+### Automatic invoice cleanup (retention)
+Detailed invoices (sales + sale items) older than the chosen period — **Monthly (30 days) by default**, or Weekly / Daily — are removed hourly by a server-side job, but only from **closed** counter shifts, whoever made the sale. Shift summaries, the daily ledger, expenses, customers and their statistics, product sales and every Cash / Bank / Total / Net figure are permanent, so History and Reports stay correct. Each run is logged (Settings → Data retention). Deleted rows free space for reuse straight away; PostgreSQL does not shrink the database file immediately, so the size shown in Supabase falls only after routine maintenance.
+
+### Upgrading from an earlier version
+The `…0700` migration attaches every existing sale to an *imported* closed shift (one per cashier per day), builds the ledger and customer statistics from them, and keeps totals saved by the old "Close Day & Archive" as legacy amounts. Nothing is deleted. Redeploy the Edge Function.
+
+The `…0800` migration switches every rate to **per minute**: stored hourly rates (categories, table overrides and the snapshots on past sessions and invoices) are divided by 60 and kept to four decimals, so prices bill exactly as before (PKR 600/hour → 10/min; 400/hour → 6.6667/min — set a round figure in Settings if you prefer). No stored amount is recalculated and nothing is deleted.
+
+The `…0900` migration adds business expenses, cost-at-sale on invoice lines and the permanent product sales table (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#8-apply-database-migrations-safely)). Nothing is deleted.
+
+## 3. Development
+
+```powershell
+npm install
+```
+```powershell
+npm run dev
+```
+`npm run dev` serves the web app at <http://localhost:5173> using `.env` (see `.env.example`). It talks to the Supabase project in `.env`, so it is real data.
+
+| Script | What it does |
+|---|---|
+| `npm run dev` | Web app with hot reload |
+| `npm run build` | Production web build into `dist/web` (what Vercel runs). Fails if the Supabase settings are missing or a secret key was used |
+| `npm run preview` | Serves `dist/web` locally with the same security headers as Vercel |
+| `npm run typecheck` | Strict TypeScript for the app, tests and desktop shell |
+| `npm test` | Unit tests + database tests (real migrations in PGlite) |
+| `npm run test:e2e` | Builds, then drives the web app in Google Chrome (and a desktop smoke test) against a local Supabase-compatible test server |
+| `npm run setup:admin` / `npm run reset:password` | Create an administrator / set a forgotten password (your computer only, needs `.env.admin`) |
+| `npm run dev:desktop`, `npm run dist:win` | Optional Windows desktop build (same app in Electron, configured from `.env` at build time) |
+
+### Project layout
+
+```
+src/renderer/    The app: React UI — features/{auth,tables,pos,counter,shifts,history,reports,expenses,bookings,dashboard,sales,inventory,customers,staff,settings}
+src/renderer/src/lib/platform.ts   Web vs desktop differences (config, printing, window buttons)
+src/shared/      Billing rules, receipt renderer, formatting, key validation (shared by app, desktop shell and tests)
+src/main, src/preload   Optional Electron desktop shell
+supabase/        Migrations (schema, RLS, functions, grants), Edge Function, seed
+scripts/         create-admin.mjs (first admin / password reset), build-e2e.mjs, make-icons.mjs
+tests/unit       Billing, formatting, receipt escaping, key validation, report PDF
+tests/db         Sessions, checkout, stock, permissions/RLS, counter shifts, close day, retention, reports, expenses, product profit, upgrades, TS↔SQL billing parity
+tests/e2e        Browser end-to-end flows + screenshots; desktop smoke test
+vercel.json      Vercel build settings, page routing and security headers
+```
+
+## 4. Production notes
+
+- **Printing:** receipts open the browser's print dialog (80 mm, 58 mm or A4 — Settings → This computer). For dialog-free printing on a counter PC, start Chrome with `--kiosk-printing`.
+- **Backups:** see DEPLOYMENT.md §14. Invoices older than the retention period keep only their totals by design; export monthly Reports PDFs as a business record.
+- **Timezone:** the business timezone and day-start hour are in **Settings → Business day** (default Asia/Karachi, midnight). Every date filter uses the club's business day, not the computer's clock.

@@ -1,0 +1,30 @@
+{
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "paths": {
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@/*": [
+        "./src/renderer/src/*"
+      ]
+    },
+    "types": [
+      "node",
+      "vite/client"
+    ]
+  },
+  "include": [
+    "playwright.config.ts",
+    "tests/e2e/**/*",
+    "tests/db/harness.ts",
+    "src/shared/**/*",
+    "src/preload/index.d.ts",
+    "tests/unit/report-pdf.test.ts"
+  ]
+}

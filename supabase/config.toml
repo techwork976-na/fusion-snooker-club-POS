@@ -1,0 +1,24 @@
+# Supabase CLI configuration for FUSION.
+# `npx supabase link --project-ref <ref>` then `npx supabase db push` and
+# `npx supabase functions deploy admin-users`.
+project_id = "fusion-pos"
+
+[api]
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+# Staff and admin accounts are created only by an administrator (Edge
+# Function) — never by public sign-up.
+enable_signup = false
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = false
+enable_confirmations = false
+
+[functions.admin-users]
+# The function verifies the caller's JWT itself (works with both legacy and
+# asymmetric JWT signing keys).
+verify_jwt = false

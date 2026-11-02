@@ -1,0 +1,257 @@
+@import 'tailwindcss';
+/* Inter (variable weight + optical size), bundled with the app: no font CDN,
+   identical on every computer, crisp at small sizes on Windows. */
+@import '@fontsource-variable/inter/opsz.css';
+
+/*
+ * FUSION design tokens.
+ * Deep forest green (#0A1F14) is the base. Pages sit on warm cream, content on
+ * warm white that lifts off it with soft, diffused shadows rather than borders.
+ * Accents are muted brass (champagne at its light end) and a quiet sage; claret
+ * is kept for errors and destructive actions. Every colour is solid and matte:
+ * no glows, gloss, neon or gradients.
+ */
+@theme {
+  /* Only the colours below exist — Tailwind's default palette (blues, purples,
+     bright oranges and greens) is removed so none can creep back in. */
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  --font-sans: 'Inter Variable', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Inter Variable', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+
+  /* Brand */
+  --color-forest-50: #eef3ee;
+  --color-forest-100: #dbe6dd;
+  --color-forest-200: #b8cdbd;
+  --color-forest-300: #8db09a;
+  --color-forest-400: #5f8b70;
+  --color-forest-500: #3f6d52;
+  --color-forest-600: #2c573f;
+  --color-forest-700: #1f4430;
+  --color-forest-800: #163424;
+  --color-forest-900: #10291c;
+  --color-forest-950: #0a1f14;
+
+  /* Accent: muted brass, champagne at the light end */
+  --color-brass-50: #faf6ec;
+  --color-brass-100: #f2e9d3;
+  --color-brass-200: #e6d5ae;
+  --color-brass-300: #d4bb84;
+  --color-brass-400: #c1a062;
+  --color-brass-500: #ae843a;
+  --color-brass-600: #8f6c2f;
+  --color-brass-700: #735727;
+  --color-brass-800: #5a4420;
+
+  /* Accent: quiet sage, for calm and positive states */
+  --color-sage-50: #f2f4ef;
+  --color-sage-100: #e3e9dd;
+  --color-sage-200: #cbd5c1;
+  --color-sage-300: #aebb9f;
+  --color-sage-400: #8e9f7f;
+  --color-sage-500: #718465;
+  --color-sage-600: #5a6b50;
+  --color-sage-700: #475540;
+  --color-sage-800: #374232;
+
+  /* Supporting earth tone */
+  --color-olive-50: #f5f4ea;
+  --color-olive-100: #e9e8d4;
+  --color-olive-200: #d6d5b0;
+  --color-olive-300: #bcbb87;
+  --color-olive-400: #9d9d61;
+  --color-olive-500: #7f8046;
+  --color-olive-600: #636437;
+  --color-olive-700: #4c4d2b;
+
+  /* Errors and destructive actions only */
+  --color-claret-50: #f9efed;
+  --color-claret-100: #f1dcd8;
+  --color-claret-200: #e2b9b1;
+  --color-claret-300: #cd8f84;
+  --color-claret-400: #b46a5e;
+  --color-claret-500: #985046;
+  --color-claret-600: #7e4038;
+  --color-claret-700: #67342e;
+  --color-claret-800: #512a25;
+
+  /* Surfaces and hairlines (warm neutrals) */
+  --color-canvas: #f4f0e7;
+  --color-surface: #fffdf8;
+  --color-field: #fffefb;
+  --color-sunken: #f0eadf;
+  --color-sunken-2: #e7dfcf;
+  --color-line: #ebe4d6;
+  --color-line-strong: #dad1bf;
+  --color-cream: #f4f0e7;
+  --color-champagne: #e6d5ae;
+
+  /* Text on light surfaces (fg-4 and darker meet 4.5:1 on every surface) */
+  --color-fg: #13241b;
+  --color-fg-2: #344238;
+  --color-fg-3: #4f5b53;
+  --color-fg-4: #626c64;
+  --color-fg-5: #9aa197;
+
+  /* Text on the forest sidebar */
+  --color-side-fg: #ebe6da;
+  --color-side-muted: #9fb0a3;
+
+  --radius-card: 20px;
+  /* Soft, diffused elevation — a faint contact shadow plus a wide, low one. */
+  --shadow-card: 0 1px 2px rgb(10 31 20 / 0.035), 0 10px 30px -14px rgb(10 31 20 / 0.12);
+  --shadow-raised: 0 2px 4px rgb(10 31 20 / 0.04), 0 22px 44px -20px rgb(10 31 20 / 0.22);
+  --shadow-control: 0 1px 2px rgb(10 31 20 / 0.07), 0 2px 6px -2px rgb(10 31 20 / 0.06);
+  --shadow-pop: 0 24px 56px -20px rgb(10 31 20 / 0.32), 0 2px 8px rgb(10 31 20 / 0.06);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  html {
+    color-scheme: light;
+  }
+  body {
+    @apply bg-canvas font-sans text-fg antialiased;
+    font-optical-sizing: auto;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+    user-select: none;
+  }
+  input,
+  textarea,
+  [data-selectable] {
+    user-select: text;
+  }
+  ::selection {
+    background: var(--color-brass-200);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-forest-600);
+    outline-offset: 2px;
+  }
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='date']::-webkit-calendar-picker-indicator {
+    opacity: 0.6;
+    cursor: pointer;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+}
+
+@utility drag-region {
+  -webkit-app-region: drag;
+}
+@utility no-drag {
+  -webkit-app-region: no-drag;
+}
+@utility tabular {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+/* Headings: Inter's display optical size (chosen automatically from the font
+   size), semibold and slightly tight. */
+@utility font-display-tight {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 650;
+  letter-spacing: -0.022em;
+}
+/* Money and timer figures: semibold tabular numerals that line up in columns. */
+@utility figure {
+  font-family: var(--font-sans);
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.02em;
+}
+
+@layer components {
+  /* Content panels: warm white lifted off the cream page by shadow alone. */
+  .card {
+    @apply relative rounded-[var(--radius-card)] bg-surface;
+    box-shadow: var(--shadow-card);
+  }
+  /* Small tracked capitals for section labels. */
+  .label {
+    @apply text-[11px] font-semibold tracking-[0.12em] text-fg-4 uppercase;
+  }
+  /* Table headings: tracked capitals on a hairline, no filled band. */
+  .thead-row {
+    @apply border-b border-line text-left text-[11px] tracking-[0.08em] text-fg-4 uppercase;
+  }
+  .thead-row > th {
+    font-weight: 600;
+  }
+  /* Floating menus and popovers. */
+  .popover {
+    @apply rounded-2xl bg-surface;
+    box-shadow:
+      0 0 0 1px rgb(10 31 20 / 0.05),
+      var(--shadow-pop);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/*
+ * Press ripple: a matte, low-opacity disc in the control's own text colour —
+ * no glow, no colour of its own. Plays whatever the OS animation setting.
+ */
+@keyframes ripple {
+  from {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.16;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+}
+.ripple {
+  position: absolute;
+  border-radius: 9999px;
+  background: currentColor;
+  pointer-events: none;
+  animation: ripple 560ms var(--ease-out-quint) forwards;
+}
+
+/* Interactive panels: rise a little and cast a longer shadow on hover, settle on press. */
+@utility lift {
+  transition:
+    translate 220ms var(--ease-out-quint),
+    box-shadow 220ms var(--ease-out-quint),
+    background-color 150ms ease;
+  &:hover {
+    translate: 0 -2px;
+    box-shadow: var(--shadow-raised);
+  }
+  &:active {
+    translate: 0 0;
+    box-shadow: var(--shadow-card);
+  }
+}

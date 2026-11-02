@@ -1,0 +1,42 @@
+appId: com.fusion.pos
+productName: FUSION
+copyright: Copyright © 2026 FUSION Gaming Lounge
+directories:
+  buildResources: build
+  output: release/${version}
+files:
+  - out/**/*
+  - package.json
+  - '!**/*.map'
+  # Never ship secrets, tests, migrations or tooling.
+  - '!.env*'
+  - '!**/.env*'
+  - '!supabase/**'
+  - '!scripts/**'
+  - '!tests/**'
+asar: true
+# Hardening (Electron fuses): no ELECTRON_RUN_AS_NODE, no --inspect / NODE_OPTIONS,
+# load only from the integrity-checked asar, encrypted cookies, no extra file:// privileges
+# (the UI is served from app://fusion).
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  grantFileProtocolExtraPrivileges: false
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: FUSION-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: FUSION
+  uninstallDisplayName: FUSION
