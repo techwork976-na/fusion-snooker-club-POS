@@ -126,12 +126,12 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
               key={t.value}
               onClick={() => setMode(t.value)}
               className={cn(
-                'flex flex-col items-start gap-2 rounded-xl border px-3.5 py-3 text-left transition-colors',
+                'flex flex-col items-start gap-2 rounded-xl border px-3 py-3 text-left transition-colors sm:px-3.5',
                 mode === t.value ? 'border-transparent bg-surface text-forest-950 shadow-[var(--shadow-control)] ring-2 ring-forest-700' : 'border-transparent bg-sunken/70 text-fg-3 hover:bg-sunken'
               )}
             >
               <t.icon className={cn('size-[18px]', mode === t.value ? 'text-forest-700' : 'text-fg-4')} />
-              <span className="text-sm font-bold">{t.label}</span>
+              <span className="text-sm font-bold max-sm:text-[13px] max-sm:leading-tight">{t.label}</span>
             </button>
           ))}
         </div>
@@ -145,7 +145,7 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
                   type="button"
                   key={m}
                   onClick={() => setMinutesText(String(m))}
-                  className={cn('h-8 rounded-lg border px-3 text-xs font-bold transition-colors', minutes === m ? 'border-transparent bg-forest-950 text-cream' : 'border-transparent bg-sunken/80 text-fg-3 hover:text-fg')}
+                  className={cn('h-8 rounded-lg border px-3 text-xs font-bold transition-colors max-md:h-10 max-md:px-3.5', minutes === m ? 'border-transparent bg-forest-950 text-cream' : 'border-transparent bg-sunken/80 text-fg-3 hover:text-fg')}
                 >
                   {m >= 60 ? `${m / 60} h${m % 60 ? ` ${m % 60}` : ''}` : `${m} min`}
                 </button>
@@ -162,7 +162,7 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
                   type="button"
                   key={a}
                   onClick={() => setAmountText(String(a))}
-                  className={cn('h-8 rounded-lg border px-3 text-xs font-bold transition-colors', amount === a ? 'border-transparent bg-forest-950 text-cream' : 'border-transparent bg-sunken/80 text-fg-3 hover:text-fg')}
+                  className={cn('h-8 rounded-lg border px-3 text-xs font-bold transition-colors max-md:h-10 max-md:px-3.5', amount === a ? 'border-transparent bg-forest-950 text-cream' : 'border-transparent bg-sunken/80 text-fg-3 hover:text-fg')}
                 >
                   {formatMoney(a)}
                 </button>

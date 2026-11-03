@@ -114,6 +114,12 @@
   #root {
     height: 100%;
   }
+  /* Phones: the visible height, which shrinks while the browser's address bar shows. */
+  @supports (height: 100dvh) {
+    #root {
+      height: 100dvh;
+    }
+  }
   html {
     color-scheme: light;
   }
@@ -152,6 +158,13 @@
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--color-line-strong) transparent;
+  }
+  /* Taps answer at once and never flash the browser's blue highlight. */
+  button,
+  a,
+  [role='button'] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
@@ -198,6 +211,69 @@
   .thead-row > th {
     font-weight: 600;
   }
+  /*
+   * Data tables that become stacked cards on phones: each row a block, each
+   * cell labelled from its data-label. data-stack (space-separated) places a
+   * cell: "title" / "full" span the row, "top" moves it to the first line,
+   * "end" aligns it right, "hide" leaves it out. Tablets and desktops keep the
+   * ordinary table.
+   */
+  @media (width < 48rem) {
+    .table-stack,
+    .table-stack > tbody,
+    .table-stack > tfoot {
+      display: block;
+      width: 100%;
+      min-width: 0 !important;
+    }
+    .table-stack > thead {
+      display: none;
+    }
+    .table-stack > tbody > tr,
+    .table-stack > tfoot > tr {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 16px;
+      padding: 14px 20px;
+    }
+    .table-stack > tbody > tr > td,
+    .table-stack > tfoot > tr > td {
+      display: block;
+      min-width: 0;
+      padding: 0 !important;
+      text-align: left !important;
+      width: auto !important;
+    }
+    /* A table already inside a padded panel keeps the panel's edges. */
+    .table-stack.table-stack-flush > tbody > tr {
+      padding-inline: 0;
+    }
+    .table-stack td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      margin-bottom: 2px;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--color-fg-4);
+    }
+    .table-stack td[data-stack~='title'],
+    .table-stack td[data-stack~='full'] {
+      grid-column: 1 / -1;
+    }
+    .table-stack td[data-stack~='top'] {
+      order: -1;
+    }
+    .table-stack td[data-stack~='end'] {
+      text-align: right !important;
+    }
+    .table-stack td[data-stack~='hide'],
+    .table-stack td:empty {
+      display: none;
+    }
+  }
+
   /* Floating menus and popovers. */
   .popover {
     @apply rounded-2xl bg-surface;
@@ -253,5 +329,14 @@
   &:active {
     translate: 0 0;
     box-shadow: var(--shadow-card);
+  }
+}
+
+/* Tablets and narrow windows: a table wider than its card scrolls sideways
+   inside the card instead of being cut off. No effect when the table fits.
+   (Unlayered, so it outranks the card's overflow-hidden utility.) */
+@media (width >= 48rem) {
+  .card:has(> table) {
+    overflow-x: auto;
   }
 }

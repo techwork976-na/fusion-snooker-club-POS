@@ -1,6 +1,7 @@
 import { CalendarDays, Clock3 } from 'lucide-react'
 import { formatBusinessDate, formatTime } from '@shared/format'
 import { useBusinessDate, useServerNow, useSettings } from '@/data/hooks'
+import { Logo, Wordmark } from './Brand'
 import { WindowControls } from './WindowControls'
 
 function ClubClock() {
@@ -18,20 +19,39 @@ function ClubClock() {
 export function TopBar() {
   const { data: businessDate } = useBusinessDate()
   return (
-    <header className="drag-region relative z-30 flex h-12 shrink-0 items-center justify-between pl-5 md:pl-8 xl:pl-10">
-      <div className="flex items-center gap-5 text-[12.5px] font-semibold text-fg-3">
-        {businessDate && (
-          <span className="flex items-center gap-1.5">
-            <CalendarDays className="size-3.5 text-fg-4" />
-            Business day · {formatBusinessDate(businessDate)}
-          </span>
-        )}
-        <ClubClock />
-      </div>
-      <div className="h-full">
-        <WindowControls />
-      </div>
-    </header>
+    <>
+      <header className="drag-region relative z-30 hidden h-12 shrink-0 items-center justify-between pl-5 md:flex md:pl-8 xl:pl-10">
+        <div className="flex items-center gap-5 text-[12.5px] font-semibold text-fg-3">
+          {businessDate && (
+            <span className="flex items-center gap-1.5">
+              <CalendarDays className="size-3.5 text-fg-4" />
+              Business day · {formatBusinessDate(businessDate)}
+            </span>
+          )}
+          <ClubClock />
+        </div>
+        <div className="h-full">
+          <WindowControls />
+        </div>
+      </header>
+      {/* Phones: the brand (the sidebar is hidden) with the business day and club clock. */}
+      <header
+        className="relative z-30 box-content flex h-12 shrink-0 items-center gap-2.5 px-4 pt-[env(safe-area-inset-top)] md:hidden"
+        data-testid="mobile-topbar"
+      >
+        <Logo size={28} />
+        <Wordmark className="text-[12px]" />
+        <div className="ml-auto flex min-w-0 items-center gap-3 text-[12px] font-semibold text-fg-3">
+          {businessDate && (
+            <span className="flex items-center gap-1.5 truncate" title="Business day">
+              <CalendarDays className="size-3.5 shrink-0 text-fg-4" />
+              {formatBusinessDate(businessDate, { year: false })}
+            </span>
+          )}
+          <ClubClock />
+        </div>
+      </header>
+    </>
   )
 }
 

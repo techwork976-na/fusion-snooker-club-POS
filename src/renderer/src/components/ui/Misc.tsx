@@ -73,14 +73,14 @@ export function PageHeader({
   children?: ReactNode
 }) {
   return (
-    <div className="mb-9 flex flex-col gap-6">
+    <div className="mb-6 flex flex-col gap-4 md:mb-9 md:gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          {eyebrow && <p className="label mb-3 !text-brass-700">{eyebrow}</p>}
-          <h1 className="font-display-tight text-[36px] leading-none text-forest-950">{title}</h1>
-          {subtitle && <p className="mt-3 text-sm text-fg-3">{subtitle}</p>}
+        <div className="min-w-0">
+          {eyebrow && <p className="label mb-2.5 !text-brass-700 md:mb-3">{eyebrow}</p>}
+          <h1 className="font-display-tight text-[30px] leading-[1.05] text-forest-950 md:text-[36px] md:leading-none">{title}</h1>
+          {subtitle && <p className="mt-2.5 text-sm text-fg-3 md:mt-3">{subtitle}</p>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2.5">{actions}</div>}
+        {actions && <div className="flex max-w-full min-w-0 flex-wrap items-center gap-2.5">{actions}</div>}
       </div>
       {children}
     </div>
@@ -101,7 +101,7 @@ export function Segmented<V extends string>({
   layoutId: string
 }) {
   return (
-    <div role="tablist" className="inline-flex rounded-xl bg-forest-950/[0.05] p-1">
+    <div role="tablist" className="inline-flex max-w-full rounded-xl bg-forest-950/[0.05] p-1 max-md:overflow-x-auto max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden">
       {options.map((o) => {
         const active = o.value === value
         return (
@@ -111,8 +111,8 @@ export function Segmented<V extends string>({
             aria-selected={active}
             onClick={() => onChange(o.value)}
             className={cn(
-              'relative flex items-center gap-2 rounded-lg font-semibold transition-colors',
-              size === 'sm' ? 'h-7 px-3 text-xs' : 'h-8 px-3.5 text-[13px]',
+              'relative flex shrink-0 items-center gap-2 rounded-lg font-semibold whitespace-nowrap transition-colors',
+              size === 'sm' ? 'h-7 px-3 text-xs max-md:h-8' : 'h-8 px-3.5 text-[13px] max-md:h-9',
               active ? 'text-forest-950' : 'text-fg-3 hover:text-fg'
             )}
           >
@@ -155,12 +155,12 @@ export function Stat({
   className?: string
 }) {
   return (
-    <div className={cn('card p-6', className)}>
+    <div className={cn('card p-5 md:p-6', className)}>
       <div className="flex items-center gap-2">
         {accent && <span className={cn('size-2 rounded-full', accent)} />}
         <span className="label">{label}</span>
       </div>
-      <div className="mt-3.5 figure text-[28px] leading-none text-forest-950">{value}</div>
+      <div className="mt-3.5 figure text-[24px] leading-none text-forest-950 md:text-[28px]">{value}</div>
       {hint && <div className="mt-2 text-xs text-fg-3">{hint}</div>}
     </div>
   )
@@ -182,7 +182,7 @@ export function Page({ children, className }: { children: ReactNode; className?:
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-      className={cn('mx-auto w-full max-w-[1600px] px-5 pt-6 pb-14 md:px-8 xl:px-10', className)}
+      className={cn('mx-auto w-full max-w-[1600px] px-4 pt-4 pb-10 sm:px-5 md:px-8 md:pt-6 md:pb-14 xl:px-10', className)}
     >
       {children}
     </motion.div>

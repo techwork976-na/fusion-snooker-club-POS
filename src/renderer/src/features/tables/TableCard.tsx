@@ -56,7 +56,7 @@ export const TableCard = memo(function TableCard({ table, onOpen, onStart, onChe
       whileHover={{ y: -3 }}
       transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        'relative flex min-h-[256px] cursor-pointer flex-col rounded-[var(--radius-card)] p-6 transition-[background-color,box-shadow] duration-200',
+        'relative flex min-h-[220px] cursor-pointer flex-col rounded-[var(--radius-card)] p-5 transition-[background-color,box-shadow] duration-200 sm:min-h-[256px] sm:p-6',
         session
           ? 'bg-surface shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-raised)]'
           : 'bg-surface/55 hover:bg-surface hover:shadow-[var(--shadow-card)]',
@@ -78,11 +78,11 @@ export const TableCard = memo(function TableCard({ table, onOpen, onStart, onChe
         <p className="mt-1.5 text-[13px] font-medium text-fg-3 tabular">{formatPricing(session ?? table)}</p>
       </header>
 
-      <div className="mt-auto pt-7">
+      <div className="mt-auto pt-5 sm:pt-7">
         {session && live ? (
           <>
             <div className="flex items-end justify-between gap-3">
-              <span className={cn('figure text-[44px] leading-[0.9]', meta.text)} data-testid="table-timer">
+              <span className={cn('figure text-[40px] leading-[0.9] sm:text-[44px]', meta.text)} data-testid="table-timer">
                 {countdown ? formatClock(live.remaining!) : formatClock(live.seconds)}
               </span>
               <span className="text-right">

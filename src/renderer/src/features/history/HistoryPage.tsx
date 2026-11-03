@@ -82,7 +82,7 @@ export function HistoryPage() {
 
 function RangePicker({ value, onChange, today }: { value: Range; onChange: (r: Range) => void; today: string }) {
   return (
-    <div className="flex flex-wrap items-center gap-3" data-testid="history-range">
+    <div className="flex max-w-full min-w-0 flex-wrap items-center gap-3" data-testid="history-range">
       <Segmented
         layoutId="history-range"
         value={value.preset}
@@ -95,11 +95,11 @@ function RangePicker({ value, onChange, today }: { value: Range; onChange: (r: R
         ]}
       />
       {value.preset === 'custom' ? (
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           <input
             type="date"
             aria-label="From"
-            className={cn(inputClass, 'h-10 w-[150px]')}
+            className={cn(inputClass, 'h-10 min-w-0 flex-1 sm:w-[150px] sm:flex-none')}
             value={value.from}
             max={value.to}
             onChange={(e) => e.target.value && onChange({ ...value, from: e.target.value })}
@@ -108,7 +108,7 @@ function RangePicker({ value, onChange, today }: { value: Range; onChange: (r: R
           <input
             type="date"
             aria-label="To"
-            className={cn(inputClass, 'h-10 w-[150px]')}
+            className={cn(inputClass, 'h-10 min-w-0 flex-1 sm:w-[150px] sm:flex-none')}
             value={value.to}
             min={value.from}
             max={today}
@@ -146,14 +146,14 @@ function Overview({ data, range, onShift }: { data: HistoryReport; range: Range;
   const t = data.totals
   return (
     <div className="space-y-6">
-      <section className="card p-8" data-testid="history-totals">
+      <section className="card p-5 sm:p-8" data-testid="history-totals">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <span className="label">Total sales</span>
             <AnimatedMoney
               value={t.total}
               duration={0.9}
-              className="mt-5 block figure text-[clamp(50px,5.2vw,70px)] leading-[0.92] text-forest-950"
+              className="mt-5 block figure text-[clamp(38px,11vw,50px)] leading-[0.92] text-forest-950 sm:text-[clamp(50px,5.2vw,70px)]"
               data-testid="history-total"
             />
             <p className="mt-4 text-sm text-fg-3">
@@ -169,12 +169,12 @@ function Overview({ data, range, onShift }: { data: HistoryReport; range: Range;
             </p>
           )}
         </div>
-        <ShiftFigures figures={t} size="lg" className="mt-10" />
+        <ShiftFigures figures={t} size="lg" className="mt-8 sm:mt-10" />
       </section>
 
       <div className="grid grid-cols-12 gap-6">
-        <section className="card col-span-12 p-7 xl:col-span-7">
-          <div className="flex items-center justify-between">
+        <section className="card col-span-12 p-5 sm:p-7 xl:col-span-7">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="label">Daily sales</span>
             <Legend series={SERIES} />
           </div>
@@ -193,7 +193,7 @@ function Overview({ data, range, onShift }: { data: HistoryReport; range: Range;
             formatAxis={compactMoney}
           />
         </section>
-        <section className="card col-span-12 p-7 xl:col-span-5">
+        <section className="card col-span-12 p-5 sm:p-7 xl:col-span-5">
           <span className="label">Staff in this period</span>
           {data.by_staff.length === 0 ? (
             <EmptyState className="py-8" icon={<Users className="size-5" />} title="No staff activity" />
@@ -238,7 +238,7 @@ function Overview({ data, range, onShift }: { data: HistoryReport; range: Range;
       </div>
 
       <section className="card overflow-hidden">
-        <div className="flex items-center justify-between px-8 pt-7 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 pt-6 pb-4 sm:px-8 sm:pt-7">
           <span className="label">Shifts in this period</span>
           <span className="text-xs text-fg-4">Select a shift for its invoices and expenses</span>
         </div>
@@ -246,7 +246,7 @@ function Overview({ data, range, onShift }: { data: HistoryReport; range: Range;
       </section>
 
       <section className="card overflow-hidden pt-3 pb-2">
-        <table className="w-full text-sm">
+        <table className="table-stack w-full text-sm">
           <thead>
             <tr className="thead-row">
               <th className="px-8 py-3.5">Business day</th>
@@ -262,21 +262,21 @@ function Overview({ data, range, onShift }: { data: HistoryReport; range: Range;
           <tbody className="divide-y divide-line">
             {data.days.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-6 py-8 text-center text-fg-4">
+                <td colSpan={8} className="px-6 py-8 text-center text-fg-4" data-stack="full">
                   No activity in this period.
                 </td>
               </tr>
             )}
             {[...data.days].reverse().map((d) => (
               <tr key={d.date}>
-                <td className="px-8 py-3.5 font-semibold text-fg">{formatBusinessDate(d.date)}</td>
-                <td className="px-4 py-3.5 text-right text-fg-2 tabular">{formatMoney(d.cash)}</td>
-                <td className="px-4 py-3.5 text-right text-fg-2 tabular">{formatMoney(d.bank)}</td>
-                <td className="px-4 py-3.5 text-right font-bold text-fg tabular">{formatMoney(d.total)}</td>
-                <td className="px-4 py-3.5 text-right text-fg-3 tabular">{formatMoney(d.expenses)}</td>
-                <td className="px-4 py-3.5 text-right font-semibold text-fg tabular">{formatMoney(d.net)}</td>
-                <td className="px-4 py-3.5 text-right text-fg-3 tabular">{d.invoices}</td>
-                <td className="px-8 py-3.5 text-xs">
+                <td className="px-8 py-3.5 font-semibold text-fg" data-stack="top">{formatBusinessDate(d.date)}</td>
+                <td className="px-4 py-3.5 text-right text-fg-2 tabular" data-label="Cash">{formatMoney(d.cash)}</td>
+                <td className="px-4 py-3.5 text-right text-fg-2 tabular" data-label="Bank">{formatMoney(d.bank)}</td>
+                <td className="px-4 py-3.5 text-right font-bold text-fg tabular" data-label="Total">{formatMoney(d.total)}</td>
+                <td className="px-4 py-3.5 text-right text-fg-3 tabular" data-label="Expenses">{formatMoney(d.expenses)}</td>
+                <td className="px-4 py-3.5 text-right font-semibold text-fg tabular" data-label="Net">{formatMoney(d.net)}</td>
+                <td className="px-4 py-3.5 text-right text-fg-3 tabular" data-label="Invoices">{d.invoices}</td>
+                <td className="px-8 py-3.5 text-xs" data-stack="top end">
                   {d.closed ? <span className="font-semibold text-sage-700">Closed</span> : <span className="text-fg-4">Not closed</span>}
                   {d.legacy > 0 && <span className="ml-2 text-fg-4">incl. archived</span>}
                 </td>
@@ -305,9 +305,9 @@ function ShiftsTable({ shifts, onOpen }: { shifts: Shift[]; onOpen: (id: string)
 function ShiftRows({ shifts, onOpen, compact }: { shifts: Shift[]; onOpen: (id: string) => void; compact?: boolean }) {
   const { data: settings } = useSettings()
   const tz = settings?.business_timezone
-  if (shifts.length === 0) return <p className="px-8 pb-6 text-sm text-fg-4">No shifts in this period.</p>
+  if (shifts.length === 0) return <p className="px-5 pb-6 text-sm text-fg-4 sm:px-8">No shifts in this period.</p>
   return (
-    <table className="w-full text-sm" data-testid="shift-table">
+    <table className="table-stack w-full text-sm" data-testid="shift-table">
       <thead>
         <tr className="thead-row">
           <th className="px-8 py-3.5">Staff</th>
@@ -324,7 +324,7 @@ function ShiftRows({ shifts, onOpen, compact }: { shifts: Shift[]; onOpen: (id: 
       <tbody className="divide-y divide-line">
         {shifts.map((s) => (
           <tr key={s.id} onClick={() => onOpen(s.id)} className="cursor-pointer transition-colors hover:bg-canvas/60">
-            <td className="px-8 py-3.5">
+            <td className="px-8 py-3.5" data-stack="top">
               <span className="block font-semibold text-fg">{s.staff_name}</span>
               <span className="block text-xs text-fg-4">
                 {s.invoices} invoice{s.invoices === 1 ? '' : 's'}
@@ -332,16 +332,16 @@ function ShiftRows({ shifts, onOpen, compact }: { shifts: Shift[]; onOpen: (id: 
                 {s.details_purged_at ? ' · invoices expired' : ''}
               </span>
             </td>
-            <td className="px-4 py-3.5 text-fg-2 tabular">{shiftTimes(s, tz)}</td>
-            <td className="px-4 py-3.5">
+            <td className="px-4 py-3.5 text-fg-2 tabular" data-stack="full">{shiftTimes(s, tz)}</td>
+            <td className="px-4 py-3.5" data-stack="top end">
               <ShiftStatusPill status={s.status} />
             </td>
-            <td className="px-4 py-3.5 text-right text-fg-2 tabular">{formatMoney(s.cash)}</td>
-            <td className="px-4 py-3.5 text-right text-fg-2 tabular">{formatMoney(s.bank)}</td>
-            {!compact && <td className="px-4 py-3.5 text-right text-fg-3 tabular">{formatMoney(s.snack)}</td>}
-            <td className="px-4 py-3.5 text-right font-bold text-fg tabular">{formatMoney(s.total)}</td>
-            <td className="px-4 py-3.5 text-right text-fg-3 tabular">{formatMoney(s.expenses)}</td>
-            <td className="px-8 py-3.5 text-right font-semibold text-forest-950 tabular">{formatMoney(s.net)}</td>
+            <td className="px-4 py-3.5 text-right text-fg-2 tabular" data-label="Cash">{formatMoney(s.cash)}</td>
+            <td className="px-4 py-3.5 text-right text-fg-2 tabular" data-label="Bank">{formatMoney(s.bank)}</td>
+            {!compact && <td className="px-4 py-3.5 text-right text-fg-3 tabular" data-label="Snacks">{formatMoney(s.snack)}</td>}
+            <td className="px-4 py-3.5 text-right font-bold text-fg tabular" data-label="Total">{formatMoney(s.total)}</td>
+            <td className="px-4 py-3.5 text-right text-fg-3 tabular" data-label="Expenses">{formatMoney(s.expenses)}</td>
+            <td className="px-8 py-3.5 text-right font-semibold text-forest-950 tabular" data-label="Net">{formatMoney(s.net)}</td>
           </tr>
         ))}
       </tbody>

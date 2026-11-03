@@ -119,7 +119,7 @@ function TablesFloor({ tabs }: { tabs: ReactNode }) {
       {error ? (
         <ErrorState message={errorMessage(error)} onRetry={() => void refetch()} />
       ) : isLoading ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(280px,100%),1fr))] gap-4 sm:gap-5">
           {Array.from({ length: 8 }, (_, i) => (
             <Skeleton key={i} className="h-[256px] rounded-[var(--radius-card)]" />
           ))}
@@ -138,7 +138,7 @@ function TablesFloor({ tabs }: { tabs: ReactNode }) {
           <EmptyState title="Nothing here" description="No tables match this filter." />
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(280px,100%),1fr))] gap-4 sm:gap-5">
           {visible.map((t) => (
             <TableCard
               key={t.id}

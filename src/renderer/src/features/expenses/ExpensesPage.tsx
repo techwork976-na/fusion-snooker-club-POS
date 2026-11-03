@@ -83,17 +83,17 @@ function ExpensesBody({ data }: { data: ExpensesReport }) {
   const t = data.totals
   return (
     <div className="space-y-6">
-      <section className="card p-8" data-testid="expense-totals">
+      <section className="card p-5 sm:p-8" data-testid="expense-totals">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <span className="label">Total expenses</span>
-            <AnimatedMoney value={t.total} duration={0.8} className="mt-5 block figure text-[clamp(44px,4.6vw,60px)] leading-[0.92] text-forest-950" data-testid="expense-total" />
+            <AnimatedMoney value={t.total} duration={0.8} className="mt-5 block figure text-[clamp(38px,11vw,44px)] leading-[0.92] text-forest-950 sm:text-[clamp(44px,4.6vw,60px)]" data-testid="expense-total" />
             <p className="mt-4 text-sm text-fg-3">
               {t.count} expense{t.count === 1 ? '' : 's'}
               {t.voided_count > 0 ? ` · ${t.voided_count} voided (not counted)` : ''}
             </p>
           </div>
-          <div className="flex gap-10">
+          <div className="flex gap-8 sm:gap-10">
             <div>
               <p className="label">Business</p>
               <p className="mt-2.5 figure text-[24px] leading-none text-fg" data-testid="expense-business">
@@ -117,8 +117,8 @@ function ExpensesBody({ data }: { data: ExpensesReport }) {
       ) : (
         <>
           <div className="grid grid-cols-12 gap-6">
-            <section className="card col-span-12 p-7 xl:col-span-7">
-              <div className="flex items-center justify-between">
+            <section className="card col-span-12 p-5 sm:p-7 xl:col-span-7">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="label">Expenses by day</span>
                 <Legend series={SERIES} />
               </div>
@@ -136,7 +136,7 @@ function ExpensesBody({ data }: { data: ExpensesReport }) {
                 formatAxis={compactMoney}
               />
             </section>
-            <section className="card col-span-12 p-7 xl:col-span-5" data-testid="expense-categories">
+            <section className="card col-span-12 p-5 sm:p-7 xl:col-span-5" data-testid="expense-categories">
               <span className="label">By category</span>
               <HorizontalBarChart
                 className="mt-5"
@@ -155,12 +155,12 @@ function ExpensesBody({ data }: { data: ExpensesReport }) {
           </div>
 
           <section className="card overflow-hidden" data-testid="expense-list">
-            <div className="px-8 pt-7 pb-3">
+            <div className="px-5 pt-6 pb-3 sm:px-8 sm:pt-7">
               <span className="label">Expense records</span>
               {data.truncated && <p className="mt-1 text-xs text-fg-4">Showing the newest 2,000 records. Choose a shorter period to see the rest.</p>}
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px] text-sm">
+              <table className="table-stack w-full min-w-[820px] text-sm">
                 <thead>
                   <tr className="thead-row">
                     <th className="px-8 py-3">Date</th>
@@ -174,19 +174,19 @@ function ExpensesBody({ data }: { data: ExpensesReport }) {
                 <tbody className="divide-y divide-line">
                   {data.items.map((e) => (
                     <tr key={e.id} className={cn(e.voided_at && 'text-fg-4')} data-testid={`expense-row-${e.id}`}>
-                      <td className="px-8 py-3.5">
+                      <td className="px-8 py-3.5" data-stack="top">
                         <span className={cn('font-semibold', e.voided_at ? 'text-fg-4' : 'text-fg')}>{formatBusinessDate(e.business_date)}</span>
                         <span className="ml-2 text-xs text-fg-4">{formatTime(e.created_at, settings?.business_timezone)}</span>
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-4 py-3.5" data-stack="full">
                         <span className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', e.kind === 'business' ? 'bg-brass-100 text-brass-800' : 'bg-sage-100 text-sage-800')}>
                           {CATEGORY_LABELS[e.category]}
                         </span>
                       </td>
-                      <td className={cn('px-4 py-3.5', e.voided_at ? 'line-through' : 'text-fg-2')}>{e.description}</td>
-                      <td className="px-4 py-3.5 text-fg-3">{e.recorded_by ?? '—'}</td>
-                      <td className={cn('px-4 py-3.5 text-right font-semibold tabular', e.voided_at ? 'line-through' : 'text-fg')}>{formatMoney(e.amount)}</td>
-                      <td className="px-6 py-2 text-right">
+                      <td className={cn('px-4 py-3.5', e.voided_at ? 'line-through' : 'text-fg-2')} data-stack="full">{e.description}</td>
+                      <td className="px-4 py-3.5 text-fg-3" data-label="Recorded by">{e.recorded_by ?? '—'}</td>
+                      <td className={cn('px-4 py-3.5 text-right font-semibold tabular', e.voided_at ? 'line-through' : 'text-fg')} data-stack="top end">{formatMoney(e.amount)}</td>
+                      <td className="px-6 py-2 text-right" data-stack="end">
                         {e.voided_at ? (
                           <span className="text-xs font-semibold text-fg-4">Voided</span>
                         ) : e.kind === 'business' ? (
@@ -200,7 +200,7 @@ function ExpensesBody({ data }: { data: ExpensesReport }) {
                 </tbody>
               </table>
             </div>
-            <p className="px-8 py-5 text-xs text-fg-4">Counter expenses are voided by the staff member from their counter while it is open.</p>
+            <p className="px-5 py-5 text-xs text-fg-4 sm:px-8">Counter expenses are voided by the staff member from their counter while it is open.</p>
           </section>
         </>
       )}
@@ -276,7 +276,7 @@ function AddExpenseDialog({ open, onOpenChange, today }: { open: boolean; onOpen
       }
     >
       <form
-        className="grid grid-cols-2 gap-4"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2"
         onSubmit={(e) => {
           e.preventDefault()
           void submit().catch(() => undefined)
@@ -304,7 +304,7 @@ function AddExpenseDialog({ open, onOpenChange, today }: { open: boolean; onOpen
           error={tried ? errors.category : null}
         />
         <TextField
-          containerClassName="col-span-2"
+          containerClassName="sm:col-span-2"
           label="Amount"
           prefix="PKR"
           inputMode="decimal"
@@ -314,7 +314,7 @@ function AddExpenseDialog({ open, onOpenChange, today }: { open: boolean; onOpen
           data-testid="expense-amount"
         />
         <TextField
-          containerClassName="col-span-2"
+          containerClassName="sm:col-span-2"
           label="Description"
           maxLength={120}
           placeholder="e.g. Electricity bill for October"

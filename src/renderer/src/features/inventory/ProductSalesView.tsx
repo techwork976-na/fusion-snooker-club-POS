@@ -60,17 +60,17 @@ function SalesBody({ data }: { data: ProductSalesReport }) {
   const notes = [trackingNote(data), uncostedNote(data)].filter(Boolean)
   return (
     <div className="space-y-6">
-      <section className="card p-8" data-testid="product-totals">
+      <section className="card p-5 sm:p-8" data-testid="product-totals">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <span className="label">Net product sales</span>
-            <AnimatedMoney value={t.net_revenue} duration={0.8} className="mt-5 block figure text-[clamp(44px,4.6vw,60px)] leading-[0.92] text-forest-950" data-testid="product-net" />
+            <AnimatedMoney value={t.net_revenue} duration={0.8} className="mt-5 block figure text-[clamp(38px,11vw,44px)] leading-[0.92] text-forest-950 sm:text-[clamp(44px,4.6vw,60px)]" data-testid="product-net" />
             <p className="mt-4 text-sm text-fg-3">
               {t.quantity} unit{t.quantity === 1 ? '' : 's'} of {t.products} product{t.products === 1 ? '' : 's'} · {formatMoney(t.revenue)} at selling price
               {t.discount > 0 ? ` − ${formatMoney(t.discount)} share of discounts` : ''}
             </p>
           </div>
-          <div className="flex gap-10">
+          <div className="flex flex-wrap gap-x-8 gap-y-4 sm:gap-10">
             <div>
               <p className="label">Cost of goods sold</p>
               <p className="mt-2.5 figure text-[24px] leading-none text-fg" data-testid="product-cogs">
@@ -100,7 +100,7 @@ function SalesBody({ data }: { data: ProductSalesReport }) {
       </section>
 
       <div className="grid grid-cols-12 gap-6">
-        <section className="card col-span-12 p-7 xl:col-span-7">
+        <section className="card col-span-12 p-5 sm:p-7 xl:col-span-7">
           <span className="label">Net product sales by day</span>
           <BarChart
             className="mt-6"
@@ -117,7 +117,7 @@ function SalesBody({ data }: { data: ProductSalesReport }) {
             formatAxis={compactMoney}
           />
         </section>
-        <section className="card col-span-12 p-7 xl:col-span-5">
+        <section className="card col-span-12 p-5 sm:p-7 xl:col-span-5">
           <span className="label">Best sellers by net sales</span>
           <HorizontalBarChart
             className="mt-5"
@@ -137,7 +137,7 @@ function SalesBody({ data }: { data: ProductSalesReport }) {
 
       <section className="card overflow-hidden pt-3 pb-2" data-testid="product-sales-table">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-sm">
+          <table className="table-stack w-full min-w-[980px] text-sm">
             <thead>
               <tr className="thead-row">
                 <th className="px-8 py-3.5">Product</th>
@@ -155,36 +155,36 @@ function SalesBody({ data }: { data: ProductSalesReport }) {
             <tbody className="divide-y divide-line">
               {data.products.map((p) => (
                 <tr key={p.product_key} data-testid={`product-row-${p.name}`}>
-                  <td className="px-8 py-3.5">
+                  <td className="px-8 py-3.5" data-stack="title">
                     <span className="font-semibold text-fg">{p.name}</span>
                     {p.category && <span className="ml-2 text-xs text-fg-4">{p.category}</span>}
                   </td>
-                  <td className="px-4 py-3.5 text-right text-fg tabular">{p.quantity}</td>
-                  <td className="px-4 py-3.5 text-right text-fg-3 tabular">{formatMoney(p.avg_price)}</td>
-                  <td className="px-4 py-3.5 text-right text-fg-3 tabular">{p.avg_cost === null ? '—' : formatMoney(p.avg_cost)}</td>
-                  <td className="px-4 py-3.5 text-right text-fg-2 tabular">{formatMoney(p.revenue)}</td>
-                  <td className="px-4 py-3.5 text-right text-fg-3 tabular">{formatMoney(p.discount)}</td>
-                  <td className="px-4 py-3.5 text-right font-semibold text-fg tabular">{formatMoney(p.net_revenue)}</td>
-                  <td className="px-4 py-3.5 text-right text-fg-3 tabular">{p.costed_quantity === 0 ? '—' : formatMoney(p.cost)}</td>
-                  <td className={cn('px-4 py-3.5 text-right font-bold tabular', (p.gross_profit ?? 0) < 0 ? 'text-claret-700' : 'text-forest-800')}>
+                  <td className="px-4 py-3.5 text-right text-fg tabular" data-label="Sold">{p.quantity}</td>
+                  <td className="px-4 py-3.5 text-right text-fg-3 tabular" data-label="Avg. selling price">{formatMoney(p.avg_price)}</td>
+                  <td className="px-4 py-3.5 text-right text-fg-3 tabular" data-label="Avg. cost price">{p.avg_cost === null ? '—' : formatMoney(p.avg_cost)}</td>
+                  <td className="px-4 py-3.5 text-right text-fg-2 tabular" data-label="Sales">{formatMoney(p.revenue)}</td>
+                  <td className="px-4 py-3.5 text-right text-fg-3 tabular" data-label="Discounts">{formatMoney(p.discount)}</td>
+                  <td className="px-4 py-3.5 text-right font-semibold text-fg tabular" data-label="Net sales">{formatMoney(p.net_revenue)}</td>
+                  <td className="px-4 py-3.5 text-right text-fg-3 tabular" data-label="Cost of goods">{p.costed_quantity === 0 ? '—' : formatMoney(p.cost)}</td>
+                  <td className={cn('px-4 py-3.5 text-right font-bold tabular', (p.gross_profit ?? 0) < 0 ? 'text-claret-700' : 'text-forest-800')} data-label="Gross profit">
                     {p.gross_profit === null ? '—' : formatMoney(p.gross_profit)}
                     {p.gross_profit !== null && p.uncosted_quantity > 0 && <span className="ml-1 text-fg-4">*</span>}
                   </td>
-                  <td className="px-8 py-3.5 text-right text-fg-3 tabular">{p.margin === null ? '—' : `${p.margin}%`}</td>
+                  <td className="px-8 py-3.5 text-right text-fg-3 tabular" data-label="Margin">{p.margin === null ? '—' : `${p.margin}%`}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot className="border-t border-line-strong/70">
               <tr className="font-bold text-fg">
-                <td className="px-8 py-3.5">Total</td>
-                <td className="px-4 py-3.5 text-right tabular">{t.quantity}</td>
+                <td className="px-8 py-3.5" data-stack="title">Total</td>
+                <td className="px-4 py-3.5 text-right tabular" data-label="Sold">{t.quantity}</td>
                 <td className="px-4 py-3.5" />
                 <td className="px-4 py-3.5" />
-                <td className="px-4 py-3.5 text-right tabular">{formatMoney(t.revenue)}</td>
-                <td className="px-4 py-3.5 text-right tabular">{formatMoney(t.discount)}</td>
-                <td className="px-4 py-3.5 text-right tabular">{formatMoney(t.net_revenue)}</td>
-                <td className="px-4 py-3.5 text-right tabular">{formatMoney(t.cost)}</td>
-                <td className="px-4 py-3.5 text-right text-forest-800 tabular" data-testid="product-profit-total">
+                <td className="px-4 py-3.5 text-right tabular" data-label="Sales">{formatMoney(t.revenue)}</td>
+                <td className="px-4 py-3.5 text-right tabular" data-label="Discounts">{formatMoney(t.discount)}</td>
+                <td className="px-4 py-3.5 text-right tabular" data-label="Net sales">{formatMoney(t.net_revenue)}</td>
+                <td className="px-4 py-3.5 text-right tabular" data-label="Cost of goods">{formatMoney(t.cost)}</td>
+                <td className="px-4 py-3.5 text-right text-forest-800 tabular" data-testid="product-profit-total" data-label="Gross profit">
                   {formatMoney(t.gross_profit)}
                 </td>
                 <td className="px-8 py-3.5" />
@@ -193,7 +193,7 @@ function SalesBody({ data }: { data: ProductSalesReport }) {
           </table>
         </div>
         {t.uncosted_quantity > 0 && (
-          <p className="px-8 py-4 text-xs text-fg-4">* Profit counts only the units whose cost price was recorded when they were sold.</p>
+          <p className="px-5 py-4 text-xs text-fg-4 sm:px-8">* Profit counts only the units whose cost price was recorded when they were sold.</p>
         )}
       </section>
     </div>

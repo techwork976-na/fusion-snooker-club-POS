@@ -38,7 +38,7 @@ export function CustomerRankingsView() {
 
   return (
     <div className="space-y-5" data-testid="customer-rankings">
-      <div className="grid grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-5">
         <SummaryTile icon={<Users className="size-5" />} label="Customer profiles" value={data.summary.customers} />
         <SummaryTile icon={<Wallet className="size-5" />} label="Have visited" value={data.summary.with_visits} />
         <SummaryTile icon={<Repeat className="size-5" />} label="Came back more than once" value={data.summary.repeat} />
@@ -57,7 +57,7 @@ export function CustomerRankingsView() {
         <>
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
             {top.map((r) => (
-              <div key={r.id} className={cn('card p-6', r.rank === 1 && 'bg-brass-50')}>
+              <div key={r.id} className={cn('card p-5 sm:p-6', r.rank === 1 && 'bg-brass-50')}>
                 <div className="flex items-center justify-between">
                   <span className={cn('flex size-9 items-center justify-center rounded-full text-sm font-bold', r.rank === 1 ? 'bg-forest-950 text-cream' : 'bg-sunken text-fg-2')}>
                     {r.rank}
@@ -75,7 +75,7 @@ export function CustomerRankingsView() {
           </div>
 
           <div className="card overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="table-stack w-full text-sm">
               <thead>
                 <tr className="thead-row">
                   <th className="w-16 px-5 py-3 font-semibold">Rank</th>
@@ -89,19 +89,19 @@ export function CustomerRankingsView() {
               <tbody className="divide-y divide-line">
                 {data.rows.map((r) => (
                   <tr key={r.id}>
-                    <td className="px-5 py-3 font-bold text-fg-2 tabular">{r.rank}</td>
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3 font-bold text-fg-2 tabular" data-label="Rank">{r.rank}</td>
+                    <td className="px-5 py-3" data-stack="top">
                       <span className="block font-bold text-fg">{r.name}</span>
                       <span className="block text-xs text-fg-4 tabular">{r.phone ?? '—'}</span>
                     </td>
-                    <td className={cn('px-5 py-3 text-right tabular', metric === 'visits' ? 'font-bold text-forest-950' : 'text-fg-2')}>{r.visits}</td>
-                    <td className={cn('px-5 py-3 text-right tabular', metric === 'play_time' ? 'font-bold text-forest-950' : 'text-fg-2')}>
+                    <td className={cn('px-5 py-3 text-right tabular', metric === 'visits' ? 'font-bold text-forest-950' : 'text-fg-2')} data-label="Visits">{r.visits}</td>
+                    <td className={cn('px-5 py-3 text-right tabular', metric === 'play_time' ? 'font-bold text-forest-950' : 'text-fg-2')} data-label="Playing time">
                       {formatDuration(r.play_seconds)}
                     </td>
-                    <td className={cn('px-5 py-3 text-right tabular', metric === 'spending' ? 'font-bold text-forest-950' : 'text-fg-2')}>
+                    <td className={cn('px-5 py-3 text-right tabular', metric === 'spending' ? 'font-bold text-forest-950' : 'text-fg-2')} data-label="Spending">
                       {formatMoney(r.spent)}
                     </td>
-                    <td className="px-5 py-3 text-fg-3">
+                    <td className="px-5 py-3 text-fg-3" data-label="Last visit">
                       <Clock3 className="mr-1.5 inline size-3.5 text-fg-4" />
                       {formatDateTime(r.last_visit_at, tz)}
                     </td>

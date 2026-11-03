@@ -39,7 +39,7 @@ export function CustomerField({ value, onChange }: { value: CustomerValue; onCha
   }, [])
 
   return (
-    <div className="grid grid-cols-[1.4fr_1fr] gap-3">
+    <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-[1.4fr_1fr]">
       <div ref={boxRef} className="relative">
         <TextField
           label="Customer"
@@ -67,7 +67,7 @@ export function CustomerField({ value, onChange }: { value: CustomerValue; onCha
                 <button
                   key={c.id}
                   type="button"
-                  className={cn('flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left hover:bg-forest-950/[0.07]')}
+                  className={cn('flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left hover:bg-forest-950/[0.07] max-md:min-h-11')}
                   onClick={() => {
                     onChange({ id: c.id, name: c.name, phone: c.phone ?? '' })
                     setOpen(false)

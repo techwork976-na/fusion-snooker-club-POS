@@ -31,7 +31,7 @@ export function CloseDayPanel() {
   return (
     <div className="grid grid-cols-12 gap-5">
       <div className="col-span-12 space-y-5 xl:col-span-8">
-        <section className="card flex items-start gap-4 p-6">
+        <section className="card flex items-start gap-4 p-5 sm:p-6">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-forest-50 text-forest-700">
             <ShieldCheck className="size-5" />
           </span>
@@ -46,7 +46,7 @@ export function CloseDayPanel() {
         </section>
 
         <section className="card overflow-hidden">
-          <div className="px-6 pt-5 pb-3">
+          <div className="px-5 pt-5 pb-3 sm:px-6">
             <span className="label">Days to close</span>
           </div>
           {open.error ? (
@@ -58,7 +58,7 @@ export function CloseDayPanel() {
           ) : !open.data?.length ? (
             <EmptyState className="py-10" icon={<CheckCircle2 className="size-5" />} title="Every day is closed" description="New activity will appear here." />
           ) : (
-            <table className="w-full text-sm" data-testid="days-to-close">
+            <table className="table-stack w-full text-sm" data-testid="days-to-close">
               <thead>
                 <tr className="thead-row">
                   <th className="px-6 py-3 font-semibold">Business day</th>
@@ -75,7 +75,7 @@ export function CloseDayPanel() {
                   const blocked = Number(d.open_counters) > 0
                   return (
                     <tr key={d.business_date}>
-                      <td className="px-6 py-3">
+                      <td className="px-6 py-3" data-stack="title">
                         <span className="block font-semibold text-fg">
                           {formatBusinessDate(d.business_date)}
                           {d.business_date === today && <span className="ml-2 rounded-full bg-forest-50 px-2 py-0.5 text-[11px] font-bold text-forest-700">Today</span>}
@@ -88,12 +88,12 @@ export function CloseDayPanel() {
                               : 'Not closed yet'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right text-fg-3 tabular">{d.invoice_count}</td>
-                      <td className="px-4 py-3 text-right text-fg-2 tabular">{formatMoney(d.total_cash)}</td>
-                      <td className="px-4 py-3 text-right text-fg-2 tabular">{formatMoney(d.total_bank)}</td>
-                      <td className="px-4 py-3 text-right font-bold text-fg tabular">{formatMoney(d.total_sales)}</td>
-                      <td className="px-4 py-3 text-right text-fg-3 tabular">{formatMoney(d.expenses)}</td>
-                      <td className="px-6 py-2 text-right">
+                      <td className="px-4 py-3 text-right text-fg-3 tabular" data-label="Invoices">{d.invoice_count}</td>
+                      <td className="px-4 py-3 text-right text-fg-2 tabular" data-label="Cash">{formatMoney(d.total_cash)}</td>
+                      <td className="px-4 py-3 text-right text-fg-2 tabular" data-label="Bank">{formatMoney(d.total_bank)}</td>
+                      <td className="px-4 py-3 text-right font-bold text-fg tabular" data-label="Total">{formatMoney(d.total_sales)}</td>
+                      <td className="px-4 py-3 text-right text-fg-3 tabular" data-label="Expenses">{formatMoney(d.expenses)}</td>
+                      <td className="px-6 py-2 text-right" data-stack="full">
                         {blocked ? (
                           <Tooltip content="Every counter that traded this day must be closed first">
                             <span>
@@ -117,7 +117,7 @@ export function CloseDayPanel() {
         </section>
       </div>
 
-      <section className="card col-span-12 self-start p-6 xl:col-span-4">
+      <section className="card col-span-12 self-start p-5 sm:p-6 xl:col-span-4">
         <span className="label">Recently closed</span>
         {closed.isLoading ? (
           <LoadingBlock />

@@ -74,17 +74,17 @@ export function TransactionsPanel({
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         {hideRange ? <span /> : <DateRangePicker value={range} onChange={onRange} today={today} layoutId="tx-range" />}
-        <div className="flex gap-3">
+        <div className="flex w-full gap-3 sm:w-auto">
           {isAdmin && (
             <Select
-              className="w-52"
+              className="min-w-0 flex-1 sm:w-52 sm:flex-none"
               value={cashier}
               onChange={setCashier}
               options={[{ value: 'all', label: 'All staff' }, ...(users ?? []).map((u) => ({ value: u.id, label: u.full_name }))]}
             />
           )}
           <Select
-            className="w-44"
+            className="min-w-0 flex-1 sm:w-44 sm:flex-none"
             value={method}
             onChange={setMethod}
             options={[
@@ -110,7 +110,7 @@ export function TransactionsPanel({
             description={`Nothing matches these filters. Invoices older than ${settings?.sales_retention_days ?? 30} day(s) are removed automatically; their totals stay in History.`}
           />
         ) : (
-          <table className="w-full text-sm">
+          <table className="table-stack w-full text-sm">
             <thead>
               <tr className="thead-row">
                 <th className="px-5 py-3 font-semibold">Receipt</th>
@@ -127,9 +127,9 @@ export function TransactionsPanel({
             <tbody className="divide-y divide-line">
               {sales.map((s) => (
                 <tr key={s.id} className="transition-colors hover:bg-forest-950/[0.02]">
-                  <td className="px-5 py-3 font-semibold text-fg tabular">#{s.receipt_no}</td>
-                  <td className="px-5 py-3 text-fg-3 tabular">{formatDateTime(s.created_at, tz)}</td>
-                  <td className="px-5 py-3 text-fg-2">
+                  <td className="px-5 py-3 font-semibold text-fg tabular max-md:text-[15px]" data-stack="top">#{s.receipt_no}</td>
+                  <td className="px-5 py-3 text-fg-3 tabular" data-label="Time">{formatDateTime(s.created_at, tz)}</td>
+                  <td className="px-5 py-3 text-fg-2" data-label="Table">
                     {s.table_name ?? <span className="text-fg-4">Counter</span>}
                     {s.standard_rate_per_minute != null && (
                       <span className="ml-1.5 text-[11px] font-semibold text-brass-700" title={`Custom ${formatRate(s.rate_per_minute)} (standard ${formatRate(s.standard_rate_per_minute)})`}>
@@ -137,14 +137,14 @@ export function TransactionsPanel({
                       </span>
                     )}
                   </td>
-                  <td className="px-5 py-3 text-fg-2">{s.customer_name ?? <span className="text-fg-5">—</span>}</td>
-                  <td className="px-5 py-3 text-fg-3">{s.cashier_name}</td>
-                  <td className="px-5 py-3">
+                  <td className="px-5 py-3 text-fg-2" data-label="Customer">{s.customer_name ?? <span className="text-fg-5">—</span>}</td>
+                  <td className="px-5 py-3 text-fg-3" data-label="Cashier">{s.cashier_name}</td>
+                  <td className="px-5 py-3" data-label="Payment">
                     <span className={s.payment_method === 'cash' ? 'text-forest-600' : 'text-brass-700'}>{paymentLabel(s.payment_method)}</span>
                   </td>
-                  <td className="px-5 py-3 text-right text-fg-3 tabular">{Number(s.discount) > 0 ? formatMoney(s.discount) : '—'}</td>
-                  <td className="px-5 py-3 text-right font-bold text-fg tabular">{formatMoney(s.final_amount)}</td>
-                  <td className="px-3 py-2">
+                  <td className="px-5 py-3 text-right text-fg-3 tabular" data-label="Discount">{Number(s.discount) > 0 ? formatMoney(s.discount) : '—'}</td>
+                  <td className="px-5 py-3 text-right font-bold text-fg tabular max-md:text-[15px]" data-stack="top end">{formatMoney(s.final_amount)}</td>
+                  <td className="px-3 py-2" data-stack="full">
                     <div className="flex justify-end gap-1">
                       <IconButton size="sm" label="View receipt" onClick={() => void openReceipt(s)} disabled={loadingReceipt === s.id}>
                         <Eye className="size-4" />
@@ -161,11 +161,11 @@ export function TransactionsPanel({
             </tbody>
             <tfoot>
               <tr className="border-t border-line-strong/70">
-                <td colSpan={7} className="px-5 py-3 text-xs text-fg-4">
+                <td colSpan={7} className="px-5 py-3 text-xs text-fg-4 max-md:self-center">
                   {sales.length} sale{sales.length === 1 ? '' : 's'}
                   {sales.length >= 500 ? ' (showing the latest 500)' : ''}
                 </td>
-                <td className="px-5 py-3 text-right font-bold text-fg tabular">{formatMoney(total)}</td>
+                <td className="px-5 py-3 text-right font-bold text-fg tabular" data-stack="end">{formatMoney(total)}</td>
                 <td />
               </tr>
             </tfoot>

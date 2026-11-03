@@ -48,7 +48,7 @@ function useWideLayout(): boolean {
   return wide
 }
 
-/** The forest-green rail: brand, main navigation and the signed-in account. */
+/** The forest-green rail (tablet and up): brand, main navigation and the signed-in account. Phones use MobileNav. */
 export function Sidebar() {
   const items = useNavItems()
   const wide = useWideLayout()
@@ -64,7 +64,7 @@ export function Sidebar() {
     )
   return (
     <aside
-      className="drag-region relative z-40 flex w-[76px] shrink-0 flex-col bg-forest-950 text-side-fg xl:w-[236px]"
+      className="drag-region relative z-40 hidden w-[76px] shrink-0 flex-col bg-forest-950 text-side-fg md:flex xl:w-[236px]"
       data-layout={wide ? 'wide' : 'rail'}
     >
       <div className="flex items-center justify-center gap-3.5 px-3 pt-6 pb-9 xl:justify-start xl:px-5">

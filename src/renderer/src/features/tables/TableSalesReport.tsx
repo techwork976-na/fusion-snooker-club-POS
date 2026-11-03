@@ -62,18 +62,18 @@ function ReportBody({ data, period, stale }: { data: Report; period: Period; sta
   const mayMissOld = period.from < data.retention_cutoff
   return (
     <div className={cn('space-y-6 transition-opacity duration-200', stale && 'opacity-60')}>
-      <section className="card p-8" data-testid="table-sales-totals">
+      <section className="card p-5 sm:p-8" data-testid="table-sales-totals">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <span className="label">Table sales · {periodLabel(period)}</span>
-            <AnimatedMoney value={t.total} duration={0.8} className="mt-5 block figure text-[clamp(44px,4.6vw,60px)] leading-[0.92] text-forest-950" data-testid="table-sales-total" />
+            <AnimatedMoney value={t.total} duration={0.8} className="mt-5 block figure text-[clamp(38px,11vw,44px)] leading-[0.92] text-forest-950 sm:text-[clamp(44px,4.6vw,60px)]" data-testid="table-sales-total" />
             <p className="mt-4 text-sm text-fg-3">
               {t.sessions} paid session{t.sessions === 1 ? '' : 's'} on {played.length} table{played.length === 1 ? '' : 's'}
               {t.snacks > 0 ? ` · includes ${formatMoney(t.snacks)} of snacks on tabs` : ''}
               {t.discounts > 0 ? ` · after ${formatMoney(t.discounts)} in discounts` : ''}
             </p>
           </div>
-          <div className="flex gap-10">
+          <div className="flex flex-wrap gap-x-8 gap-y-4 sm:gap-10">
             <div>
               <p className="label">Cash</p>
               <p className="mt-2.5 figure text-[24px] leading-none text-fg" data-testid="table-sales-cash">
@@ -101,8 +101,8 @@ function ReportBody({ data, period, stale }: { data: Report; period: Period; sta
           <EmptyState icon={<LayoutGrid className="size-5" />} title="No paid table sessions in this period" />
         </section>
       ) : (
-        <section className="card p-7">
-          <div className="flex items-center justify-between">
+        <section className="card p-5 sm:p-7">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="label">By table</span>
             <Legend series={SERIES} />
           </div>
@@ -124,7 +124,7 @@ function ReportBody({ data, period, stale }: { data: Report; period: Period; sta
 
       <section className="card overflow-hidden pt-3 pb-2" data-testid="table-sales-list">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="table-stack w-full min-w-[760px] text-sm">
             <thead>
               <tr className="thead-row">
                 <th className="px-8 py-3.5">Table</th>
@@ -138,29 +138,29 @@ function ReportBody({ data, period, stale }: { data: Report; period: Period; sta
             <tbody className="divide-y divide-line">
               {data.tables.map((r) => (
                 <tr key={r.table_id} className={cn(r.sessions === 0 && 'text-fg-4')} data-testid={`table-sales-row-${r.name}`}>
-                  <td className="px-8 py-3.5">
+                  <td className="px-8 py-3.5" data-stack="title">
                     <span className={cn('font-semibold', r.sessions === 0 ? 'text-fg-4' : 'text-fg')}>{r.name}</span>
                     <span className="ml-2 text-xs text-fg-4">
                       {r.category_name} · {r.floor_name}
                       {r.active ? '' : ' · removed'}
                     </span>
                   </td>
-                  <td className="px-4 py-3.5 text-right tabular">{r.sessions}</td>
-                  <td className="px-4 py-3.5 text-right tabular">{formatMoney(r.cash)}</td>
-                  <td className="px-4 py-3.5 text-right tabular">{formatMoney(r.bank)}</td>
-                  <td className="px-4 py-3.5 text-right tabular">{formatMoney(r.snacks)}</td>
-                  <td className={cn('px-8 py-3.5 text-right font-bold tabular', r.sessions > 0 && 'text-fg')}>{formatMoney(r.total)}</td>
+                  <td className="px-4 py-3.5 text-right tabular" data-label="Sessions">{r.sessions}</td>
+                  <td className="px-4 py-3.5 text-right tabular" data-label="Cash">{formatMoney(r.cash)}</td>
+                  <td className="px-4 py-3.5 text-right tabular" data-label="Bank transfer">{formatMoney(r.bank)}</td>
+                  <td className="px-4 py-3.5 text-right tabular" data-label="Snacks on tab">{formatMoney(r.snacks)}</td>
+                  <td className={cn('px-8 py-3.5 text-right font-bold tabular', r.sessions > 0 && 'text-fg')} data-label="Total">{formatMoney(r.total)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot className="border-t border-line-strong/70">
               <tr className="font-bold text-fg">
-                <td className="px-8 py-3.5">Total</td>
-                <td className="px-4 py-3.5 text-right tabular">{t.sessions}</td>
-                <td className="px-4 py-3.5 text-right tabular">{formatMoney(t.cash)}</td>
-                <td className="px-4 py-3.5 text-right tabular">{formatMoney(t.bank)}</td>
-                <td className="px-4 py-3.5 text-right tabular">{formatMoney(t.snacks)}</td>
-                <td className="px-8 py-3.5 text-right tabular">{formatMoney(t.total)}</td>
+                <td className="px-8 py-3.5" data-stack="title">Total</td>
+                <td className="px-4 py-3.5 text-right tabular" data-label="Sessions">{t.sessions}</td>
+                <td className="px-4 py-3.5 text-right tabular" data-label="Cash">{formatMoney(t.cash)}</td>
+                <td className="px-4 py-3.5 text-right tabular" data-label="Bank transfer">{formatMoney(t.bank)}</td>
+                <td className="px-4 py-3.5 text-right tabular" data-label="Snacks on tab">{formatMoney(t.snacks)}</td>
+                <td className="px-8 py-3.5 text-right tabular" data-label="Total">{formatMoney(t.total)}</td>
               </tr>
             </tfoot>
           </table>

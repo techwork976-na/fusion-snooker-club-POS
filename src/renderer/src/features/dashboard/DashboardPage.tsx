@@ -99,17 +99,17 @@ export function DashboardPage() {
         <ErrorState message={errorMessage(error)} onRetry={() => void refetch()} />
       ) : isLoading || !data ? (
         <div className="grid grid-cols-12 gap-6">
-          <Skeleton className="col-span-8 h-[520px] rounded-[var(--radius-card)]" />
-          <Skeleton className="col-span-4 h-[520px] rounded-[var(--radius-card)]" />
+          <Skeleton className="col-span-12 h-[520px] rounded-[var(--radius-card)] md:col-span-8" />
+          <Skeleton className="col-span-12 h-[520px] rounded-[var(--radius-card)] md:col-span-4" />
           <Skeleton className="col-span-12 h-56 rounded-[var(--radius-card)]" />
         </div>
       ) : (
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-12 gap-4 sm:gap-6">
           <motion.section {...rise(0)} className="col-span-12 xl:col-span-8">
             {isAdmin && data.today ? <TodayHero data={data} /> : <MyCounterCard shift={data.my_counter ?? null} />}
           </motion.section>
 
-          <div className="col-span-12 flex flex-col gap-6 xl:col-span-4">
+          <div className="col-span-12 flex flex-col gap-4 sm:gap-6 xl:col-span-4">
             <motion.section {...rise(1)}>
               <FloorStatus data={data} lifetime={isAdmin ? data.lifetime_total : undefined} />
             </motion.section>
@@ -167,7 +167,7 @@ function TodayHero({ data }: { data: Dashboard }) {
   const delta = data.yesterday_total && data.yesterday_total > 0 ? (today.total - data.yesterday_total) / data.yesterday_total : null
   return (
     <div className="card flex h-full flex-col overflow-hidden" data-testid="today-sales">
-      <div className="px-8 pt-8">
+      <div className="px-5 pt-6 sm:px-8 sm:pt-8">
         <PanelHeading
           aside={
             today.archived && (
@@ -182,7 +182,7 @@ function TodayHero({ data }: { data: Dashboard }) {
         <AnimatedMoney
           value={today.total}
           duration={0.9}
-          className="mt-5 block figure text-[clamp(54px,5.6vw,78px)] leading-[0.92] text-forest-950"
+          className="mt-5 block figure text-[clamp(40px,12vw,54px)] leading-[0.92] text-forest-950 sm:text-[clamp(54px,5.6vw,78px)]"
           data-testid="today-total"
         />
         <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-fg-3">
@@ -222,7 +222,7 @@ function TodayHero({ data }: { data: Dashboard }) {
             </>
           )}
         </div>
-        <div className="mt-6 grid grid-cols-4 gap-6">
+        <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4 sm:gap-6">
           <SplitFigure color={SERIES_COLORS.cash} label="Cash" value={today.cash} />
           <SplitFigure color={SERIES_COLORS.bank} label="Bank transfer" value={today.bank} />
           <SplitFigure label="Expenses" value={today.expenses} />
@@ -251,14 +251,14 @@ function StaffLive({ rows, today }: { rows: StaffDayRow[]; today: DayTotals }) {
   const cell = 'px-4 py-3.5 text-right tabular'
   return (
     <div className="card overflow-hidden pb-2" data-testid="staff-live">
-      <div className="flex items-center justify-between px-8 pt-7 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 pt-6 pb-4 sm:px-8 sm:pt-7">
         <PanelHeading>Staff today</PanelHeading>
         <span className="text-xs text-fg-4">Live — open counters update as staff sell</span>
       </div>
       {rows.length === 0 ? (
-        <p className="px-8 pb-6 text-sm text-fg-4">No counters have been opened today.</p>
+        <p className="px-5 pb-6 text-sm text-fg-4 sm:px-8">No counters have been opened today.</p>
       ) : (
-        <table className="w-full text-sm">
+        <table className="table-stack w-full text-sm">
           <thead>
             <tr className="thead-row">
               <th className="py-3 pr-4 pl-8">Staff</th>
@@ -275,7 +275,7 @@ function StaffLive({ rows, today }: { rows: StaffDayRow[]; today: DayTotals }) {
           <tbody className="divide-y divide-line">
             {rows.map((r) => (
               <tr key={r.user_id} data-testid={`staff-row-${r.username}`} className="transition-colors hover:bg-canvas/50">
-                <td className="py-3.5 pr-4 pl-8">
+                <td className="py-3.5 pr-4 pl-8" data-stack="top">
                   <span className="block font-semibold text-fg">{r.name}</span>
                   <span className="block text-xs text-fg-4">
                     {r.status === 'open' && r.open_since
@@ -287,28 +287,28 @@ function StaffLive({ rows, today }: { rows: StaffDayRow[]; today: DayTotals }) {
                     {r.invoices ? ` · ${r.invoices} invoices` : ''}
                   </span>
                 </td>
-                <td className="px-4 py-3.5">
+                <td className="px-4 py-3.5" data-stack="top end">
                   <ShiftStatusPill status={r.status} />
                 </td>
-                <td className={cn(cell, 'text-fg-2')}>
+                <td className={cn(cell, 'text-fg-2')} data-label="Cash">
                   <AnimatedMoney value={r.cash} />
                 </td>
-                <td className={cn(cell, 'text-fg-2')}>
+                <td className={cn(cell, 'text-fg-2')} data-label="Bank">
                   <AnimatedMoney value={r.bank} />
                 </td>
-                <td className={cn(cell, 'text-fg-3')}>
+                <td className={cn(cell, 'text-fg-3')} data-label="Snack sales">
                   <AnimatedMoney value={r.snack} />
                 </td>
-                <td className={cn(cell, 'font-bold text-fg')}>
+                <td className={cn(cell, 'font-bold text-fg')} data-label="Total sales">
                   <AnimatedMoney value={r.total} />
                 </td>
-                <td className={cn(cell, 'text-fg-3')}>
+                <td className={cn(cell, 'text-fg-3')} data-label="Expenses">
                   <AnimatedMoney value={r.expenses} />
                 </td>
-                <td className={cn(cell, 'font-semibold text-forest-950')}>
+                <td className={cn(cell, 'font-semibold text-forest-950')} data-label="Net">
                   <AnimatedMoney value={r.net} />
                 </td>
-                <td className="py-2 pr-8 pl-4 text-right">
+                <td className="py-2 pr-8 pl-4 text-right" data-stack="full">
                   {r.status === 'open' && r.open_shift_id && (
                     <Button size="sm" variant="ghost" onClick={() => setClosing(r)}>
                       Close
@@ -320,25 +320,25 @@ function StaffLive({ rows, today }: { rows: StaffDayRow[]; today: DayTotals }) {
           </tbody>
           <tfoot>
             <tr className="border-t border-line-strong/70 font-bold" data-testid="staff-live-total">
-              <td className="py-4 pr-4 pl-8 text-fg" colSpan={2}>
+              <td className="py-4 pr-4 pl-8 text-fg" colSpan={2} data-stack="title">
                 All staff
               </td>
-              <td className={cn(cell, 'py-4 text-fg')}>
+              <td className={cn(cell, 'py-4 text-fg')} data-label="Cash">
                 <AnimatedMoney value={today.cash} />
               </td>
-              <td className={cn(cell, 'py-4 text-fg')}>
+              <td className={cn(cell, 'py-4 text-fg')} data-label="Bank">
                 <AnimatedMoney value={today.bank} />
               </td>
-              <td className={cn(cell, 'py-4 text-fg-2')}>
+              <td className={cn(cell, 'py-4 text-fg-2')} data-label="Snack sales">
                 <AnimatedMoney value={today.snack} />
               </td>
-              <td className={cn(cell, 'py-4 text-forest-950')}>
+              <td className={cn(cell, 'py-4 text-forest-950')} data-label="Total sales">
                 <AnimatedMoney value={today.total} />
               </td>
-              <td className={cn(cell, 'py-4 text-fg')}>
+              <td className={cn(cell, 'py-4 text-fg')} data-label="Expenses">
                 <AnimatedMoney value={today.expenses} />
               </td>
-              <td className={cn(cell, 'py-4 text-forest-950')}>
+              <td className={cn(cell, 'py-4 text-forest-950')} data-label="Net">
                 <AnimatedMoney value={today.net} />
               </td>
               <td />
@@ -368,9 +368,9 @@ function MyCounterCard({ shift }: { shift: Shift | null }) {
   const open = useAction(api.openCounter, { invalidate: accountingKeys, success: 'Counter opened.' })
   if (!shift) {
     return (
-      <div className="card flex h-full min-h-[300px] flex-col justify-center gap-5 p-8" data-testid="my-counter-card">
+      <div className="card flex h-full min-h-[260px] flex-col justify-center gap-5 p-6 sm:min-h-[300px] sm:p-8" data-testid="my-counter-card">
         <PanelHeading>My counter</PanelHeading>
-        <p className="font-display-tight text-[30px] leading-tight text-forest-950">Your counter is closed</p>
+        <p className="font-display-tight text-[26px] leading-tight text-forest-950 sm:text-[30px]">Your counter is closed</p>
         <p className="max-w-md text-sm text-fg-3">Open it to take payments and record expenses. Everything you sell is kept on your own shift.</p>
         <div>
           <Button variant="primary" size="lg" icon={<Wallet className="size-4" />} loading={open.isPending} onClick={() => open.mutate(undefined)}>
@@ -381,13 +381,13 @@ function MyCounterCard({ shift }: { shift: Shift | null }) {
     )
   }
   return (
-    <div className="card h-full p-8" data-testid="my-counter-card">
+    <div className="card h-full p-5 sm:p-8" data-testid="my-counter-card">
       <PanelHeading aside={<PanelLink onClick={() => navigate('/counter')}>My counter</PanelLink>}>My counter · open</PanelHeading>
-      <AnimatedMoney value={shift.total} duration={0.9} className="mt-5 block figure text-[clamp(50px,5.2vw,68px)] leading-[0.92] text-forest-950" />
+      <AnimatedMoney value={shift.total} duration={0.9} className="mt-5 block figure text-[clamp(40px,12vw,50px)] leading-[0.92] text-forest-950 sm:text-[clamp(50px,5.2vw,68px)]" />
       <p className="mt-4 text-sm text-fg-3">
         {shift.invoices} invoice{shift.invoices === 1 ? '' : 's'} on this shift
       </p>
-      <ShiftFigures figures={shift} className="mt-10" />
+      <ShiftFigures figures={shift} className="mt-8 sm:mt-10" />
     </div>
   )
 }
@@ -399,7 +399,7 @@ function SplitFigure({ color, label, value, strong }: { color?: string; label: s
         {color && <span className="size-2 rounded-full" style={{ background: color }} />}
         {label}
       </p>
-      <AnimatedMoney value={value} className={cn('mt-2 block figure text-[25px] leading-none', strong ? 'text-forest-950' : 'text-fg-2')} />
+      <AnimatedMoney value={value} className={cn('mt-2 block figure text-[21px] leading-none sm:text-[25px]', strong ? 'text-forest-950' : 'text-fg-2')} />
     </div>
   )
 }
@@ -414,7 +414,7 @@ function FloorStatus({ data, lifetime }: { data: Dashboard; lifetime?: number })
   ]
   const occupied = t.running + t.paused + t.billing
   return (
-    <div className="card flex h-full flex-col p-7">
+    <div className="card flex h-full flex-col p-5 sm:p-7">
       <PanelHeading>Floor right now</PanelHeading>
       <p className="mt-4 flex items-baseline gap-2">
         <span className="figure text-[44px] leading-none text-forest-950">{occupied}</span>
@@ -459,8 +459,8 @@ function LiveRow({ table, onClick }: { table: TableOverview; onClick: () => void
   const live = useLive(table.session)
   if (!table.session || !live) return null
   return (
-    <button onClick={onClick} className="flex w-full items-center gap-4 rounded-xl px-3 py-3.5 text-left transition-colors hover:bg-canvas/60">
-      <div className="min-w-0 flex-1">
+    <button onClick={onClick} className="flex w-full items-center gap-4 rounded-xl px-3 py-3.5 text-left transition-colors hover:bg-canvas/60 max-sm:flex-wrap max-sm:gap-x-3 max-sm:gap-y-1.5">
+      <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-7rem)]">
         <p className="truncate font-display-tight text-[17px] leading-tight text-forest-950">{table.name}</p>
         <p className="mt-0.5 truncate text-xs text-fg-4">
           {table.category_name} · {table.floor_name}
@@ -468,8 +468,8 @@ function LiveRow({ table, onClick }: { table: TableOverview; onClick: () => void
         </p>
       </div>
       <StatusPill status={table.session.status} />
-      <span className={cn('w-20 text-right figure text-lg', statusMeta[table.session.status].text)}>{formatClock(live.seconds)}</span>
-      <span className="w-24 text-right figure text-[15px] text-forest-950">{formatMoney(live.total)}</span>
+      <span className={cn('w-20 text-right figure text-lg max-sm:order-1 max-sm:w-auto max-sm:text-left', statusMeta[table.session.status].text)}>{formatClock(live.seconds)}</span>
+      <span className="w-24 text-right figure text-[15px] text-forest-950 max-sm:order-2 max-sm:ml-auto">{formatMoney(live.total)}</span>
     </button>
   )
 }
@@ -480,7 +480,7 @@ function LiveSessions() {
   const active = (data?.tables ?? []).filter((t) => t.session)
   const totalPaisa = active.reduce((s, t) => s + (t.session?.items.reduce((a, i) => a + toPaisa(i.unit_price) * i.quantity, 0) ?? 0), 0)
   return (
-    <div className="card h-full p-7">
+    <div className="card h-full p-5 sm:p-7">
       <PanelHeading aside={<PanelLink onClick={() => navigate('/tables')}>Open floor</PanelLink>}>Live sessions</PanelHeading>
       {active.length === 0 ? (
         <EmptyState className="py-10" icon={<LayoutGrid className="size-5" />} title="All tables are free" description="Start a session from the Tables screen." />
@@ -584,7 +584,7 @@ function HourlyChart({ data }: { data: Dashboard }) {
   const byHour = new Map((data.hourly ?? []).map((h) => [h.hour, h.total]))
   const range = businessHours(data, settings?.day_start_hour ?? 0, settings?.business_timezone)
   return (
-    <div className="flex min-h-[260px] flex-1 flex-col px-8 pt-9 pb-6">
+    <div className="flex min-h-[240px] flex-1 flex-col px-5 pt-8 pb-5 sm:min-h-[260px] sm:px-8 sm:pt-9 sm:pb-6">
       <PanelHeading aside={<span className="text-xs text-fg-4">Today, club time</span>}>Sales by hour</PanelHeading>
       <BarChart
         className="mt-4 min-h-[200px] flex-1"
@@ -607,7 +607,7 @@ function HourlyChart({ data }: { data: Dashboard }) {
 function TopLists({ data }: { data: Dashboard }) {
   const navigate = useNavigate()
   return (
-    <div className="card h-full p-7">
+    <div className="card h-full p-5 sm:p-7">
       <section>
         <PanelHeading>Best sellers today</PanelHeading>
         {data.top_products?.length ? (

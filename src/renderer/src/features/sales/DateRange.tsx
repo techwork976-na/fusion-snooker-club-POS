@@ -29,7 +29,7 @@ export function rangeFor(preset: Exclude<Preset, 'custom'>, today: string): Rang
 /** Business-date range picker: presets plus a custom from/to. */
 export function DateRangePicker({ value, onChange, today, layoutId }: { value: Range; onChange: (r: Range) => void; today: string; layoutId: string }) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex max-w-full min-w-0 flex-wrap items-center gap-3">
       <Segmented
         layoutId={layoutId}
         value={value.preset}
@@ -44,11 +44,11 @@ export function DateRangePicker({ value, onChange, today, layoutId }: { value: R
         ]}
       />
       {value.preset === 'custom' && (
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           <input
             type="date"
             aria-label="From"
-            className={cn(inputClass, 'h-10 w-[150px]')}
+            className={cn(inputClass, 'h-10 min-w-0 flex-1 sm:w-[150px] sm:flex-none')}
             value={value.from}
             max={value.to}
             onChange={(e) => e.target.value && onChange({ ...value, from: e.target.value })}
@@ -57,7 +57,7 @@ export function DateRangePicker({ value, onChange, today, layoutId }: { value: R
           <input
             type="date"
             aria-label="To"
-            className={cn(inputClass, 'h-10 w-[150px]')}
+            className={cn(inputClass, 'h-10 min-w-0 flex-1 sm:w-[150px] sm:flex-none')}
             value={value.to}
             min={value.from}
             max={today}

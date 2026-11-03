@@ -90,11 +90,11 @@ function AdminInventory({ tabs }: { tabs: ReactNode }) {
         }
       >
         <div className="flex flex-wrap items-center gap-4">
-          <div className="relative w-80">
+          <div className="relative w-full sm:w-80">
             <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-fg-4" />
             <input className={cn(inputClass, 'pl-10')} placeholder="Search products…" value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
-          <div className="w-64">
+          <div className="w-full sm:w-64">
             <Switch checked={showInactive} onChange={setShowInactive} label="Show removed products" />
           </div>
         </div>
@@ -114,7 +114,7 @@ function AdminInventory({ tabs }: { tabs: ReactNode }) {
             description={data?.length ? 'Try another search.' : 'Add the snacks and drinks you sell.'}
           />
         ) : (
-          <table className="w-full text-sm">
+          <table className="table-stack w-full text-sm">
             <thead>
               <tr className="thead-row">
                 <th className="px-5 py-3 font-semibold">Product</th>
@@ -132,24 +132,24 @@ function AdminInventory({ tabs }: { tabs: ReactNode }) {
                 const margin = Number(p.selling_price) > 0 ? Math.round((profit / Number(p.selling_price)) * 100) : 0
                 return (
                   <tr key={p.id} className={cn('transition-colors hover:bg-forest-950/[0.02]', !p.is_active && 'opacity-55')}>
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3" data-stack="title">
                       <p className="font-semibold text-fg">{p.name}</p>
                       <p className="text-xs text-fg-4">
                         {p.category || 'Uncategorised'}
                         {!p.is_active && ' · removed'}
                       </p>
                     </td>
-                    <td className="px-5 py-3 text-right text-fg-3 tabular">{formatMoney(p.cost_price)}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-fg tabular">{formatMoney(p.selling_price)}</td>
-                    <td className={cn('px-5 py-3 text-right font-bold tabular', profit >= 0 ? 'text-sage-700' : 'text-claret-700')}>
+                    <td className="px-5 py-3 text-right text-fg-3 tabular" data-label="Cost">{formatMoney(p.cost_price)}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-fg tabular" data-label="Price">{formatMoney(p.selling_price)}</td>
+                    <td className={cn('px-5 py-3 text-right font-bold tabular', profit >= 0 ? 'text-sage-700' : 'text-claret-700')} data-label="Profit / unit">
                       {formatMoney(profit)}
                       <span className="ml-1.5 text-xs font-medium text-fg-4">{margin}%</span>
                     </td>
-                    <td className="px-5 py-3 text-center">
+                    <td className="px-5 py-3 text-center" data-label="Stock">
                       <StockBadge p={p} />
                     </td>
-                    <td className="px-5 py-3 text-right text-fg-3 tabular">{p.units_sold}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-5 py-3 text-right text-fg-3 tabular" data-label="Sold">{p.units_sold}</td>
+                    <td className="px-3 py-2" data-stack="full">
                       <div className="flex justify-end gap-1">
                         {p.track_stock && p.is_active && (
                           <IconButton size="sm" label="Restock / correct stock" onClick={() => setRestocking(p)}>
@@ -403,7 +403,7 @@ function StaffRestock() {
   return (
     <Page>
       <PageHeader title="Restock" subtitle="Record stock you receive. Prices are managed by an administrator.">
-        <div className="relative w-80">
+        <div className="relative w-full sm:w-80">
           <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-fg-4" />
           <input className={cn(inputClass, 'pl-10')} placeholder="Search products…" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
@@ -418,7 +418,7 @@ function StaffRestock() {
         ) : !data?.length ? (
           <EmptyState icon={<Boxes className="size-5" />} title="No products found" />
         ) : (
-          <table className="w-full text-sm">
+          <table className="table-stack w-full text-sm">
             <thead>
               <tr className="thead-row">
                 <th className="px-5 py-3 font-semibold">Product</th>
@@ -430,15 +430,15 @@ function StaffRestock() {
             <tbody className="divide-y divide-line">
               {data.map((p) => (
                 <tr key={p.id}>
-                  <td className="px-5 py-3">
+                  <td className="px-5 py-3" data-stack="title">
                     <p className="font-semibold text-fg">{p.name}</p>
                     <p className="text-xs text-fg-4">{p.category || 'Uncategorised'}</p>
                   </td>
-                  <td className="px-5 py-3 text-right text-fg-2 tabular">{formatMoney(p.selling_price)}</td>
-                  <td className="px-5 py-3 text-center">
+                  <td className="px-5 py-3 text-right text-fg-2 tabular" data-label="Price">{formatMoney(p.selling_price)}</td>
+                  <td className="px-5 py-3 text-center" data-label="Stock">
                     <StockBadge p={p} />
                   </td>
-                  <td className="px-5 py-2 text-right">
+                  <td className="px-5 py-2 text-right" data-stack="full">
                     {p.track_stock && (
                       <Button size="sm" onClick={() => setRestocking(p)}>
                         Update stock

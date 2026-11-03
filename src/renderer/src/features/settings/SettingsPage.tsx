@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Building2, CalendarClock, Clock3, Database, DatabaseZap, Layers, LayoutGrid, Monitor, Pencil, Plus, ShieldCheck, Tags, Trash2, ArchiveRestore, PackageMinus } from 'lucide-react'
@@ -7,6 +7,7 @@ import { formatHour, formatMoney, formatPricing, formatRate } from '@shared/form
 import { RetentionSection } from './RetentionSection'
 import { DataManagementSection } from './DataManagementSection'
 import { cn } from '@/lib/cn'
+import { useIsPhone } from '@/lib/useMedia'
 import type { AppInfo, PrinterInfo } from '@shared/ipc'
 import type { Category, ClubTable, Floor, PricingMode, Settings } from '@/lib/types'
 import * as api from '@/data/api'
@@ -39,6 +40,13 @@ const SECTIONS: { key: Section; label: string; icon: typeof Building2 }[] = [
 export function SettingsPage() {
   const [section, setSection] = useState<Section>('club')
   const { data: settings } = useSettings()
+  // Phones: the section list sits above the content, so bring the chosen section into view.
+  const phone = useIsPhone()
+  const contentRef = useRef<HTMLDivElement>(null)
+  const choose = (s: Section) => {
+    setSection(s)
+    if (phone) requestAnimationFrame(() => contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
   return (
     <Page>
       <PageHeader title="Settings" subtitle="Club configuration. Changes apply to every terminal." />
@@ -47,9 +55,9 @@ export function SettingsPage() {
           {SECTIONS.map((s) => (
             <button
               key={s.key}
-              onClick={() => setSection(s.key)}
+              onClick={() => choose(s.key)}
               className={cn(
-                'relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors',
+                'relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors max-md:min-h-11',
                 section === s.key ? 'text-fg' : 'text-fg-3 hover:bg-forest-950/[0.03] hover:text-fg'
               )}
             >
@@ -61,7 +69,7 @@ export function SettingsPage() {
             </button>
           ))}
         </nav>
-        <motion.div key={section} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="min-w-0">
+        <motion.div ref={contentRef} key={section} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="min-w-0 scroll-mt-4">
           {!settings ? (
             <LoadingBlock />
           ) : section === 'club' ? (
@@ -94,12 +102,12 @@ export function SettingsPage() {
 function Panel({ title, description, children, footer }: { title: string; description?: ReactNode; children: ReactNode; footer?: ReactNode }) {
   return (
     <section className="card max-w-3xl">
-      <div className="px-8 pt-7 pb-2">
-        <h2 className="font-display-tight text-[24px] text-forest-950">{title}</h2>
+      <div className="px-5 pt-6 pb-2 sm:px-8 sm:pt-7">
+        <h2 className="font-display-tight text-[21px] text-forest-950 sm:text-[24px]">{title}</h2>
         {description && <p className="mt-1 text-sm text-fg-3">{description}</p>}
       </div>
-      <div className="px-8 py-5">{children}</div>
-      {footer && <div className="flex justify-end gap-2.5 rounded-b-[var(--radius-card)] bg-canvas/50 px-8 py-4">{footer}</div>}
+      <div className="px-5 py-5 sm:px-8">{children}</div>
+      {footer && <div className="flex flex-wrap justify-end gap-2.5 rounded-b-[var(--radius-card)] bg-canvas/50 px-5 py-4 sm:px-8">{footer}</div>}
     </section>
   )
 }
@@ -127,11 +135,11 @@ function ClubSection({ settings }: { settings: Settings }) {
         </Button>
       }
     >
-      <div className="grid grid-cols-2 gap-4">
-        <TextField containerClassName="col-span-2" label="Club name" value={form.club_name} onChange={set('club_name')} maxLength={80} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <TextField containerClassName="sm:col-span-2" label="Club name" value={form.club_name} onChange={set('club_name')} maxLength={80} />
         <TextField label="Address" value={form.club_address} onChange={set('club_address')} maxLength={200} />
         <TextField label="Phone" value={form.club_phone} onChange={set('club_phone')} maxLength={40} />
-        <TextField containerClassName="col-span-2" label="Receipt footer" value={form.receipt_footer} onChange={set('receipt_footer')} maxLength={200} />
+        <TextField containerClassName="sm:col-span-2" label="Receipt footer" value={form.receipt_footer} onChange={set('receipt_footer')} maxLength={200} />
       </div>
     </Panel>
   )
@@ -154,7 +162,7 @@ function DaySection({ settings }: { settings: Settings }) {
         </Button>
       }
     >
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Select label="Club timezone" value={tz} onChange={setTz} options={zones.map((z) => ({ value: z, label: z.replace('_', ' ') }))} />
         <Select
           label="Business day starts at"
@@ -200,7 +208,7 @@ function BillingSection({ settings }: { settings: Settings }) {
         </Button>
       }
     >
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Select label="Bill in blocks of" value={increment} onChange={setIncrement} options={[1, 5, 10, 15, 30, 60].map((m) => ({ value: String(m), label: m === 1 ? '1 minute' : `${m} minutes` }))} />
         <Select
           label="Partly used block"
@@ -424,12 +432,12 @@ function RatesSection() {
       ) : (
         <ul className="divide-y divide-line">
           {categories.map((c) => (
-            <li key={c.id} className={cn('flex items-center justify-between py-2.5', !c.is_active && 'opacity-50')}>
+            <li key={c.id} className={cn('flex items-center justify-between gap-x-3 gap-y-1 py-2.5 max-sm:flex-wrap', !c.is_active && 'opacity-50')}>
               <span className="font-semibold text-fg">
                 {c.name}
                 {!c.is_active && <span className="ml-2 text-xs text-fg-4">hidden</span>}
               </span>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 max-sm:ml-auto">
                 <span className="font-bold text-fg tabular" data-testid={`category-price-${c.name}`}>
                   {formatPricing(c)}
                 </span>
@@ -558,7 +566,7 @@ function CategoryDialog({ category, count, onClose }: { category: Category | 'ne
           />
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
               <TextField
                 label="Hourly rate"
                 prefix="PKR"
@@ -635,7 +643,7 @@ function TablesSection() {
       {!tables?.length ? (
         <p className="text-sm text-fg-4">No tables yet.</p>
       ) : (
-        <table className="w-full text-sm">
+        <table className="table-stack table-stack-flush w-full text-sm">
           <thead>
             <tr className="thead-row">
               <th className="pb-2 font-semibold">Table</th>
@@ -650,17 +658,17 @@ function TablesSection() {
               const cat = categories?.find((c) => c.id === t.category_id)
               return (
                 <tr key={t.id} className={cn(!t.is_active && 'opacity-50')}>
-                  <td className="py-2.5 font-semibold text-fg">
+                  <td className="py-2.5 font-semibold text-fg" data-stack="title">
                     {t.name}
                     {!t.is_active && <span className="ml-2 text-xs text-fg-4">removed</span>}
                   </td>
-                  <td className="py-2.5 text-fg-3">{floors?.find((f) => f.id === t.floor_id)?.name}</td>
-                  <td className="py-2.5 text-fg-3">{cat?.name}</td>
-                  <td className="py-2.5 text-right text-fg tabular">
+                  <td className="py-2.5 text-fg-3" data-label="Floor">{floors?.find((f) => f.id === t.floor_id)?.name}</td>
+                  <td className="py-2.5 text-fg-3" data-label="Category">{cat?.name}</td>
+                  <td className="py-2.5 text-right text-fg tabular" data-label="Rate">
                     {formatRate(t.rate_override ?? cat?.rate_per_minute ?? 0)}
                     {t.rate_override !== null && <span className="ml-1 text-xs text-forest-600">custom</span>}
                   </td>
-                  <td className="py-1.5 pl-3">
+                  <td className="py-1.5 pl-3" data-stack="end">
                     <div className="flex justify-end gap-1">
                       <IconButton size="sm" label="Edit" onClick={() => setEditing(t)}>
                         <Pencil className="size-4" />
@@ -750,7 +758,7 @@ function TableDialog({ table, floors, categories, onClose }: { table: ClubTable 
       }
     >
       <form
-        className="grid grid-cols-2 gap-4"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2"
         onSubmit={(e) => {
           e.preventDefault()
           submit()
@@ -761,9 +769,9 @@ function TableDialog({ table, floors, categories, onClose }: { table: ClubTable 
         <Select label="Floor" value={floor} onChange={setFloor} options={floors.map((f) => ({ value: String(f.id), label: f.name }))} />
         <Select label="Category" value={category} onChange={setCategory} options={categories.map((c) => ({ value: String(c.id), label: c.name, hint: formatPricing(c) }))} />
         {categories.find((c) => String(c.id) === category)?.pricing_mode === 'hourly_special30' ? (
-          <p className="col-span-2 rounded-xl bg-sunken/70 px-4 py-3 text-sm text-fg-3">This table uses its category's hourly and 30-minute prices.</p>
+          <p className="rounded-xl bg-sunken/70 px-4 py-3 text-sm text-fg-3 sm:col-span-2">This table uses its category's hourly and 30-minute prices.</p>
         ) : (
-          <TextField containerClassName="col-span-2" label="Custom rate per minute" prefix="PKR" suffix="/min" inputMode="decimal" placeholder="Use category rate" value={rate} onChange={(e) => setRate(e.target.value)} error={rateInvalid ? 'Enter a rate above zero or leave empty.' : null} />
+          <TextField containerClassName="sm:col-span-2" label="Custom rate per minute" prefix="PKR" suffix="/min" inputMode="decimal" placeholder="Use category rate" value={rate} onChange={(e) => setRate(e.target.value)} error={rateInvalid ? 'Enter a rate above zero or leave empty.' : null} />
         )}
         <button type="submit" hidden />
       </form>
@@ -816,7 +824,7 @@ function TerminalSection() {
             : "Saved in this browser only. The browser's print dialog chooses the printer."
         }
       >
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {canChoosePrinter && (
             <Select
               label="Printer"

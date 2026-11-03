@@ -53,7 +53,7 @@ const variants: Record<Variant, string> = {
 }
 
 const sizes: Record<Size, string> = {
-  sm: 'h-8 px-3 text-[13px] gap-1.5 rounded-lg',
+  sm: 'h-8 px-3 text-[13px] gap-1.5 rounded-lg max-md:h-9',
   md: 'h-10 px-4 text-sm gap-2 rounded-[10px]',
   lg: 'h-12 px-5 text-[15px] gap-2.5 rounded-xl'
 }
@@ -111,7 +111,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       onPointerDown={onPress}
       className={cn(
         'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-lg transition-[background-color,color,scale] duration-150 ease-out active:scale-[0.94] disabled:pointer-events-none disabled:opacity-40',
-        size === 'sm' ? 'size-8' : 'size-10',
+        size === 'sm' ? 'size-8 max-md:size-9' : 'size-10',
         variant === 'ghost' && 'text-fg-3 hover:bg-forest-950/[0.06] hover:text-fg',
         variant === 'secondary' && 'bg-surface text-fg-2 shadow-[var(--shadow-control)] hover:text-fg',
         variant === 'danger' && 'text-fg-3 hover:bg-claret-50 hover:text-claret-700',

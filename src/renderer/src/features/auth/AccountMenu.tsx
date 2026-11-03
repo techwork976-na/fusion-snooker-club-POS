@@ -7,7 +7,7 @@ import { useAuth } from './AuthProvider'
 import { SwitchPortalDialog } from './SwitchPortalDialog'
 import { ChangePasswordDialog } from './ChangePasswordDialog'
 
-function initials(name: string): string {
+export function initials(name: string): string {
   return name
     .split(/\s+/)
     .filter(Boolean)

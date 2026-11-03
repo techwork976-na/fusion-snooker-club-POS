@@ -49,7 +49,7 @@ export function ShiftFigures({ figures, size = 'md', className }: { figures: Fig
     { label: 'Net', value: figures.net, strong: true, hint: 'after expenses' }
   ]
   return (
-    <div className={cn('grid grid-cols-3 gap-x-6 gap-y-5 xl:grid-cols-6', className)}>
+    <div className={cn('grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-5 xl:grid-cols-6', className)}>
       {items.map((f) => (
         <div key={f.label} className="min-w-0">
           <p className="flex items-center gap-1.5 text-xs font-semibold text-fg-3">
@@ -61,7 +61,7 @@ export function ShiftFigures({ figures, size = 'md', className }: { figures: Fig
             format={(n) => `${f.negative && n > 0 ? '−' : ''}${formatMoney(n)}`}
             className={cn(
               'mt-2 block figure leading-none',
-              size === 'lg' ? 'text-[28px]' : 'text-[21px]',
+              size === 'lg' ? 'text-[clamp(19px,6.2vw,24px)] sm:text-[28px]' : 'text-[clamp(17px,5.4vw,19px)] sm:text-[21px]',
               f.strong ? 'text-forest-950' : f.negative && f.value > 0 ? 'text-claret-600' : 'text-fg-2'
             )}
           />
@@ -96,7 +96,7 @@ export function ShiftDetailDrawer({ shiftId, onClose }: { shiftId: string | null
         <LoadingBlock />
       ) : (
         <div className="space-y-6" data-testid="shift-detail">
-          <ShiftFigures figures={data} className="!grid-cols-3" />
+          <ShiftFigures figures={data} className="sm:!grid-cols-3" />
 
           <ul className="space-y-1.5 rounded-xl bg-sunken px-4 py-3 text-[13px] text-fg-2">
             <li className="flex items-center gap-2">

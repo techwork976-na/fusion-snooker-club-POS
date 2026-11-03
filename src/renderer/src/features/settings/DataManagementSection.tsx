@@ -50,18 +50,18 @@ export function DataManagementSection() {
   return (
     <div className="space-y-5">
       <section className="card max-w-3xl" data-testid="data-management">
-        <div className="px-8 pt-7 pb-2">
+        <div className="px-5 pt-6 pb-2 sm:px-8 sm:pt-7">
           <h2 className="font-display-tight text-[24px] text-forest-950">Reset business data</h2>
           <p className="mt-1 text-sm text-fg-3">
             Start the business records from zero — for example before handing FUSION to a club, or to begin a new period. Accounts, tables, prices
             and products stay. This is separate from the automatic data retention, and never runs on its own.
           </p>
         </div>
-        <div className="px-8 py-5">
+        <div className="px-5 py-5 sm:px-8">
           {summary.isLoading || !summary.data ? (
             <LoadingBlock className="py-6" />
           ) : (
-            <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
+            <dl className="grid grid-cols-2 gap-x-5 gap-y-2 text-sm sm:grid-cols-3 sm:gap-x-8">
               {[
                 ['Table sessions', summary.data.counts.sessions],
                 ['Invoices', summary.data.counts.sales],
@@ -84,7 +84,7 @@ export function DataManagementSection() {
             </p>
           )}
         </div>
-        <div className="flex justify-end gap-2.5 rounded-b-[var(--radius-card)] bg-canvas/50 px-8 py-4">
+        <div className="flex flex-wrap justify-end gap-2.5 rounded-b-[var(--radius-card)] bg-canvas/50 px-5 py-4 sm:px-8">
           <Button variant="danger" icon={<TriangleAlert className="size-4" />} onClick={() => setOpen(true)} data-testid="open-reset">
             Reset business data…
           </Button>

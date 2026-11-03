@@ -47,19 +47,19 @@ export function RetentionSection({ settings }: { settings: Settings }) {
   return (
     <div className="max-w-3xl space-y-6">
       <section className="card">
-        <div className="px-8 pt-7 pb-2">
+        <div className="px-5 pt-6 pb-2 sm:px-8 sm:pt-7">
           <h2 className="font-display-tight text-[24px] text-forest-950">Data retention</h2>
           <p className="mt-1 text-sm text-fg-3">
             Keeps the database small by automatically removing old invoice details. Every total stays — shift summaries, daily
             figures, staff history, expenses and customer statistics are permanent.
           </p>
         </div>
-        <div className="space-y-5 px-8 py-5">
+        <div className="space-y-5 px-5 py-5 sm:px-8">
           <div className="flex flex-wrap items-center gap-4">
             <Segmented layoutId="retention-period" value={period} onChange={setPeriod} options={PERIODS.map((p) => ({ value: p.value, label: p.label }))} />
             <span className="text-sm text-fg-3">{PERIODS.find((p) => p.value === period)?.detail}</span>
           </div>
-          <div className="grid grid-cols-2 gap-4 text-[13px]">
+          <div className="grid grid-cols-1 gap-4 text-[13px] sm:grid-cols-2">
             <div className="rounded-2xl bg-sunken/70 px-4 py-3.5">
               <p className="font-bold text-fg">Removed after the period</p>
               <p className="mt-1 text-fg-3">Individual invoices and their item lines, once their counter shift is closed.</p>
@@ -73,7 +73,7 @@ export function RetentionSection({ settings }: { settings: Settings }) {
             </div>
           </div>
         </div>
-        <div className="flex justify-end rounded-b-[var(--radius-card)] bg-canvas/50 px-8 py-4">
+        <div className="flex justify-end rounded-b-[var(--radius-card)] bg-canvas/50 px-5 py-4 sm:px-8">
           <Button
             variant="primary"
             loading={save.isPending}
@@ -106,7 +106,7 @@ export function RetentionSection({ settings }: { settings: Settings }) {
               </p>
             </div>
 
-            <dl className="grid grid-cols-3 gap-x-6 gap-y-4 text-sm">
+            <dl className="grid grid-cols-2 gap-x-5 gap-y-4 text-sm sm:grid-cols-3 sm:gap-x-6">
               <Fact label="Current period" value={`${s.retention_days} day${s.retention_days === 1 ? '' : 's'}`} />
               <Fact label="Removes invoices dated before" value={formatBusinessDate(s.cutoff_date)} />
               <Fact

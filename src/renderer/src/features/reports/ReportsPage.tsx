@@ -100,24 +100,24 @@ function ReportBody({ data, stale }: { data: FinancialReport; stale: boolean }) 
   const empty = f.shifts === 0 && f.legacy === 0 && f.business_expenses === 0 && data.open_shifts.length === 0
   return (
     <div className={cn('space-y-6 transition-opacity duration-200', stale && 'opacity-60')}>
-      <section className="card p-8" data-testid="report-totals">
+      <section className="card p-5 sm:p-8" data-testid="report-totals">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <span className="label">Total sales</span>
-            <AnimatedMoney value={f.total} duration={0.8} className="mt-5 block figure text-[clamp(46px,5vw,64px)] leading-[0.92] text-forest-950" data-testid="report-total" />
+            <AnimatedMoney value={f.total} duration={0.8} className="mt-5 block figure text-[clamp(38px,11vw,46px)] leading-[0.92] text-forest-950 sm:text-[clamp(46px,5vw,64px)]" data-testid="report-total" />
             <p className="mt-4 text-sm text-fg-3">
               {f.shifts} closed shift{f.shifts === 1 ? '' : 's'} · {f.invoices} invoice{f.invoices === 1 ? '' : 's'}
               {f.voided > 0 ? ` · ${f.voided} voided` : ''}
             </p>
           </div>
-          <div className="text-right">
+          <div className="sm:text-right">
             <p className="label">Net after expenses</p>
-            <p className={cn('mt-2.5 figure text-[34px] leading-none', f.net < 0 ? 'text-claret-700' : 'text-forest-800')} data-testid="report-net">
+            <p className={cn('mt-2.5 figure text-[28px] leading-none sm:text-[34px]', f.net < 0 ? 'text-claret-700' : 'text-forest-800')} data-testid="report-net">
               {formatMoney(f.net)}
             </p>
           </div>
         </div>
-        <div className="mt-10 grid grid-cols-2 gap-x-8 gap-y-7 md:grid-cols-3 xl:grid-cols-5">
+        <div className="mt-8 grid grid-cols-2 gap-x-5 gap-y-6 sm:mt-10 sm:gap-x-8 sm:gap-y-7 md:grid-cols-3 xl:grid-cols-5">
           <Figure label="Cash" value={f.cash} testId="report-cash" />
           <Figure label="Bank transfer" value={f.bank} testId="report-bank" />
           <Figure label="Snack sales" value={f.snack} hint="Part of total sales" testId="report-snack" />
@@ -146,8 +146,8 @@ function ReportBody({ data, stale }: { data: FinancialReport; stale: boolean }) 
       ) : (
         <>
           <div className="grid grid-cols-12 gap-6">
-            <section className="card col-span-12 p-7 xl:col-span-7">
-              <div className="flex items-center justify-between">
+            <section className="card col-span-12 p-5 sm:p-7 xl:col-span-7">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="label">Sales by day</span>
                 <Legend series={SERIES} />
               </div>
@@ -166,7 +166,7 @@ function ReportBody({ data, stale }: { data: FinancialReport; stale: boolean }) 
                 formatAxis={compactMoney}
               />
             </section>
-            <section className="card col-span-12 p-7 xl:col-span-5" data-testid="report-staff">
+            <section className="card col-span-12 p-5 sm:p-7 xl:col-span-5" data-testid="report-staff">
               <span className="label">Staff (closed shifts)</span>
               {data.by_staff.length === 0 ? (
                 <EmptyState className="py-8" icon={<Users className="size-5" />} title="No closed shifts" />
@@ -196,13 +196,13 @@ function ReportBody({ data, stale }: { data: FinancialReport; stale: boolean }) 
           </div>
 
           <section className="card overflow-hidden" data-testid="report-shifts">
-            <div className="flex flex-wrap items-center justify-between gap-2 px-8 pt-7 pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-6 pb-3 sm:px-8 sm:pt-7">
               <span className="label">Closed shifts</span>
               <span className="text-xs text-fg-4">Select a shift to see its invoices and expenses</span>
             </div>
             <ShiftTable shifts={data.closed_shifts} timeZone={data.timezone} onOpen={setDetail} />
             {data.closed_shifts.some((s) => s.partial) && (
-              <p className="px-8 pb-5 text-xs text-fg-4">* This shift also traded outside the period; only its figures within the period are shown.</p>
+              <p className="px-5 pb-5 text-xs text-fg-4 sm:px-8">* This shift also traded outside the period; only its figures within the period are shown.</p>
             )}
           </section>
         </>
@@ -216,7 +216,7 @@ function LiveSection({ data, onOpen }: { data: FinancialReport; onOpen: (id: str
   const l = data.live
   return (
     <section className="card overflow-hidden bg-brass-50/60" data-testid="report-live">
-      <div className="flex flex-wrap items-end justify-between gap-6 px-8 pt-7">
+      <div className="flex flex-wrap items-end justify-between gap-6 px-5 pt-6 sm:px-8 sm:pt-7">
         <div>
           <p className="label flex items-center gap-2 !text-brass-800">
             <CircleDot className="size-3.5" /> Open counters · live, not final
@@ -228,7 +228,7 @@ function LiveSection({ data, onOpen }: { data: FinancialReport; onOpen: (id: str
             {l.shifts} counter{l.shifts === 1 ? '' : 's'} still open · {l.invoices} invoice{l.invoices === 1 ? '' : 's'} so far. These figures change until each counter is closed and are not included above.
           </p>
         </div>
-        <div className="flex gap-8 text-right">
+        <div className="flex flex-wrap gap-x-6 gap-y-4 sm:gap-8 sm:text-right">
           <Figure label="Cash" value={l.cash} />
           <Figure label="Bank" value={l.bank} />
           <Figure label="Expenses" value={l.expenses} />
@@ -242,10 +242,10 @@ function LiveSection({ data, onOpen }: { data: FinancialReport; onOpen: (id: str
 }
 
 function ShiftTable({ shifts, timeZone, onOpen }: { shifts: ReportShift[]; timeZone: string; onOpen: (id: string) => void }) {
-  if (shifts.length === 0) return <p className="px-8 pb-6 text-sm text-fg-4">No shifts in this period.</p>
+  if (shifts.length === 0) return <p className="px-5 pb-6 text-sm text-fg-4 sm:px-8">No shifts in this period.</p>
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[860px] text-sm">
+      <table className="table-stack w-full min-w-[860px] text-sm">
         <thead>
           <tr className="thead-row">
             <th className="px-8 py-3">Staff</th>
@@ -262,18 +262,18 @@ function ShiftTable({ shifts, timeZone, onOpen }: { shifts: ReportShift[]; timeZ
         <tbody className="divide-y divide-line">
           {shifts.map((s) => (
             <tr key={s.id} className="cursor-pointer transition-colors hover:bg-canvas/60" onClick={() => onOpen(s.id)} data-testid={`report-shift-${s.id}`}>
-              <td className="px-8 py-3.5 font-semibold text-fg">{s.staff_name}</td>
-              <td className="px-4 py-3.5 text-fg-3">
+              <td className="px-8 py-3.5 font-semibold text-fg" data-stack="top">{s.staff_name}</td>
+              <td className="px-4 py-3.5 text-fg-3" data-stack="full">
                 {shiftWhen(s, timeZone)}
                 {s.partial && ' *'}
               </td>
-              <td className="px-4 py-3.5 text-right text-fg-2 tabular">{formatMoney(s.cash)}</td>
-              <td className="px-4 py-3.5 text-right text-fg-2 tabular">{formatMoney(s.bank)}</td>
-              <td className="px-4 py-3.5 text-right font-bold text-fg tabular">{formatMoney(s.total)}</td>
-              <td className="px-4 py-3.5 text-right text-fg-3 tabular">{formatMoney(s.snack)}</td>
-              <td className="px-4 py-3.5 text-right text-fg-3 tabular">{formatMoney(s.expenses)}</td>
-              <td className="px-4 py-3.5 text-right font-semibold text-fg tabular">{formatMoney(s.net)}</td>
-              <td className="px-8 py-3.5 text-right text-fg-3 tabular">{s.invoices}</td>
+              <td className="px-4 py-3.5 text-right text-fg-2 tabular" data-label="Cash">{formatMoney(s.cash)}</td>
+              <td className="px-4 py-3.5 text-right text-fg-2 tabular" data-label="Bank">{formatMoney(s.bank)}</td>
+              <td className="px-4 py-3.5 text-right font-bold text-fg tabular" data-label="Total">{formatMoney(s.total)}</td>
+              <td className="px-4 py-3.5 text-right text-fg-3 tabular" data-label="Snacks">{formatMoney(s.snack)}</td>
+              <td className="px-4 py-3.5 text-right text-fg-3 tabular" data-label="Expenses">{formatMoney(s.expenses)}</td>
+              <td className="px-4 py-3.5 text-right font-semibold text-fg tabular" data-label="Net">{formatMoney(s.net)}</td>
+              <td className="px-8 py-3.5 text-right text-fg-3 tabular" data-label="Invoices">{s.invoices}</td>
             </tr>
           ))}
         </tbody>

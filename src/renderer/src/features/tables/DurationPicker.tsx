@@ -44,7 +44,7 @@ export function DurationPicker({
             key={m}
             onClick={() => onChange(m)}
             className={cn(
-              'h-9 rounded-lg px-3.5 text-[13px] font-bold transition-colors',
+              'h-9 rounded-lg px-3.5 text-[13px] font-bold transition-colors max-md:h-10',
               minutes === m ? 'bg-forest-950 text-cream' : 'bg-sunken/80 text-fg-3 hover:text-fg'
             )}
             data-testid={`duration-${m}`}
@@ -53,7 +53,7 @@ export function DurationPicker({
           </button>
         ))}
       </div>
-      <div className="flex items-center justify-between gap-4 rounded-xl bg-sunken/70 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-sunken/70 px-4 py-3 sm:gap-4">
         <div className="flex items-center gap-1 rounded-xl bg-surface shadow-[var(--shadow-control)]">
           <IconButton label="30 minutes less" size="sm" tooltip={false} disabled={minutes <= min} onClick={() => onChange(Math.max(min, minutes - SLOT_STEP_MINUTES))}>
             <Minus className="size-3.5" />

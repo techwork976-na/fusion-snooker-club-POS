@@ -65,12 +65,12 @@ export function BookingsPage() {
       ) : (
         <div className="grid grid-cols-12 gap-6">
           <section className="card col-span-12 overflow-hidden xl:col-span-8">
-            <div className="flex flex-wrap items-center justify-between gap-3 px-7 pt-6 pb-3">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-5 pb-3 sm:px-7 sm:pt-6">
+              <div className="flex w-full items-center gap-2 max-sm:flex-wrap sm:w-auto">
                 <IconButton label="Previous day" variant="secondary" size="sm" onClick={() => setDay(addDays(day, -1))}>
                   <ChevronLeft className="size-4" />
                 </IconButton>
-                <div className="min-w-44 text-center">
+                <div className="min-w-0 flex-1 text-center sm:min-w-44 sm:flex-none">
                   <p className="font-display-tight text-[19px] text-forest-950">{formatBusinessDate(day)}</p>
                 </div>
                 <IconButton label="Next day" variant="secondary" size="sm" onClick={() => setDay(addDays(day, 1))}>
@@ -81,7 +81,7 @@ export function BookingsPage() {
                     Today
                   </Button>
                 )}
-                <input type="date" aria-label="Choose day" className={cn(inputClass, 'h-8 w-[150px] text-[13px]')} value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
+                <input type="date" aria-label="Choose day" className={cn(inputClass, 'h-8 w-[150px] text-[13px] max-sm:w-full')} value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
               </div>
               <p className="text-[13px] text-fg-3" data-testid="booking-count">
                 <span className="font-bold text-forest-950">{bookings.length}</span> booking{bookings.length === 1 ? '' : 's'}
@@ -102,17 +102,17 @@ export function BookingsPage() {
             ) : (
               <ul className="divide-y divide-line" data-testid="booking-list">
                 {bookings.map((b) => (
-                  <li key={b.id} className="flex items-center gap-5 px-6 py-4">
+                  <li key={b.id} className="flex items-center gap-5 px-6 py-4 max-sm:flex-wrap max-sm:gap-x-3 max-sm:gap-y-2 max-sm:px-4">
                     <span className="w-24 shrink-0 figure text-[19px] text-forest-950">{formatTime(b.booking_at, tz)}</span>
-                    <span className="min-w-0 flex-1">
+                    <span className="min-w-0 flex-1 max-sm:order-2 max-sm:basis-full">
                       <span className="block truncate text-[15px] font-bold text-fg">{b.customer_name}</span>
                       <span className="block truncate text-xs text-fg-4">
                         {b.customer_phone ?? 'No phone'} · {b.table_name ? `${b.table_name} (${b.floor_name})` : 'Table chosen at start'}
                         {b.notes ? ` · ${b.notes}` : ''}
                       </span>
                     </span>
-                    <span className={cn('rounded-full px-2.5 py-1 text-[11px] font-bold', STATUS[b.status].pill)}>{STATUS[b.status].label}</span>
-                    <div className="flex w-36 shrink-0 items-center justify-end gap-1">
+                    <span className={cn('rounded-full px-2.5 py-1 text-[11px] font-bold max-sm:order-1 max-sm:ml-auto', STATUS[b.status].pill)}>{STATUS[b.status].label}</span>
+                    <div className="flex w-36 shrink-0 items-center justify-end gap-1 max-sm:order-3 max-sm:w-full max-sm:justify-between">
                       {b.status === 'booked' && (
                         <Button size="sm" variant="primary" icon={<Play className="size-3.5" />} onClick={() => setStarting(b)} data-testid={`start-booking-${b.customer_name}`}>
                           Start
@@ -131,7 +131,7 @@ export function BookingsPage() {
             )}
           </section>
 
-          <section className="card col-span-12 self-start p-6 xl:col-span-4">
+          <section className="card col-span-12 self-start p-5 sm:p-6 xl:col-span-4">
             <span className="label">Upcoming</span>
             {upcoming.isLoading ? (
               <LoadingBlock />
@@ -145,7 +145,7 @@ export function BookingsPage() {
                       onClick={() => setDay(d)}
                       className={cn('flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-forest-950/[0.04]', d === day && 'bg-forest-50')}
                     >
-                      <span>
+                      <span className="min-w-0">
                         <span className="block font-semibold text-fg">{d === today ? 'Today' : formatBusinessDate(d)}</span>
                         <span className="block truncate text-xs text-fg-4">
                           {items
@@ -192,11 +192,11 @@ function BookingMenu({
   onDelete: () => void
 }) {
   if (booking.status === 'started' || booking.status === 'completed') return null
-  const item = 'flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-fg outline-none data-[highlighted]:bg-forest-950/[0.06]'
+  const item = 'flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-fg outline-none data-[highlighted]:bg-forest-950/[0.06] max-md:min-h-11'
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <button aria-label="More actions" className="flex size-8 items-center justify-center rounded-lg text-fg-3 hover:bg-forest-950/[0.06] hover:text-fg">
+        <button aria-label="More actions" className="flex size-8 items-center justify-center rounded-lg text-fg-3 hover:bg-forest-950/[0.06] hover:text-fg max-md:size-10">
           <MoreHorizontal className="size-4" />
         </button>
       </DropdownMenu.Trigger>
@@ -307,7 +307,7 @@ function BookingDialog({ booking, defaultDate, onClose }: { booking: Booking | '
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TextField label="Customer name" value={name} onChange={(e) => setName(e.target.value)} autoFocus data-testid="booking-name" />
         <TextField label="Phone" hint="Used to recognise returning customers" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" data-testid="booking-phone" />
         <FieldShell label="Date">
@@ -331,7 +331,7 @@ function BookingDialog({ booking, defaultDate, onClose }: { booking: Booking | '
           </div>
         </FieldShell>
         <Select
-          className="col-span-2"
+          className="sm:col-span-2"
           label="Table"
           value={tableId}
           onChange={setTableId}
@@ -340,7 +340,7 @@ function BookingDialog({ booking, defaultDate, onClose }: { booking: Booking | '
             ...(tables ?? []).filter((t) => t.is_active).map((t) => ({ value: t.id, label: t.name }))
           ]}
         />
-        <TextField containerClassName="col-span-2" label="Notes (optional)" maxLength={200} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <TextField containerClassName="sm:col-span-2" label="Notes (optional)" maxLength={200} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
     </Modal>
   )

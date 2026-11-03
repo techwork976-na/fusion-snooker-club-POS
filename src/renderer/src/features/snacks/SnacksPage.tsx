@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Minus, PackageSearch, Plus, Search, ShoppingBag, Trash2 } from 'lucide-react'
@@ -30,6 +30,7 @@ export function SnacksPage() {
   const debounced = useDebounced(query.trim(), 150)
   const [cart, setCart] = useState<CartLine[]>([])
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const cartRef = useRef<HTMLElement>(null)
   const products = useQuery({
     queryKey: ['product-search', 'snacks', debounced],
     queryFn: () => searchProducts(debounced, 100)
@@ -62,7 +63,7 @@ export function SnacksPage() {
     <Page>
       <PageHeader title="Snacks" subtitle="Sell snacks and drinks to customers who are not playing — no table needed." />
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_380px]">
-        <section className="card p-6" data-testid="snack-products">
+        <section className="card p-4 sm:p-6" data-testid="snack-products">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-fg-4" />
             <input
@@ -82,7 +83,7 @@ export function SnacksPage() {
           ) : (products.data ?? []).length === 0 ? (
             <EmptyState icon={<PackageSearch className="size-5" />} title={debounced ? 'No matching products' : 'No products yet'} description={debounced ? 'Try another name.' : 'Add products under Inventory.'} />
           ) : (
-            <ul className="mt-5 grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
+            <ul className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 max-sm:grid-cols-2 max-sm:gap-2.5 sm:mt-5">
               {(products.data ?? []).map((p) => {
                 const left = p.track_stock ? p.stock_quantity - cartQuantity(p.id) : null
                 const out = left !== null && left <= 0
@@ -92,12 +93,12 @@ export function SnacksPage() {
                       type="button"
                       onClick={() => add(p)}
                       disabled={!canSell || !counterOpen || out}
-                      className="flex h-full w-full flex-col rounded-2xl bg-sunken/60 px-4 py-3.5 text-left transition-[background-color,box-shadow] duration-150 enabled:hover:bg-surface enabled:hover:shadow-[var(--shadow-card)] disabled:cursor-default"
+                      className="flex h-full w-full flex-col rounded-2xl bg-sunken/60 px-4 py-3.5 text-left max-sm:px-3.5 max-sm:py-3 transition-[background-color,box-shadow] duration-150 enabled:hover:bg-surface enabled:hover:shadow-[var(--shadow-card)] disabled:cursor-default"
                       data-testid={`snack-${p.name}`}
                     >
-                      <span className="text-[15px] font-semibold text-fg">{p.name}</span>
+                      <span className="text-[15px] font-semibold text-fg max-sm:leading-snug">{p.name}</span>
                       <span className="mt-0.5 text-xs text-fg-4">{p.category}</span>
-                      <span className="mt-3 flex items-end justify-between gap-2">
+                      <span className="mt-3 flex items-end justify-between gap-2 max-sm:mt-auto max-sm:flex-wrap max-sm:gap-x-2 max-sm:gap-y-0.5 max-sm:pt-3">
                         <span className="figure text-[17px] text-forest-950">{formatMoney(p.selling_price)}</span>
                         <span className={cn('text-xs font-semibold tabular', out ? 'text-claret-700' : 'text-fg-4')}>
                           {p.track_stock ? (out ? 'Out of stock' : `${left} left`) : 'Always available'}
@@ -134,7 +135,7 @@ export function SnacksPage() {
               </Link>
             </section>
           ) : (
-            <section className="card p-6" data-testid="snack-cart">
+            <section ref={cartRef} className="card scroll-mt-4 p-5 sm:p-6" data-testid="snack-cart">
               <div className="flex items-baseline justify-between">
                 <span className="label">Cart</span>
                 {cart.length > 0 && (
@@ -148,12 +149,12 @@ export function SnacksPage() {
               ) : (
                 <ul className="mt-4 divide-y divide-line">
                   {cart.map((l) => (
-                    <li key={l.key} className="flex items-center gap-3 py-3">
-                      <div className="min-w-0 flex-1">
+                    <li key={l.key} className="flex items-center gap-3 py-3 max-sm:flex-wrap max-sm:gap-y-2">
+                      <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-6rem)]">
                         <p className="line-clamp-2 text-sm leading-snug font-semibold text-fg">{l.name}</p>
                         <p className="text-xs text-fg-4 tabular">{formatMoney(l.unitPrice)} each</p>
                       </div>
-                      <div className="flex items-center rounded-xl bg-surface shadow-[var(--shadow-control)]">
+                      <div className="flex items-center rounded-xl bg-surface shadow-[var(--shadow-control)] max-sm:order-2">
                         <IconButton label="One less" size="sm" tooltip={false} onClick={() => setQuantity(l, l.quantity - 1)}>
                           <Minus className="size-3.5" />
                         </IconButton>
@@ -170,8 +171,8 @@ export function SnacksPage() {
                           <Plus className="size-3.5" />
                         </IconButton>
                       </div>
-                      <span className="w-20 text-right text-sm font-semibold text-fg tabular">{formatMoney((toPaisa(l.unitPrice) * l.quantity) / 100)}</span>
-                      <IconButton label={`Remove ${l.name}`} size="sm" variant="danger" tooltip={false} onClick={() => setQuantity(l, 0)}>
+                      <span className="w-20 text-right text-sm font-semibold text-fg tabular max-sm:order-1">{formatMoney((toPaisa(l.unitPrice) * l.quantity) / 100)}</span>
+                      <IconButton label={`Remove ${l.name}`} size="sm" variant="danger" tooltip={false} className="max-sm:order-3 max-sm:ml-auto" onClick={() => setQuantity(l, 0)}>
                         <Trash2 className="size-3.5" />
                       </IconButton>
                     </li>
@@ -202,6 +203,23 @@ export function SnacksPage() {
         </aside>
       </div>
 
+      {/* Phones and tablets: the cart sits below the products, so its total and Checkout follow the thumb. */}
+      {canSell && counterOpen && cart.length > 0 && (
+        <div className="sticky bottom-3 z-20 mt-4 lg:hidden" data-testid="snack-cart-bar">
+          <div className="flex items-center gap-3 rounded-2xl bg-forest-950 p-2 pl-4 text-cream shadow-[var(--shadow-pop)]">
+            <button type="button" className="min-w-0 flex-1 text-left" onClick={() => cartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+              <span className="block text-xs font-semibold text-side-muted">
+                {units} item{units === 1 ? '' : 's'} · View cart
+              </span>
+              <span className="block figure text-[20px] leading-tight">{formatMoney(totalPaisa / 100)}</span>
+            </button>
+            <Button variant="brass" size="lg" icon={<ShoppingBag className="size-4" />} onClick={() => setCheckoutOpen(true)} data-testid="snack-cart-bar-checkout">
+              Checkout
+            </Button>
+          </div>
+        </div>
+      )}
+
       <SnackSalesToday />
       <CheckoutDialog open={checkoutOpen} onOpenChange={setCheckoutOpen} tableId={null} initialCart={cart} onCompleted={() => setCart([])} />
     </Page>
@@ -221,7 +239,7 @@ function SnackSalesToday() {
   const all = data.scope === 'all'
   return (
     <section className="card mt-6 overflow-hidden" data-testid="snack-sales-today">
-      <div className="flex flex-wrap items-end justify-between gap-4 px-8 pt-7 pb-4">
+      <div className="flex flex-wrap items-end justify-between gap-4 px-5 pt-6 pb-4 md:px-8 md:pt-7">
         <div>
           <span className="label">{all ? 'Snack sales today · all counters' : 'Your snack sales today'}</span>
           <p className="mt-2.5 figure text-[30px] leading-none text-forest-950" data-testid="snack-sales-total">
@@ -234,10 +252,10 @@ function SnackSalesToday() {
         </p>
       </div>
       {data.sales.length === 0 ? (
-        <p className="px-8 pb-7 text-sm text-fg-4">No snack-only sales yet today.</p>
+        <p className="px-5 pb-6 text-sm text-fg-4 md:px-8 md:pb-7">No snack-only sales yet today.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="table-stack w-full min-w-[640px] text-sm">
             <thead>
               <tr className="thead-row">
                 <th className="px-8 py-3">Receipt</th>
@@ -251,12 +269,12 @@ function SnackSalesToday() {
             <tbody className="divide-y divide-line">
               {data.sales.map((s) => (
                 <tr key={s.id}>
-                  <td className="px-8 py-3 font-semibold text-fg tabular">#{s.receipt_no}</td>
-                  <td className="px-4 py-3 text-fg-3 tabular">{formatTime(s.created_at, settings?.business_timezone)}</td>
-                  <td className="px-4 py-3 text-fg-2">{s.items.map((i) => `${i.name} × ${i.quantity}`).join(', ')}</td>
-                  {all && <td className="px-4 py-3 text-fg-3">{s.cashier_name}</td>}
-                  <td className="px-4 py-3 text-fg-3">{s.payment_method === 'cash' ? 'Cash' : 'Bank transfer'}</td>
-                  <td className="px-8 py-3 text-right font-semibold text-fg tabular">{formatMoney(s.final_amount)}</td>
+                  <td className="px-8 py-3 font-semibold text-fg tabular" data-stack="top">#{s.receipt_no}</td>
+                  <td className="px-4 py-3 text-fg-3 tabular" data-label="Time">{formatTime(s.created_at, settings?.business_timezone)}</td>
+                  <td className="px-4 py-3 text-fg-2" data-label="Items" data-stack="full">{s.items.map((i) => `${i.name} × ${i.quantity}`).join(', ')}</td>
+                  {all && <td className="px-4 py-3 text-fg-3" data-label="Staff">{s.cashier_name}</td>}
+                  <td className="px-4 py-3 text-fg-3" data-label="Payment">{s.payment_method === 'cash' ? 'Cash' : 'Bank transfer'}</td>
+                  <td className="px-8 py-3 text-right font-semibold text-fg tabular" data-stack="top end">{formatMoney(s.final_amount)}</td>
                 </tr>
               ))}
             </tbody>

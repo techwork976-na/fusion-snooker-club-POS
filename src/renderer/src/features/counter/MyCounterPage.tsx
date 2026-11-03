@@ -62,7 +62,7 @@ export function MyCounterPage() {
           {shift ? (
             <CurrentShift shift={shift} />
           ) : (
-            <section className="card flex flex-wrap items-center gap-6 p-8" data-testid="counter-closed">
+            <section className="card flex flex-wrap items-center gap-6 p-6 sm:p-8" data-testid="counter-closed">
               <span className="flex size-14 items-center justify-center rounded-full bg-forest-50 text-forest-700">
                 <Wallet className="size-6" />
               </span>
@@ -81,7 +81,7 @@ export function MyCounterPage() {
 
           <div className="grid grid-cols-12 gap-5">
             {shift && (
-              <section className="card col-span-12 p-6 xl:col-span-6">
+              <section className="card col-span-12 p-5 sm:p-6 xl:col-span-6">
                 <div className="flex items-center justify-between">
                   <span className="label">Expenses this shift</span>
                   <Button size="sm" variant="ghost" icon={<MinusCircle className="size-4" />} onClick={() => setExpenseOpen(true)}>
@@ -113,7 +113,7 @@ export function MyCounterPage() {
               </section>
             )}
 
-            <section className={cn('card col-span-12 p-6', shift && 'xl:col-span-6')}>
+            <section className={cn('card col-span-12 p-5 sm:p-6', shift && 'xl:col-span-6')}>
               <span className="label">My recent shifts</span>
               {data.recent.length === 0 ? (
                 <EmptyState className="py-8" icon={<History className="size-5" />} title="No closed shifts yet" />
@@ -152,7 +152,7 @@ export function MyCounterPage() {
 function CurrentShift({ shift }: { shift: Shift }) {
   const now = useServerNow()
   return (
-    <section className="card p-7" data-testid="my-counter">
+    <section className="card p-5 sm:p-7" data-testid="my-counter">
       <div className="flex items-center justify-between">
         <span className="label">Current shift</span>
         <ShiftStatusPill status="open" />
@@ -162,7 +162,7 @@ function CurrentShift({ shift }: { shift: Shift }) {
           <AnimatedMoney
             value={shift.total}
             duration={0.9}
-            className="block figure text-[clamp(50px,5.2vw,70px)] leading-[0.92] text-forest-950"
+            className="block figure text-[clamp(40px,12vw,50px)] leading-[0.92] text-forest-950 sm:text-[clamp(50px,5.2vw,70px)]"
             data-testid="shift-total"
           />
           <p className="mt-4 text-sm text-fg-3">
@@ -176,7 +176,7 @@ function CurrentShift({ shift }: { shift: Shift }) {
           </p>
         )}
       </div>
-      <ShiftFigures figures={shift} size="lg" className="mt-10" />
+      <ShiftFigures figures={shift} size="lg" className="mt-8 sm:mt-10" />
     </section>
   )
 }
@@ -258,7 +258,7 @@ function CloseCounterDialog({
       tone="primary"
       title="Close your counter?"
       confirmLabel="Close counter"
-      description={<ShiftFigures figures={shift} className="!grid-cols-3 rounded-xl bg-sunken p-4" />}
+      description={<ShiftFigures figures={shift} className="rounded-xl bg-sunken p-4 sm:!grid-cols-3" />}
       requireAcknowledgement={
         handover
           ? `Hand over ${shift.open_sessions} table session(s) I started. They will be paid at whichever counter checks them out.`

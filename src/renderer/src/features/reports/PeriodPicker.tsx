@@ -60,7 +60,7 @@ export function PeriodPicker({
 }) {
   const error = periodError(value, today)
   return (
-    <div className="flex flex-wrap items-center gap-3" data-testid="period-picker">
+    <div className="flex max-w-full min-w-0 flex-wrap items-center gap-3" data-testid="period-picker">
       <Segmented
         layoutId={layoutId}
         value={value.preset}
@@ -74,11 +74,11 @@ export function PeriodPicker({
         ]}
       />
       {value.preset === 'custom' ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <input
             type="date"
             aria-label="From"
-            className={cn(inputClass, 'h-10 w-[150px]')}
+            className={cn(inputClass, 'h-10 min-w-0 flex-1 sm:w-[150px] sm:flex-none')}
             value={value.from}
             max={value.to}
             onChange={(e) => e.target.value && onChange({ ...value, from: e.target.value })}
@@ -87,13 +87,13 @@ export function PeriodPicker({
           <input
             type="date"
             aria-label="To"
-            className={cn(inputClass, 'h-10 w-[150px]')}
+            className={cn(inputClass, 'h-10 min-w-0 flex-1 sm:w-[150px] sm:flex-none')}
             value={value.to}
             min={value.from}
             max={today}
             onChange={(e) => e.target.value && onChange({ ...value, to: e.target.value })}
           />
-          {error && <span className="text-xs font-semibold text-claret-700">{error}</span>}
+          {error && <span className="text-xs font-semibold text-claret-700 max-sm:basis-full">{error}</span>}
         </div>
       ) : (
         <span className="flex items-center gap-1.5 text-[13px] font-semibold text-fg-3" data-testid="period-label">

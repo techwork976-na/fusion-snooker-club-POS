@@ -23,7 +23,7 @@ export function ReceiptPaper({ receipt: r }: { receipt: Receipt }) {
   const tz = settings?.business_timezone
   return (
     <div
-      className="mx-auto w-[340px] rounded-md bg-[#f7f4ec] px-6 py-6 text-[12.5px] leading-snug text-[#1b1d1c] shadow-[0_30px_60px_-25px_rgb(0_0_0/0.9)]"
+      className="mx-auto w-full max-w-[340px] rounded-md bg-[#f7f4ec] px-6 py-6 text-[12.5px] leading-snug text-[#1b1d1c] shadow-[0_30px_60px_-25px_rgb(0_0_0/0.9)]"
       data-selectable
       data-testid="receipt"
     >
@@ -81,22 +81,22 @@ export function ReceiptPanel({ receipt, onDone, autoPrinted }: { receipt: Receip
     else toast.error(res.error ?? 'Printing failed.')
   }
   return (
-    <div className="grid grid-cols-[1fr_340px] items-start gap-10">
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="pt-4">
+    <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-[1fr_340px] md:gap-10">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="md:pt-4">
         <div className="flex size-14 items-center justify-center rounded-2xl bg-sage-500/15 text-sage-600">
           <CheckCircle2 className="size-7" />
         </div>
-        <p className="mt-6 label">Payment received</p>
-        <p className="mt-2 figure text-[52px] leading-none text-forest-950">{formatMoney(receipt.final_amount)}</p>
+        <p className="mt-5 label md:mt-6">Payment received</p>
+        <p className="mt-2 figure text-[42px] leading-none text-forest-950 md:text-[52px]">{formatMoney(receipt.final_amount)}</p>
         <p className="mt-3 text-sm text-fg-3">
           {paymentLabel(receipt.payment_method)} · Receipt #{receipt.receipt_no}
           {autoPrinted ? ' · printed' : ''}
         </p>
-        <div className="mt-10 flex gap-3">
-          <Button variant="secondary" size="lg" icon={<Printer className="size-[18px]" />} loading={printing} onClick={print}>
+        <div className="mt-8 flex gap-3 md:mt-10">
+          <Button variant="secondary" size="lg" className="max-md:flex-1" icon={<Printer className="size-[18px]" />} loading={printing} onClick={print}>
             Print receipt
           </Button>
-          <Button variant="primary" size="lg" onClick={onDone} autoFocus>
+          <Button variant="primary" size="lg" className="max-md:flex-1" onClick={onDone} autoFocus>
             Done
           </Button>
         </div>

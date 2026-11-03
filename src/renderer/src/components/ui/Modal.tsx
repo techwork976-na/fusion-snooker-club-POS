@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Dialog } from 'radix-ui'
 import { AlertTriangle, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { useIsPhone } from '@/lib/useMedia'
 import { Button } from './Button'
 
 const sizes = {
@@ -33,6 +34,8 @@ export function Modal({
   dismissible?: boolean
   className?: string
 }) {
+  // Phones: a sheet that rises from the foot of the screen, full width.
+  const phone = useIsPhone()
   return (
     <Dialog.Root open={open} onOpenChange={(o) => (dismissible || o ? onOpenChange(o) : undefined)}>
       <AnimatePresence>
@@ -47,7 +50,7 @@ export function Modal({
                 transition={{ duration: 0.18 }}
               />
             </Dialog.Overlay>
-            <div className="pointer-events-none fixed inset-0 z-[61] flex items-center justify-center p-6 pt-16">
+            <div className="pointer-events-none fixed inset-0 z-[61] flex items-center justify-center p-6 pt-16 max-md:items-end max-md:p-0">
               <Dialog.Content
                 asChild
                 forceMount
@@ -56,23 +59,30 @@ export function Modal({
               >
                 <motion.div
                   className={cn(
-                    'pointer-events-auto flex max-h-[calc(100vh-96px)] flex-col overflow-hidden rounded-[24px] bg-surface shadow-[var(--shadow-pop)] outline-none',
+                    'pointer-events-auto flex max-h-[calc(100vh-96px)] flex-col overflow-hidden rounded-[24px] bg-surface shadow-[var(--shadow-pop)] outline-none max-md:max-h-[calc(100dvh-16px)] max-md:w-full max-md:rounded-b-none',
                     sizes[size],
                     className
                   )}
                   // A weighty spring in (readable at once: opacity fades fast), a quick ease out.
-                  initial={{ opacity: 0, y: 18, scale: 0.97 }}
+                  initial={phone ? { opacity: 1, y: '100%', scale: 1 } : { opacity: 0, y: 18, scale: 0.97 }}
                   animate={{
                     opacity: 1,
                     y: 0,
                     scale: 1,
-                    transition: { type: 'spring', stiffness: 380, damping: 32, mass: 0.9, opacity: { duration: 0.16, ease: 'easeOut' } }
+                    transition: phone
+                      ? { type: 'spring', stiffness: 380, damping: 38 }
+                      : { type: 'spring', stiffness: 380, damping: 32, mass: 0.9, opacity: { duration: 0.16, ease: 'easeOut' } }
                   }}
-                  exit={{ opacity: 0, y: 8, scale: 0.985, transition: { duration: 0.14, ease: [0.4, 0, 1, 1] } }}
+                  exit={
+                    phone
+                      ? { y: '100%', transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }
+                      : { opacity: 0, y: 8, scale: 0.985, transition: { duration: 0.14, ease: [0.4, 0, 1, 1] } }
+                  }
                 >
-                  <div className="flex items-start justify-between gap-4 px-7 pt-6 pb-2">
+                  <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-forest-950/15 md:hidden" aria-hidden />
+                  <div className="flex items-start justify-between gap-4 px-5 pt-3 pb-2 md:px-7 md:pt-6">
                     <div className="min-w-0">
-                      <Dialog.Title className="font-display-tight text-[24px] leading-tight text-forest-950">
+                      <Dialog.Title className="font-display-tight text-[21px] leading-tight text-forest-950 md:text-[24px]">
                         {title}
                       </Dialog.Title>
                       {description ? (
@@ -84,15 +94,15 @@ export function Modal({
                     {dismissible && (
                       <Dialog.Close
                         aria-label="Close"
-                        className="-mr-2 flex size-9 items-center justify-center rounded-lg text-fg-3 transition-colors hover:bg-forest-950/[0.06] hover:text-fg"
+                        className="-mr-2 flex size-10 items-center justify-center rounded-lg text-fg-3 transition-colors hover:bg-forest-950/[0.06] hover:text-fg md:size-9"
                       >
                         <X className="size-[18px]" />
                       </Dialog.Close>
                     )}
                   </div>
-                  <div className="min-h-0 flex-1 overflow-y-auto px-7 py-5">{children}</div>
+                  <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-7 md:py-5">{children}</div>
                   {footer && (
-                    <div className="flex items-center justify-end gap-2.5 bg-canvas/70 px-7 py-4">
+                    <div className="flex flex-wrap items-center justify-end gap-2.5 bg-canvas/70 px-5 pt-3.5 pb-[calc(14px+env(safe-area-inset-bottom))] md:px-7 md:py-4">
                       {footer}
                     </div>
                   )}

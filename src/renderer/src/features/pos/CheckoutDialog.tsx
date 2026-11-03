@@ -8,6 +8,7 @@ import type { Receipt } from '@shared/receipt'
 import { formatDuration, formatMoney, formatPricing, formatRate } from '@shared/format'
 import { cn } from '@/lib/cn'
 import { errorMessage } from '@/lib/errors'
+import { useIsPhone } from '@/lib/useMedia'
 import type { ProductSearchResult } from '@/lib/types'
 import { completeCheckout, openCounter } from '@/data/api'
 import { accountingKeys, keys, useAction, useBillingPolicy, useMyCounter, useSettings, useTablesOverview } from '@/data/hooks'
@@ -72,6 +73,8 @@ export function CheckoutDialog({
   const counterBlock = isAdmin ? 'admin' : myCounter && !myCounter.shift ? 'closed' : null
   const { data: overview } = useTablesOverview()
   const actions = useSessionActions()
+  // Phones: no automatic keyboard over the bill; staff tap the search when they need it.
+  const phone = useIsPhone()
 
   const table = tableId ? overview?.tables.find((t) => t.id === tableId) ?? null : null
   const session = table?.session ?? null
@@ -251,11 +254,11 @@ export function CheckoutDialog({
       ) : !isCounter && !session ? (
         <EmptyState title="This session is no longer open" description="It may have been checked out or cancelled on another terminal." />
       ) : (
-        <div className="grid grid-cols-[1.2fr_1fr] gap-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.2fr_1fr] lg:gap-8">
           {/* Bill */}
           <div className="flex min-w-0 flex-col gap-5">
             {session && (
-              <div className="grid grid-cols-4 gap-6 rounded-2xl bg-sunken/60 px-5 py-4">
+              <div className="grid grid-cols-2 gap-x-5 gap-y-3 rounded-2xl bg-sunken/60 px-4 py-3.5 sm:grid-cols-4 sm:gap-6 sm:px-5 sm:py-4">
                 {[
                   ['Played', session.billable_seconds != null ? formatDuration(session.billable_seconds) : '—'],
                   ['Rate', rateApplied ? formatRate(customRate) : formatPricing(session)],
@@ -278,9 +281,9 @@ export function CheckoutDialog({
               </div>
             )}
 
-            <ProductPicker onPick={addProduct} autoFocus={isCounter} busy={tabBusy} />
+            <ProductPicker onPick={addProduct} autoFocus={isCounter && !phone} busy={tabBusy} />
 
-            <div className="min-h-[220px] rounded-2xl bg-sunken/60">
+            <div className="rounded-2xl bg-sunken/60 sm:min-h-[220px]">
               {lines.length === 0 ? (
                 <EmptyState
                   className="py-10"
@@ -298,13 +301,13 @@ export function CheckoutDialog({
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="flex items-center gap-3 px-4 py-3"
+                        className="flex items-center gap-3 px-4 py-3 max-sm:flex-wrap max-sm:gap-y-2"
                       >
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-7rem)]">
                           <p className="truncate text-sm font-semibold text-fg">{l.name}</p>
                           <p className="text-xs text-fg-4 tabular">{formatMoney(l.unitPrice)} each</p>
                         </div>
-                        <div className="flex items-center gap-1 rounded-xl bg-surface p-1 shadow-[var(--shadow-control)]">
+                        <div className="flex items-center gap-1 rounded-xl bg-surface p-1 shadow-[var(--shadow-control)] max-sm:order-2">
                           <IconButton size="sm" label="Decrease" tooltip={false} onClick={() => setQuantity(l, l.quantity - 1)} disabled={tabBusy}>
                             <Minus className="size-3.5" />
                           </IconButton>
@@ -319,8 +322,8 @@ export function CheckoutDialog({
                             <Plus className="size-3.5" />
                           </IconButton>
                         </div>
-                        <span className="w-24 text-right text-sm font-bold tabular">{formatMoney((toPaisa(l.unitPrice) * l.quantity) / 100)}</span>
-                        <IconButton label={`Remove ${l.name}`} variant="danger" size="sm" onClick={() => setQuantity(l, 0)} disabled={tabBusy}>
+                        <span className="w-24 text-right text-sm font-bold tabular max-sm:order-1">{formatMoney((toPaisa(l.unitPrice) * l.quantity) / 100)}</span>
+                        <IconButton label={`Remove ${l.name}`} variant="danger" size="sm" className="max-sm:order-3 max-sm:ml-auto" onClick={() => setQuantity(l, 0)} disabled={tabBusy}>
                           <Trash2 className="size-4" />
                         </IconButton>
                       </motion.li>
@@ -438,7 +441,7 @@ export function CheckoutDialog({
               </div>
             </div>
 
-            <div className="mt-auto rounded-2xl bg-sunken/70 p-5">
+            <div className="mt-auto rounded-2xl bg-sunken/70 p-4 sm:p-5">
               <div className="space-y-2 text-sm">
                 {!isCounter && (
                   <div className="flex justify-between text-fg-3">
@@ -462,7 +465,7 @@ export function CheckoutDialog({
               </div>
               <div className="mt-4 flex items-end justify-between border-t border-forest-950/[0.07] pt-4">
                 <span className="label">Total</span>
-                <span className="figure text-[44px] leading-none text-forest-950" data-testid="checkout-total">
+                <span className="figure text-[36px] leading-none text-forest-950 sm:text-[44px]" data-testid="checkout-total">
                   {formatMoney(totalPaisa / 100)}
                 </span>
               </div>
@@ -474,7 +477,7 @@ export function CheckoutDialog({
                 </p>
               )}
               {counterBlock === 'closed' && (
-                <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-brass-50 px-3.5 py-2.5 text-sm text-brass-800">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-brass-50 px-3.5 py-2.5 text-sm text-brass-800">
                   <span>Open your counter to take this payment.</span>
                   <Button size="sm" variant="primary" icon={<Wallet className="size-3.5" />} loading={startCounter.isPending} onClick={() => startCounter.mutate(undefined)}>
                     Open counter

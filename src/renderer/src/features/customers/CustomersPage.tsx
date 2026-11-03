@@ -54,7 +54,7 @@ export function CustomersPage() {
         }
       >
         {tab === 'all' && (
-          <div className="relative w-80">
+          <div className="relative w-full sm:w-80">
             <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-fg-4" />
             <input className={cn(inputClass, 'pl-10')} placeholder="Search by name or phone…" value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
@@ -77,7 +77,7 @@ export function CustomersPage() {
             description="A customer profile is created when a phone number is entered at checkout or on a booking."
           />
         ) : (
-          <table className="w-full text-sm">
+          <table className="table-stack w-full text-sm">
             <thead>
               <tr className="thead-row">
                 <th className="px-5 py-3 font-semibold">Name</th>
@@ -89,12 +89,12 @@ export function CustomersPage() {
             <tbody className="divide-y divide-line">
               {data.map((c) => (
                 <tr key={c.id}>
-                  <td className="px-5 py-3 font-semibold text-fg">{c.name}</td>
-                  <td className="px-5 py-3 text-fg-2 tabular">{c.phone ?? <span className="text-fg-5">—</span>}</td>
-                  <td className="px-5 py-3 text-fg-4">
+                  <td className="px-5 py-3 font-semibold text-fg max-md:text-[15px]" data-stack="top">{c.name}</td>
+                  <td className="px-5 py-3 text-fg-2 tabular" data-label="Phone">{c.phone ?? <span className="text-fg-5">—</span>}</td>
+                  <td className="px-5 py-3 text-fg-4" data-label="Customer since">
                     {new Date(c.created_at).toLocaleDateString('en-GB', { timeZone: settings?.business_timezone, day: 'numeric', month: 'short', year: 'numeric' })}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right" data-stack="top end">
                     {canEdit && (
                       <IconButton size="sm" label="Edit customer" onClick={() => setEditing(c)}>
                         <Pencil className="size-4" />

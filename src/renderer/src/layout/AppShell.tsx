@@ -17,6 +17,7 @@ import { InventoryPage } from '@/features/inventory/InventoryPage'
 import { CustomersPage } from '@/features/customers/CustomersPage'
 import { StaffPage } from '@/features/staff/StaffPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
+import { MobileNav } from './MobileNav'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 
@@ -157,6 +158,7 @@ export function AppShell() {
           </Routes>
         </AnimatePresence>
       </main>
+      <MobileNav />
       </div>
     </div>
   )

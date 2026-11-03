@@ -53,7 +53,7 @@ export function SessionPanel({
         aside={session && <StatusPill status={session.status} timeUp={timeUp} />}
         footer={
           session && (
-            <div className="flex gap-2.5">
+            <div className="flex flex-wrap gap-2.5">
               {timeUp && hourly && (
                 <Button variant="secondary" size="lg" className="flex-1" icon={<Plus className="size-4" />} loading={actions.extend.isPending} disabled={busy} onClick={() => extend(30)}>
                   Extend 30 min
@@ -97,7 +97,7 @@ export function SessionPanel({
           <div className="space-y-6">
             <section>
               <p className="label">{timeUp ? "Time's up" : session.status === 'billing' ? 'Final time' : session.status === 'paused' ? 'Paused at' : 'Playing time'}</p>
-              <p className="mt-3 figure text-[64px] leading-none text-forest-950">{formatClock(live.seconds)}</p>
+              <p className="mt-3 figure text-[52px] leading-none text-forest-950 sm:text-[64px]">{formatClock(live.seconds)}</p>
               <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div>
                   <dt className="text-xs text-fg-4">Started</dt>
@@ -144,7 +144,7 @@ export function SessionPanel({
                           key={m}
                           disabled={busy || total > 1440}
                           onClick={() => extend(m)}
-                          className="rounded-xl bg-sunken/80 px-3.5 py-2 text-left transition-colors hover:bg-sunken disabled:opacity-45"
+                          className="rounded-xl bg-sunken/80 px-3.5 py-2 text-left transition-colors hover:bg-sunken disabled:opacity-45 max-sm:min-w-[calc(50%-4px)] max-sm:flex-1"
                           data-testid={`extend-${m}`}
                         >
                           <span className="block text-[13px] font-bold text-fg">+{durationLabel(m)}</span>
@@ -167,7 +167,7 @@ export function SessionPanel({
             </section>
 
             <section>
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                 <h3 className="text-sm font-bold text-fg">Tab</h3>
                 <span className="text-xs text-fg-4">Stock is taken when an item is served.</span>
               </div>
@@ -181,13 +181,13 @@ export function SessionPanel({
                       initial={{ opacity: 0, y: -4 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="flex items-center gap-3 rounded-xl bg-sunken/70 px-3.5 py-2.5"
+                      className="flex items-center gap-3 rounded-xl bg-sunken/70 px-3.5 py-2.5 max-sm:flex-wrap max-sm:gap-y-2"
                     >
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-6rem)]">
                         <p className="truncate text-sm font-semibold text-fg">{i.name}</p>
                         <p className="text-xs text-fg-4 tabular">{formatMoney(i.unit_price)} each</p>
                       </div>
-                      <div className="flex items-center gap-0.5">
+                      <div className="flex items-center gap-0.5 max-sm:order-2 max-sm:rounded-xl max-sm:bg-surface max-sm:shadow-[var(--shadow-control)]">
                         <IconButton size="sm" label="Decrease" tooltip={false} disabled={tabBusy} onClick={() => actions.setQty.mutate({ itemId: i.id, quantity: i.quantity - 1 })}>
                           <Minus className="size-3.5" />
                         </IconButton>
@@ -196,8 +196,8 @@ export function SessionPanel({
                           <Plus className="size-3.5" />
                         </IconButton>
                       </div>
-                      <span className="w-20 text-right text-sm font-bold tabular">{formatMoney(i.unit_price * i.quantity)}</span>
-                      <IconButton size="sm" variant="danger" label={`Remove ${i.name}`} disabled={tabBusy} onClick={() => actions.setQty.mutate({ itemId: i.id, quantity: 0 })}>
+                      <span className="w-20 text-right text-sm font-bold tabular max-sm:order-1">{formatMoney(i.unit_price * i.quantity)}</span>
+                      <IconButton size="sm" variant="danger" label={`Remove ${i.name}`} className="max-sm:order-3 max-sm:ml-auto" disabled={tabBusy} onClick={() => actions.setQty.mutate({ itemId: i.id, quantity: 0 })}>
                         <Trash2 className="size-4" />
                       </IconButton>
                     </motion.li>
@@ -224,7 +224,7 @@ export function SessionPanel({
             {can('cancel_session') && (
               <button
                 onClick={() => setConfirmCancel(true)}
-                className="flex items-center gap-2 text-xs font-semibold text-fg-4 transition-colors hover:text-claret-700"
+                className="flex items-center gap-2 text-xs font-semibold text-fg-4 transition-colors hover:text-claret-700 max-md:min-h-10"
               >
                 <Ban className="size-3.5" /> Cancel session without charge
               </button>

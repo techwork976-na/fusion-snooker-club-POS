@@ -4,7 +4,7 @@ import { Checkbox as RCheckbox, Select as RSelect, Switch as RSwitch } from 'rad
 import { cn } from '@/lib/cn'
 
 export const inputClass =
-  'h-10 w-full rounded-xl border border-line-strong/80 bg-field px-3.5 text-sm text-fg shadow-[inset_0_1px_2px_rgb(10_31_20/0.035)] placeholder:text-fg-4 transition-[border-color,box-shadow] outline-none hover:border-line-strong focus:border-forest-700 focus:ring-1 focus:ring-forest-700 disabled:opacity-50 aria-[invalid=true]:border-claret-500 aria-[invalid=true]:ring-claret-500'
+  'h-10 w-full rounded-xl border border-line-strong/80 bg-field px-3.5 text-sm text-fg shadow-[inset_0_1px_2px_rgb(10_31_20/0.035)] placeholder:text-fg-4 transition-[border-color,box-shadow] outline-none hover:border-line-strong focus:border-forest-700 focus:ring-1 focus:ring-forest-700 disabled:opacity-50 aria-[invalid=true]:border-claret-500 aria-[invalid=true]:ring-claret-500 max-md:min-h-11 max-md:text-base'
 
 export function FieldShell({
   label,
@@ -136,7 +136,7 @@ export function Select<V extends string>({
                 <RSelect.Item
                   key={o.value}
                   value={o.value}
-                  className="relative flex cursor-pointer items-center justify-between gap-3 rounded-lg py-2 pr-8 pl-3 text-sm text-fg outline-none select-none data-[highlighted]:bg-forest-950/[0.06] data-[state=checked]:font-semibold data-[state=checked]:text-forest-700"
+                  className="relative flex cursor-pointer items-center justify-between gap-3 rounded-lg py-2 pr-8 pl-3 text-sm text-fg max-md:min-h-11 outline-none select-none data-[highlighted]:bg-forest-950/[0.06] data-[state=checked]:font-semibold data-[state=checked]:text-forest-700"
                 >
                   <div className="flex flex-col">
                     <RSelect.ItemText>{o.label}</RSelect.ItemText>
@@ -171,7 +171,7 @@ export function Switch({
   const id = useId()
   return (
     <div className="flex items-start justify-between gap-4">
-      <label htmlFor={id} className="flex flex-col gap-0.5">
+      <label htmlFor={id} className="flex min-w-0 flex-col gap-0.5">
         <span className="text-sm font-semibold text-fg">{label}</span>
         {description && <span className="text-xs text-fg-4">{description}</span>}
       </label>

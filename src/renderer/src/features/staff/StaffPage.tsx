@@ -46,7 +46,7 @@ export function StaffPage() {
       ) : isLoading ? (
         <LoadingBlock />
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(340px,100%),1fr))] gap-4">
           {(users ?? []).map((u) => (
             <article key={u.id} className={cn('card flex flex-col p-5', !u.is_active && 'opacity-60')}>
               <div className="flex items-start gap-3.5">
@@ -82,7 +82,7 @@ export function StaffPage() {
                   ))
                 )}
               </div>
-              <div className="mt-5 flex gap-1">
+              <div className="mt-5 flex flex-wrap gap-1">
                 <IconButton size="sm" label="Edit" onClick={() => setEditing(u)}>
                   <Pencil className="size-4" />
                 </IconButton>
@@ -214,7 +214,7 @@ function UserDialog({ user, onClose }: { user: AppUser | 'new' | null; onClose: 
       }
     >
       <form
-        className="grid grid-cols-2 gap-x-6 gap-y-4"
+        className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2"
         onSubmit={(e) => {
           e.preventDefault()
           submit()
@@ -247,11 +247,11 @@ function UserDialog({ user, onClose }: { user: AppUser | 'new' | null; onClose: 
             options={[{ value: 'all', label: 'All floors' }, ...(floors ?? []).map((f) => ({ value: String(f.id), label: f.name }))]}
           />
         ) : (
-          <div />
+          <div className="max-sm:hidden" />
         )}
         {isNew && (
           <TextField
-            containerClassName="col-span-2"
+            containerClassName="sm:col-span-2"
             label="Password"
             type="password"
             autoComplete="new-password"
@@ -262,9 +262,9 @@ function UserDialog({ user, onClose }: { user: AppUser | 'new' | null; onClose: 
           />
         )}
         {role === 'staff' && (
-          <div className="col-span-2 mt-1 rounded-2xl bg-sunken/70 p-4">
+          <div className="mt-1 rounded-2xl bg-sunken/70 p-4 sm:col-span-2">
             <p className="mb-3 text-[13px] font-semibold text-fg-2">Permissions</p>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3.5">
+            <div className="grid grid-cols-1 gap-x-6 gap-y-3.5 sm:grid-cols-2">
               {PERMISSIONS.map((p) => (
                 <Checkbox
                   key={p.key}

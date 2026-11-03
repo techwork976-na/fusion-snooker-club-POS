@@ -961,3 +961,212 @@ test('Reset business data: password, optional backup, typed confirmation; logins
   await nav('Reports').click()
   await expect(page.getByTestId('report-total')).toHaveText('PKR 0')
 })
+
+// --- Phones and tablets ------------------------------------------------------
+// The same app on touch screens. These run after the reset, on the club it
+// kept (tables, prices, stock, logins) — so every sale below is a fresh one.
+
+const STAFF_PAGES = ['/', '/tables', '/snacks', '/counter', '/sales']
+const ADMIN_PAGES = [
+  '/', '/tables', '/tables?view=report', '/snacks', '/bookings', '/history', '/history?tab=shifts', '/history?tab=invoices',
+  '/history?tab=close', '/reports', '/expenses', '/inventory', '/inventory?view=sales', '/customers', '/staff', '/settings'
+]
+
+/** A fresh browser tab at a device size (phones also report touch and a mobile user agent). */
+async function device(width: number, height: number): Promise<Page> {
+  const ctx = await browser.newContext({ viewport: { width, height }, isMobile: width < 768, hasTouch: width < 1024, deviceScaleFactor: 2, reducedMotion: 'reduce' })
+  return ctx.newPage()
+}
+async function signInAs(p: Page, username: string, password: string) {
+  await p.goto(E2E.appUrl + '/')
+  await p.getByTestId('login-username').fill(username)
+  await p.getByTestId('login-password').fill(password)
+  await p.getByRole('button', { name: 'Sign in' }).click()
+  await expect(p.locator('#main')).toBeVisible()
+}
+/** How far the page would scroll sideways (0 = everything fits the screen). */
+const sideways = (p: Page) =>
+  p.evaluate(() => {
+    const main = document.getElementById('main')!
+    return Math.max(document.documentElement.scrollWidth - window.innerWidth, main.scrollWidth - main.clientWidth)
+  })
+const shotOf = async (p: Page, name: string) => {
+  await p.waitForTimeout(900)
+  await p.screenshot({ path: join(SHOTS, `${name}.png`) })
+}
+/** Every page fits the screen without sideways scrolling. */
+async function expectPagesFit(p: Page, paths: string[], label: string) {
+  for (const path of paths) {
+    await p.goto(E2E.appUrl + path)
+    await expect(p.locator('#main h1').first()).toBeVisible()
+    await p.waitForTimeout(400)
+    expect(await sideways(p), `${label} ${path} scrolls sideways`).toBe(0)
+  }
+}
+
+test('Phone: staff run a table from start to payment and sell snacks, all by touch', async () => {
+  const p = await device(375, 812)
+  await signInAs(p, 'ali', 'ali-pass-123')
+  const tabs = p.getByRole('navigation', { name: 'Main' })
+  // The tab bar replaces the sidebar; the role's own pages are on it.
+  await expect(p.getByTestId('mobile-nav')).toBeVisible()
+  await expect(p.locator('aside[data-layout]')).toBeHidden()
+  for (const name of ['Dashboard', 'Tables', 'Snacks', 'My counter', 'More']) await expect(tabs.getByRole(name === 'More' ? 'button' : 'link', { name })).toBeVisible()
+
+  await tabs.getByRole('link', { name: 'My counter' }).click()
+  await p.getByTestId('counter-closed').getByRole('button', { name: 'Open counter' }).click()
+  await expect(p.getByTestId('my-counter')).toBeVisible()
+
+  // Start a table, pause and resume it from its card.
+  await tabs.getByRole('link', { name: 'Tables' }).click()
+  const card = p.getByTestId('table-card-Snooker 3')
+  await card.getByRole('button', { name: 'Start' }).click()
+  await expect(p.getByRole('dialog', { name: 'Start Snooker 3' })).toBeVisible()
+  await p.getByTestId('confirm-start').click()
+  await expect(card).toContainText('Running')
+  await db(`update public.sessions set started_at = started_at - interval '20 minutes' where table_id = $1 and status = 'running'`, [club.snooker3])
+  await card.getByRole('button', { name: 'Pause' }).click()
+  await expect(card).toContainText('Paused')
+  await card.getByRole('button', { name: 'Resume' }).click()
+  await expect(card).toContainText('Running')
+
+  // Its tab, in the bottom sheet: two colas.
+  await card.getByRole('heading', { name: 'Snooker 3' }).click()
+  const sheet = p.getByRole('dialog', { name: 'Snooker 3' })
+  await sheet.getByTestId('product-search').fill('cola')
+  await p.getByRole('button', { name: /Cola 345ml/ }).click()
+  await expect(sheet).toContainText('Cola 345ml')
+  await sheet.getByRole('button', { name: 'Increase' }).click()
+  await expect(sheet.locator('li').filter({ hasText: 'Cola 345ml' })).toContainText('PKR 200')
+  expect(await sideways(p)).toBe(0)
+  await shotOf(p, '32-phone-session')
+  await sheet.getByTestId('end-session').click()
+
+  // Checkout: the database's own table charge plus the colas; paid in cash.
+  const checkout = p.getByRole('dialog', { name: /Checkout · Snooker 3/ })
+  await expect(checkout).toBeVisible()
+  const [ended] = await db<{ base: string }>(`select base_amount::text base from public.sessions where table_id = $1 and status = 'billing'`, [club.snooker3])
+  const expected = Number(ended!.base) + 200
+  await expect(p.getByTestId('checkout-total')).toHaveText(`PKR ${expected.toLocaleString('en-US')}`)
+  await shotOf(p, '33-phone-checkout')
+  await p.getByTestId('complete-checkout').click()
+  await expect(p.getByTestId('receipt')).toContainText('Snooker 3')
+  await p.getByRole('button', { name: 'Done' }).click()
+  await expect(card).toContainText('Available')
+  const [tableSale] = await db<{ final: string; items: string; method: string }>(
+    `select final_amount::text final, products_subtotal::text items, payment_method method from public.sales where table_name = 'Snooker 3'`
+  )
+  expect(tableSale).toEqual({ final: expected.toFixed(2), items: '200.00', method: 'cash' })
+
+  // Snacks without a table: the cart bar follows the thumb.
+  await tabs.getByRole('link', { name: 'Snacks' }).click()
+  await p.getByTestId('snack-Doodh Patti Chai').click()
+  await p.getByTestId('snack-Doodh Patti Chai').click()
+  await p.getByTestId('snack-Cola 345ml').click()
+  const bar = p.getByTestId('snack-cart-bar')
+  await expect(bar).toContainText('3 items')
+  await expect(bar).toContainText('PKR 260')
+  await shotOf(p, '34-phone-snacks')
+  await p.getByTestId('snack-cart-bar-checkout').click()
+  await expect(p.getByTestId('checkout-total')).toHaveText('PKR 260')
+  await p.getByRole('radio', { name: 'Bank Transfer' }).click()
+  await p.getByTestId('complete-checkout').click()
+  await expect(p.getByTestId('receipt')).toContainText('Bank Transfer')
+  await p.getByRole('button', { name: 'Done' }).click()
+  await expect(bar).toHaveCount(0)
+  const [snackSale] = await db<{ session_id: string | null; final: string; method: string }>(
+    `select session_id, final_amount::text final, payment_method method from public.sales where table_name is null`
+  )
+  expect(snackSale).toEqual({ session_id: null, final: '260.00', method: 'bank_transfer' })
+
+  // More: the rest of the staff member's pages and the account — nothing of the admin's.
+  await tabs.getByRole('button', { name: 'More' }).click()
+  const more = p.getByTestId('more-sheet')
+  await expect(more.getByRole('link', { name: 'My sales' })).toBeVisible()
+  for (const adminOnly of ['Settings', 'Staff', 'Reports', 'Expenses', 'History']) await expect(more.getByRole('link', { name: adminOnly })).toHaveCount(0)
+  await more.getByRole('link', { name: 'My sales' }).click()
+  await expect(p.getByRole('heading', { name: 'My sales' })).toBeVisible()
+  await p.goto(E2E.appUrl + '/settings')
+  await expect(p).toHaveURL(E2E.appUrl + '/') // still admin-only
+
+  await expectPagesFit(p, STAFF_PAGES, 'staff 375')
+  await tabs.getByRole('button', { name: 'More' }).click()
+  await p.getByTestId('mobile-sign-out').click()
+  await expect(p.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+  await p.context().close()
+})
+
+test('Phone: the admin reaches every page from the tab bar and More, and records an expense', async () => {
+  const p = await device(360, 740)
+  await signInAs(p, 'owner', 'owner-pass-123')
+  const tabs = p.getByRole('navigation', { name: 'Main' })
+  for (const name of ['Dashboard', 'Tables', 'Reports', 'History']) await expect(tabs.getByRole('link', { name })).toBeVisible()
+  await tabs.getByRole('button', { name: 'More' }).click()
+  const more = p.getByTestId('more-sheet')
+  for (const name of ['Snacks', 'Pre-bookings', 'Expenses', 'Inventory', 'Customers', 'Staff', 'Settings']) await expect(more.getByRole('link', { name })).toBeVisible()
+  await expect(p.getByTestId('mobile-account')).toContainText('Admin portal')
+  await shotOf(p, '35-phone-admin-more')
+  await more.getByRole('link', { name: 'Expenses' }).click()
+  await expect(p.getByRole('heading', { name: 'Expenses' })).toBeVisible()
+
+  // A business expense from the bottom sheet.
+  await p.getByTestId('add-expense').click()
+  const dialog = p.getByRole('dialog', { name: 'Add a business expense' })
+  await dialog.getByRole('combobox').click()
+  await p.getByRole('option', { name: 'Utilities' }).click()
+  await p.getByTestId('expense-amount').fill('1500')
+  await p.getByTestId('expense-description').fill('Generator diesel')
+  await p.getByTestId('save-expense').click()
+  await expect(dialog).toHaveCount(0)
+  await expect(p.getByTestId('expense-list')).toContainText('Generator diesel')
+  const [expense] = await db<{ amount: string; category: string }>(`select amount::text, category from public.expenses where description = 'Generator diesel'`)
+  expect(expense).toEqual({ amount: '1500.00', category: 'utilities' })
+
+  // Settings: every section opens; Reset business data opens and cancels without touching anything.
+  await p.goto(E2E.appUrl + '/settings')
+  await p.getByRole('button', { name: 'Categories & rates' }).click()
+  await expect(p.getByTestId('category-price-PS5')).toHaveText('PKR 600/hour · 30 min PKR 400')
+  await p.getByRole('button', { name: 'Data management' }).click()
+  await p.getByTestId('open-reset').click()
+  await expect(p.getByTestId('reset-step-review')).toBeVisible()
+  await shotOf(p, '36-phone-reset-review')
+  await p.getByTestId('reset-cancel').click()
+  const [{ n }] = (await db<{ n: number }>(`select count(*)::int n from public.sales`)) as [{ n: number }]
+  expect(n).toBe(2) // the two phone sales above, untouched
+
+  // Administrators still do not take payments on a phone.
+  await p.goto(E2E.appUrl + '/snacks')
+  await expect(p.getByText('Administrators manage the business and do not take payments.')).toBeVisible()
+
+  await expectPagesFit(p, ADMIN_PAGES, 'admin 360')
+  await shotOf(p, '37-phone-admin-settings')
+  await p.context().close()
+})
+
+test('Every page fits a 320 px phone and both tablet orientations; the desktop keeps its sidebar', async () => {
+  for (const [w, h] of [
+    [320, 640],
+    [768, 1024],
+    [1024, 768]
+  ] as const) {
+    for (const [user, pass, paths] of [
+      ['ali', 'ali-pass-123', STAFF_PAGES],
+      ['owner', 'owner-pass-123', ADMIN_PAGES]
+    ] as const) {
+      const p = await device(w, h)
+      await signInAs(p, user, pass)
+      // Phones get the tab bar; tablets keep the sidebar rail.
+      await expect(p.getByTestId('mobile-nav')).toBeVisible({ visible: w < 768 })
+      await expect(p.locator('aside[data-layout]')).toBeVisible({ visible: w >= 768 })
+      await expectPagesFit(p, [...paths], `${user} ${w}x${h}`)
+      if (w === 768 && user === 'owner') await shotOf(p, '38-tablet-settings')
+      await p.context().close()
+    }
+  }
+  // The desktop window (the earlier tests' 1440 px tab) is unchanged: sidebar, no tab bar.
+  await page.goto(E2E.appUrl + '/') // still signed in as the owner from the reset test
+  await expect(page.locator('#main')).toBeVisible()
+  await expect(page.locator('aside[data-layout="wide"]')).toBeVisible()
+  await expect(page.getByTestId('mobile-nav')).toBeHidden()
+  await expect(page.getByTestId('mobile-topbar')).toBeHidden()
+})
