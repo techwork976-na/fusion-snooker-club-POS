@@ -9,6 +9,8 @@ import { AppError, toAppError } from '@/lib/errors'
 import { supabase } from '@/lib/supabase'
 import type {
   AppUser,
+  BusinessDataSummary,
+  BusinessResetResult,
   Booking as PreBooking,
   BookingStatus,
   Category,
@@ -244,6 +246,12 @@ export const addBusinessExpense = (e: { clientRef: string; date: string; categor
 export const voidBusinessExpense = (id: string) => rpc<Expense>('admin_void_expense', { p_expense_id: id })
 export const getSnackSales = (from: string, to: string) => rpc<SnackSalesReport>('get_snack_sales', { p_from: from, p_to: to })
 export const getTableSales = (from: string, to: string) => rpc<TableSalesReport>('get_table_sales', { p_from: from, p_to: to })
+
+// --- reset business data (admin; export and reset re-check the password) ----
+export const getBusinessDataSummary = () => rpc<BusinessDataSummary>('admin_business_data_summary')
+export const exportBusinessData = (password: string) => rpc<Record<string, unknown>>('admin_export_business_data', { p_password: password })
+export const resetBusinessData = (a: { password: string; confirmation: string; resetStock: boolean }) =>
+  rpc<BusinessResetResult>('admin_reset_business_data', { p_password: a.password, p_confirmation: a.confirmation, p_reset_stock: a.resetStock })
 
 export const getRetentionStatus = () => rpc<RetentionStatus>('get_retention_status')
 export const runRetention = () => rpc<RetentionRun>('admin_run_retention')

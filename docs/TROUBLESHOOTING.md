@@ -26,6 +26,9 @@
 | "… is priced by the hour: choose a duration" | Categories with hourly + special 30-minute pricing have no open play or prepaid amount: choose a duration in 30-minute steps. |
 | "Extend in steps of 30 minutes." / "This session was just changed on another terminal." | Extensions are 30, 60, 90 … minutes. If another computer extended it a moment ago, check the new time and extend again only if needed. |
 | "Custom rates per minute do not apply to tables priced by the hour." | Use a discount for regulars on hourly-priced tables. |
+| Reset business data says "The password is incorrect." | Enter the password of the administrator who is signed in (not another account's). |
+| "A reset is already running." | Another administrator started a reset a moment ago. Wait, then check Settings → Data management. |
+| A backup file didn't download | Allow downloads for the FUSION site in the browser, then use **Export backup** again — nothing is deleted until the final button. |
 | "This booking still has time left." | *Continue* is only possible once the booking is used up. |
 | A booked table shows 0:00 and the charge doesn't grow | Working as intended: billing holds at the booked amount until staff press **Continue** (extra time billed from then) or **End**. |
 | Table Sales Report shows less than History for an old period | The report reads invoices, and the retention policy removes old invoices (History keeps permanent totals). |

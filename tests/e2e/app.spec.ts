@@ -885,3 +885,79 @@ test('refreshing keeps the signed-in page; signing out ends the session', async 
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
 })
+
+// Last: it wipes the business data every earlier test created.
+test('Reset business data: password, optional backup, typed confirmation; logins, prices and stock stay', async () => {
+  const counts = async () =>
+    (await db<{ sales: number; sessions: number; shifts: number; customers: number; expenses: number }>(
+      `select (select count(*)::int from public.sales) sales, (select count(*)::int from public.sessions) sessions,
+              (select count(*)::int from public.counter_shifts) shifts, (select count(*)::int from public.customers) customers,
+              (select count(*)::int from public.expenses) expenses`
+    ))[0]!
+  const kept = async () =>
+    db(`select (select count(*)::int from public.app_users) users, (select count(*)::int from public.club_tables) tables,
+               (select json_agg(c order by c.id) from (select id, name, pricing_mode, rate_per_minute, hourly_rate, special_30_rate from public.table_categories) c) categories,
+               (select json_agg(p order by p.name) from (select name, selling_price, cost_price, stock_quantity from public.inventory_products) p) products,
+               (select club_name || '/' || business_timezone || '/' || sales_retention_days from public.settings) settings`)
+  const before = await counts()
+  expect(before.sales).toBeGreaterThan(0)
+  const keptBefore = await kept()
+
+  await page.getByTestId('login-username').fill('owner')
+  await page.getByTestId('login-password').fill('owner-pass-123')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await nav('Settings').click()
+  await page.getByRole('button', { name: 'Data management' }).click()
+  const panel = page.getByTestId('data-management')
+  await expect(panel).toContainText('Reset business data')
+
+  // Cancel at any step leaves everything as it was.
+  await page.getByTestId('open-reset').click()
+  await expect(page.getByTestId('reset-step-review')).toContainText('Invoices — table and snack sales')
+  await page.getByTestId('reset-cancel').click()
+  expect(await counts()).toEqual(before)
+
+  await page.getByTestId('open-reset').click()
+  await expect(page.getByTestId('reset-step-review')).toContainText('Admin and staff logins, roles and permissions')
+  await shot('29-reset-review')
+  await page.getByTestId('reset-continue').click()
+  await page.getByTestId('reset-password').fill('not-my-password')
+  await page.getByTestId('reset-continue').click()
+  await expect(page.getByTestId('reset-step-password')).toContainText('incorrect')
+  await page.getByTestId('reset-password').fill('owner-pass-123')
+  await page.getByTestId('reset-continue').click()
+
+  // The backup is optional; here the admin takes one.
+  await expect(page.getByTestId('reset-skip-backup')).toHaveText('Skip backup & continue')
+  const downloading = page.waitForEvent('download')
+  await page.getByTestId('reset-export').click()
+  const download = await downloading
+  expect(download.suggestedFilename()).toMatch(/^FUSION-business-data-backup-\d{4}-\d{2}-\d{2}-\d{4}\.json$/)
+  const backup = JSON.parse(readFileSync(await download.path(), 'utf8')) as { format: string; tables: Record<string, unknown[]> }
+  expect(backup.format).toBe('fusion-business-data-backup')
+  expect(backup.tables.sales).toHaveLength(before.sales)
+  expect(backup.tables.customers).toHaveLength(before.customers)
+  await expect(page.getByTestId('reset-backup-done')).toBeVisible()
+  expect(await counts()).toEqual(before) // exporting changes nothing
+  await page.getByTestId('reset-skip-backup').click() // now labelled Continue
+
+  // The final button stays locked until the exact phrase is typed.
+  const confirm = page.getByTestId('reset-confirm')
+  await expect(confirm).toBeDisabled()
+  await page.getByTestId('reset-phrase').fill('reset business data')
+  await expect(confirm).toBeDisabled()
+  await page.getByTestId('reset-phrase').fill('RESET BUSINESS DATA')
+  await shot('30-reset-confirm')
+  await confirm.click()
+  await expect(page.getByTestId('reset-summary')).toContainText('All business data was reset')
+  await shot('31-reset-done')
+  await page.getByTestId('reset-done').click()
+
+  expect(await counts()).toEqual({ sales: 0, sessions: 0, shifts: 0, customers: 0, expenses: 0 })
+  expect(await kept()).toEqual(keptBefore) // logins, tables, prices, products and stock all stay
+  await expect(page.getByTestId('last-reset')).toContainText('admin owner')
+  await nav('Dashboard').click()
+  await expect(page.getByTestId('today-total')).toHaveText('PKR 0')
+  await nav('Reports').click()
+  await expect(page.getByTestId('report-total')).toHaveText('PKR 0')
+})

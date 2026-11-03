@@ -678,3 +678,18 @@ export interface TableSalesReport {
   retention_cutoff: string
   oldest_invoice_date: string | null
 }
+
+// --- Reset business data (migration 1200) -----------------------------------
+export interface BusinessDataSummary {
+  /** Rows a reset would delete, per table (plus open_sessions / open_counters). */
+  counts: Record<string, number>
+  last_reset_at: string | null
+  last_reset_by: string | null
+}
+
+export interface BusinessResetResult {
+  reset_at: string
+  reset_by: string
+  removed: Record<string, number>
+  stock_reset: boolean
+}

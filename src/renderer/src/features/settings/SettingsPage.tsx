@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Building2, CalendarClock, Clock3, Database, Layers, LayoutGrid, Monitor, Pencil, Plus, ShieldCheck, Tags, Trash2, ArchiveRestore, PackageMinus } from 'lucide-react'
+import { Building2, CalendarClock, Clock3, Database, DatabaseZap, Layers, LayoutGrid, Monitor, Pencil, Plus, ShieldCheck, Tags, Trash2, ArchiveRestore, PackageMinus } from 'lucide-react'
 import { describePolicy, sessionCharge, slotPrice, type RoundingMode } from '@shared/billing'
 import { formatHour, formatMoney, formatPricing, formatRate } from '@shared/format'
 import { RetentionSection } from './RetentionSection'
+import { DataManagementSection } from './DataManagementSection'
 import { cn } from '@/lib/cn'
 import type { AppInfo, PrinterInfo } from '@shared/ipc'
 import type { Category, ClubTable, Floor, PricingMode, Settings } from '@/lib/types'
@@ -20,7 +21,7 @@ import { canChoosePrinter, getAppInfo, isDesktop, listPrinters, printReceiptDocu
 import { readPrinterPrefs, writePrinterPrefs, type PrinterPrefs } from '@/features/pos/printing'
 import { useToast } from '@/components/ui/Toast'
 
-type Section = 'club' | 'day' | 'billing' | 'floors' | 'rates' | 'tables' | 'retention' | 'security' | 'terminal'
+type Section = 'club' | 'day' | 'billing' | 'floors' | 'rates' | 'tables' | 'retention' | 'data' | 'security' | 'terminal'
 
 const SECTIONS: { key: Section; label: string; icon: typeof Building2 }[] = [
   { key: 'club', label: 'Club & receipt', icon: Building2 },
@@ -30,6 +31,7 @@ const SECTIONS: { key: Section; label: string; icon: typeof Building2 }[] = [
   { key: 'rates', label: 'Categories & rates', icon: Tags },
   { key: 'tables', label: 'Tables', icon: LayoutGrid },
   { key: 'retention', label: 'Data retention', icon: Database },
+  { key: 'data', label: 'Data management', icon: DatabaseZap },
   { key: 'security', label: 'Account & security', icon: ShieldCheck },
   { key: 'terminal', label: 'This computer', icon: Monitor }
 ]
@@ -76,6 +78,8 @@ export function SettingsPage() {
             <TablesSection />
           ) : section === 'retention' ? (
             <RetentionSection settings={settings} />
+          ) : section === 'data' ? (
+            <DataManagementSection />
           ) : section === 'security' ? (
             <SecuritySection settings={settings} />
           ) : (

@@ -40,6 +40,7 @@ FUSION runs FUSION Gaming Lounge: tables (snooker, pool, table tennis, PS5…), 
 | Reserve a table and start it when the customer arrives | Admin | **Pre-bookings** |
 | Regulars: most visits, most playing time, highest spending | Admin | **Customers → Rankings** |
 | How long detailed invoices are kept (1, 7 or 30 days) | Admin | **Settings → Data retention** |
+| Start all business records from zero (password, optional backup, type RESET BUSINESS DATA) | Admin | **Settings → Data management** |
 | Switch Admin → Staff (staff member's password) / Staff → Admin (Admin master password) | Everyone | Account button (bottom of the sidebar) |
 
 Every time of day in FUSION is shown in 12-hour form (e.g. 07:15 PM).
@@ -76,6 +77,9 @@ Finalises a business day's Cash, Bank, Total, Expenses and Net in `daily_summari
 - **Snacks** sells to customers who are not playing: the sale belongs to the staff member's open counter like any counter sale, takes the stock (never below zero), counts in snack sales, Reports and Inventory → Sales & profit, and is never assigned to a table.
 - **Table Sales Report** (Tables → Table Sales Report, admin) shows, per table, the paid sessions, cash, bank transfer and total — table time plus snacks put on that table's tab, after discounts. Snack-only sales are not table sales. It reads the invoices themselves, so once the retention policy removes old invoices their table sales are gone too: no hidden totals are kept.
 
+### Reset business data
+**Settings → Data management → Reset business data** (administrators only) permanently deletes every table session, pre-booking, invoice and invoice line (table and snack sales), counter shift and its accounting, expense, closed day, product sales history, customer and visit history, and the cleanup log. Receipt numbers start again at 1 and units-sold counts at 0. Logins, roles, floors, tables, categories and prices, products (and their stock, unless you choose to zero it), settings and data retention stay. The database checks the administrator's password and the typed phrase *RESET BUSINESS DATA*, does everything in one transaction (all or nothing) and lets only one reset run at a time. Before confirming you may **Export backup** (a JSON file of every record that will be deleted) or **Skip backup & continue**. It never runs on a schedule; the automatic cleanup below is separate.
+
 ### Automatic invoice cleanup (retention)
 Detailed invoices (sales + sale items) older than the chosen period — **Monthly (30 days) by default**, or Weekly / Daily — are removed hourly by a server-side job, but only from **closed** counter shifts, whoever made the sale. Shift summaries, the daily ledger, expenses, customers and their statistics, product sales and every Cash / Bank / Total / Net figure are permanent, so History and Reports stay correct. Each run is logged (Settings → Data retention). Deleted rows free space for reuse straight away; PostgreSQL does not shrink the database file immediately, so the size shown in Supabase falls only after routine maintenance.
 
@@ -83,6 +87,8 @@ Detailed invoices (sales + sale items) older than the chosen period — **Monthl
 The `…0700` migration attaches every existing sale to an *imported* closed shift (one per cashier per day), builds the ledger and customer statistics from them, and keeps totals saved by the old "Close Day & Archive" as legacy amounts. Nothing is deleted. Redeploy the Edge Function.
 
 The `…0800` migration switches every rate to **per minute**: stored hourly rates (categories, table overrides and the snapshots on past sessions and invoices) are divided by 60 and kept to four decimals, so prices bill exactly as before (PKR 600/hour → 10/min; 400/hour → 6.6667/min — set a round figure in Settings if you prefer). No stored amount is recalculated and nothing is deleted.
+
+The `…1200` migration adds Reset business data (two columns on `settings` recording the last reset, and admin-only functions). Nothing runs automatically; nothing is deleted by the migration.
 
 The `…1100` migration adds the "hourly + special 30-minute rate" pricing mode (columns on `table_categories` and `sessions`, extension). Existing categories stay per minute; nothing is deleted.
 

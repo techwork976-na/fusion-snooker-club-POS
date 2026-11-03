@@ -9,6 +9,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { PGlite } from '@electric-sql/pglite'
+import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto'
 
 const MIGRATIONS_DIR = join(__dirname, '..', '..', 'supabase', 'migrations')
 
@@ -17,7 +18,10 @@ const SUPABASE_STUB = `
   create role authenticated nologin noinherit;
   create role service_role nologin noinherit bypassrls;
   create schema auth;
-  create table auth.users (id uuid primary key, email text);
+  create schema extensions;
+  create extension pgcrypto with schema extensions;
+  -- Supabase Auth keeps a bcrypt hash of each password here.
+  create table auth.users (id uuid primary key, email text, encrypted_password varchar(255));
   create function auth.uid() returns uuid language sql stable as $$
     select nullif(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub', '')::uuid
   $$;
@@ -32,6 +36,9 @@ export interface TestUser {
   username: string
 }
 
+/** Every test login's password unless a test chooses another. */
+export const TEST_PASSWORD = 'test-password-123'
+
 export class TestDb {
   private constructor(
     readonly pg: PGlite,
@@ -44,7 +51,7 @@ export class TestDb {
    * database that already holds data.
    */
   static async create(opts: { stopBefore?: string } = {}): Promise<TestDb> {
-    const pg = new PGlite()
+    const pg = new PGlite({ extensions: { pgcrypto } })
     await pg.exec(SUPABASE_STUB)
     const files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort()
     const stop = opts.stopBefore ? files.findIndex((f) => f.startsWith(opts.stopBefore!)) : -1
@@ -123,11 +130,14 @@ export class TestDb {
 
   async createUser(
     role: Role,
-    opts: { username?: string; floorId?: number | null; permissions?: string[]; active?: boolean } = {}
+    opts: { username?: string; floorId?: number | null; permissions?: string[]; active?: boolean; password?: string } = {}
   ): Promise<TestUser> {
     const id = randomUUID()
     const username = opts.username ?? `${role}${id.slice(0, 6)}`
-    await this.sql(`insert into auth.users (id, email) values ($1, $2)`, [id, `${username}@fusion.local`])
+    await this.sql(
+      `insert into auth.users (id, email, encrypted_password) values ($1, $2, extensions.crypt($3, extensions.gen_salt('bf', 4)))`,
+      [id, `${username}@fusion.local`, opts.password ?? TEST_PASSWORD]
+    )
     await this.sql(
       `insert into public.app_users (id, username, full_name, role, floor_id, permissions, is_active)
        values ($1, $2, $3, $4, $5, $6, $7)`,

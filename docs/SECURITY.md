@@ -31,6 +31,7 @@
 | Reports, business expenses, product sales and profit | yes | no (business expenses are not readable by staff; counter expenses remain own-only) |
 | Daily summaries, reports, lifetime totals | yes | no |
 | Settings, rates, staff | yes | no |
+| Reset business data, business-data backup export | yes — and only with the administrator's own password (checked by the database) | no |
 
 Permissions: apply_discount (discounts and custom rates per minute at checkout), delete_sales (today, own floor), cancel_session, counter_sale, manage_customers, adjust_stock, view_own_sales.
 

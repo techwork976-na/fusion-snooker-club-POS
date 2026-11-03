@@ -93,7 +93,7 @@ export class FakeSupabase {
 
   /** Creates a login + profile directly (like scripts/create-admin.mjs). */
   async addUser(username: string, password: string, role: 'admin' | 'staff', opts: { floorId?: number | null; permissions?: string[] } = {}) {
-    const user = await this.db.createUser(role, { username, floorId: opts.floorId ?? null, permissions: opts.permissions ?? [] })
+    const user = await this.db.createUser(role, { username, password, floorId: opts.floorId ?? null, permissions: opts.permissions ?? [] })
     this.passwords.set(`${username}@fusion.local`, { id: user.id, password })
     return user
   }
