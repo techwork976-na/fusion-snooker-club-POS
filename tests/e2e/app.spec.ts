@@ -18,7 +18,7 @@ const TIME_12H = /(0[1-9]|1[0-2]):[0-5]\d (AM|PM)/
 let fake: FakeSupabase
 let browser: Browser
 let page: Page
-let club: { snooker: string; snooker2: string; pool: string; cola: string; chai: string; ground: number; first: number }
+let club: { snooker: string; snooker2: string; snooker3: string; pool: string; cola: string; chai: string; ground: number; first: number }
 let ali: { id: string }
 let sara: { id: string }
 
@@ -51,7 +51,7 @@ test.beforeAll(async () => {
   const [cola] = await db<{ id: string }>(`insert into public.inventory_products (name, category, cost_price, selling_price, stock_quantity) values ('Cola 345ml', 'Drinks', 60, 100, 24) returning id`)
   await db(`insert into public.inventory_products (name, category, cost_price, selling_price, stock_quantity, low_stock_threshold) values ('Lays Masala', 'Snacks', 30, 50, 3, 5)`)
   const [chai] = await db<{ id: string }>(`insert into public.inventory_products (name, category, cost_price, selling_price, track_stock) values ('Doodh Patti Chai', 'Drinks', 25, 80, false) returning id`)
-  club = { snooker: tables[0]!, snooker2: tables[1]!, pool: tables[3]!, cola: cola!.id, chai: chai!.id, ground: ground!.id, first: first!.id }
+  club = { snooker: tables[0]!, snooker2: tables[1]!, snooker3: tables[2]!, pool: tables[3]!, cola: cola!.id, chai: chai!.id, ground: ground!.id, first: first!.id }
   await fake.exclusive(() => fake.addUser('owner', 'owner-pass-123', 'admin'))
   ali = await fake.exclusive(() =>
     fake.addUser('ali', 'ali-pass-123', 'staff', { floorId: ground!.id, permissions: ['view_own_sales', 'apply_discount', 'counter_sale', 'delete_sales'] })
@@ -61,6 +61,16 @@ test.beforeAll(async () => {
   browser = await chromium.launch({ channel: process.env.FUSION_E2E_CHANNEL || 'chrome' })
   // Like the club's PCs with Windows' "Show animations" off: the app must still animate.
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })
+  // Count the alarm's synthesised tones, to prove the alarm really plays.
+  await context.addInitScript(() => {
+    const w = window as unknown as { __fusionTones: number }
+    w.__fusionTones = 0
+    const original = AudioContext.prototype.createOscillator
+    AudioContext.prototype.createOscillator = function (this: AudioContext) {
+      w.__fusionTones++
+      return original.call(this)
+    }
+  })
   page = await context.newPage()
 })
 
@@ -157,7 +167,7 @@ test('staff opens their own counter, runs the booked table and takes the payment
   await page.getByLabel('Amount received').fill('400')
   await expect(page.getByText(/buys 40 min of play/)).toBeVisible()
   await page.getByTestId('confirm-start').click()
-  await expect(page.getByTestId('table-card-Snooker 2')).toContainText('left of booking')
+  await expect(page.getByTestId('table-card-Snooker 2')).toContainText('left of 40:00 booked')
 
   // The booked table: 29 minutes of play, then a pause that is not billed.
   await db(`update public.sessions set started_at = started_at - interval '29 minutes' where table_id = $1`, [club.snooker])
@@ -627,6 +637,158 @@ test('a regular pays a custom rate per minute; the discount follows and every to
     [ali.id]
   )
   expect(shift).toEqual({ cash: '870.00', discounts: '30.00' })
+})
+
+test("a fixed-time booking stops at 0:00 and rings until silenced; a refresh never rings again; continuing bills only new time", async () => {
+  // Ali (staff, Ground floor) is signed in with an open counter.
+  await nav('Tables').click()
+  const card = page.getByTestId('table-card-Snooker 3')
+  await card.getByRole('button', { name: 'Start' }).click()
+  await page.getByRole('button', { name: /Fixed time/ }).click()
+  await page.getByLabel('Minutes').fill('30')
+  await page.getByTestId('confirm-start').click()
+  await expect(card).toContainText('left of 30:00 booked')
+
+  // Half an hour later (moved back in the database): 3 seconds of booking left.
+  await db(`update public.sessions set started_at = now() - interval '30 minutes' + interval '3 seconds' where table_id = $1 and status = 'running'`, [club.snooker3])
+  await page.reload()
+  const alert = page.getByTestId('time-up-alert')
+  await expect(alert).toBeVisible({ timeout: 15_000 })
+  await expect(alert).toHaveAttribute('data-alarm', 'ringing')
+  await expect(page.getByTestId('time-up-Snooker 3')).toContainText('Booked 30 min')
+  await expect(card.getByTestId('table-timer')).toHaveText('0:00') // stops at zero, never negative
+  await page.mouse.click(5, 5) // any click lets the browser play sound
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __fusionTones: number }).__fusionTones)).toBeGreaterThan(0)
+  await expect(page).toHaveTitle(/Time's up · Snooker 3/)
+  await shot('23-time-up')
+
+  // Silencing stops the alarm (for every terminal) and leaves the session open and held.
+  await page.getByTestId('time-up-Snooker 3').getByTestId('silence-alarm').click()
+  await expect(alert).toHaveCount(0)
+  const [held] = await db<{ status: string; acked: boolean; extended: boolean }>(
+    `select status, allocation_alert_ack_at is not null acked, allocation_extended_at is not null extended
+     from public.sessions where table_id = $1 and status in ('running', 'paused')`,
+    [club.snooker3]
+  )
+  expect(held).toEqual({ status: 'running', acked: true, extended: false })
+  await page.reload()
+  await expect(card).toContainText("Time's up")
+  await page.waitForTimeout(2_500)
+  await expect(page.getByTestId('time-up-alert')).toHaveCount(0)
+
+  // Ten more minutes pass unnoticed: the charge stays at the booking.
+  await db(`update public.sessions set started_at = started_at - interval '10 minutes' where table_id = $1 and status = 'running'`, [club.snooker3])
+  await page.reload()
+  await expect(card).toContainText('PKR 300')
+  await card.getByTestId('table-continue').click()
+  await expect(card).toContainText('Booking complete')
+  // Five minutes of extra play are billed per minute: 300 + 50.
+  await db(`update public.sessions set started_at = started_at - interval '5 minutes' where table_id = $1 and status = 'running'`, [club.snooker3])
+  await page.reload()
+  await card.getByRole('button', { name: 'End' }).click()
+  await expect(page.getByTestId('checkout-total')).toHaveText('PKR 350')
+  await page.getByTestId('complete-checkout').click()
+  await expect(page.getByTestId('receipt')).toContainText('350')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(card).toContainText('Available')
+})
+
+test('a fixed-amount booking alerts on its own; ending it from the alert bills the amount paid', async () => {
+  // Snooker 2 has been playing on PKR 400 (40 minutes) since earlier: 2 seconds left.
+  await db(
+    `update public.sessions set started_at = now() - make_interval(secs => booked_seconds + paused_ms / 1000.0 - 2)
+     where table_id = $1 and status = 'running'`,
+    [club.snooker2]
+  )
+  await page.reload()
+  const alert = page.getByTestId('time-up-alert')
+  await expect(page.getByTestId('time-up-Snooker 2')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId('time-up-Snooker 3')).toHaveCount(0) // each table alerts separately
+  await expect(alert).toHaveAttribute('data-alarm', 'ringing')
+  await page.getByTestId('time-up-Snooker 2').getByRole('button', { name: 'End session' }).click()
+  await expect(alert).toHaveCount(0)
+  const card = page.getByTestId('table-card-Snooker 2')
+  await expect(card).toContainText('Checkout · PKR 400')
+  await card.getByRole('button', { name: /Checkout/ }).click()
+  await expect(page.getByTestId('checkout-total')).toHaveText('PKR 400')
+  await page.getByRole('radio', { name: 'Bank Transfer' }).click()
+  await page.getByTestId('complete-checkout').click()
+  await expect(page.getByTestId('receipt')).toContainText('400')
+  await page.getByRole('button', { name: 'Done' }).click()
+})
+
+test('Snacks: staff sell without a table; stock, sales and product profit follow', async () => {
+  const stockOf = async (id: string) => (await db<{ n: number }>(`select stock_quantity n from public.inventory_products where id = $1`, [id]))[0]!.n
+  const colaBefore = await stockOf(club.cola)
+  await nav('Snacks').click()
+  await page.getByTestId('snack-Doodh Patti Chai').click()
+  await page.getByTestId('snack-Doodh Patti Chai').click()
+  await page.getByTestId('snack-Cola 345ml').click()
+  await expect(page.getByTestId('cart-qty-Doodh Patti Chai')).toHaveText('2')
+  await expect(page.getByTestId('cart-total')).toHaveText('PKR 260')
+  await page.getByRole('button', { name: 'Remove Cola 345ml' }).click()
+  await page.getByTestId('snack-Cola 345ml').click()
+  await expect(page.getByTestId('cart-total')).toHaveText('PKR 260')
+  await shot('24-snacks')
+  await page.getByTestId('snack-checkout').click()
+  await expect(page.getByTestId('checkout-total')).toHaveText('PKR 260')
+  await page.getByTestId('complete-checkout').click()
+  await expect(page.getByTestId('receipt')).toContainText('260')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByTestId('snack-cart')).toContainText('Tap a product')
+  await expect(page.getByTestId('snack-sales-total')).toHaveText('PKR 260')
+  await expect(page.getByTestId('snack-sales-today')).toContainText('Doodh Patti Chai × 2')
+
+  expect(await stockOf(club.cola)).toBe(colaBefore - 1)
+  const [sale] = await db<{ session_id: string | null; table_name: string | null; final_amount: string }>(
+    `select session_id, table_name, final_amount from public.sales where final_amount = 260`
+  )
+  expect(sale).toEqual({ session_id: null, table_name: null, final_amount: '260.00' })
+})
+
+test('the admin sees snack sales and the Table Sales Report with every date filter', async () => {
+  await page.getByTestId('account-menu').click()
+  await page.getByRole('menuitem', { name: 'Switch to Admin portal' }).click()
+  await page.getByLabel('Admin master password').fill('owner-pass-123')
+  await page.getByRole('button', { name: 'Unlock Admin' }).click()
+  await expect(page.getByTestId('today-sales')).toBeVisible()
+  // Every snack-only sale today (the Snacks page and earlier counter sales), live on the dashboard.
+  const [snacks] = await db<{ total: string; n: number }>(`select sum(final_amount)::text total, count(*)::int n from public.sales where session_id is null`)
+  await expect(page.getByTestId('snack-only-today')).toContainText(`PKR ${Number(snacks!.total).toLocaleString('en-PK')} (${snacks!.n} sales)`)
+
+  // Snacks for an administrator: stock and every staff member's snack sales, no till.
+  await nav('Snacks').click()
+  await expect(page.getByTestId('snack-sales-today')).toContainText('staff ali')
+  await expect(page.getByTestId('snack-cart')).toHaveCount(0)
+  await expect(page.getByText('Administrators manage the business and do not take payments')).toBeVisible()
+
+  // Table Sales Report: straight from the paid table invoices.
+  const [day] = await db<{ total: string; cash: string; bank: string; sessions: number }>(
+    `select sum(final_amount)::text total, coalesce(sum(final_amount) filter (where payment_method = 'cash'), 0)::text cash,
+            coalesce(sum(final_amount) filter (where payment_method = 'bank_transfer'), 0)::text bank, count(*)::int sessions
+     from public.sales where session_id is not null`
+  )
+  const money = (v: string) => `PKR ${Number(v).toLocaleString('en-PK')}`
+  await nav('Tables').click()
+  await page.getByRole('tab', { name: 'Table Sales Report' }).click()
+  await expect(page.getByTestId('table-sales-total')).toHaveText(money(day!.total))
+  await expect(page.getByTestId('table-sales-cash')).toHaveText(money(day!.cash))
+  await expect(page.getByTestId('table-sales-bank')).toHaveText(money(day!.bank))
+  await expect(page.getByTestId('table-sales-totals')).toContainText(`${day!.sessions} paid sessions`)
+  await expect(page.getByTestId('table-sales-row-Snooker 3')).toContainText('PKR 350')
+  await expect(page.getByTestId('table-sales-row-Snooker 2')).toContainText('PKR 400')
+  await shot('25-table-sales')
+  for (const preset of ['Weekly', 'Monthly']) {
+    await page.getByRole('tab', { name: preset }).click()
+    await expect(page.getByTestId('table-sales-total')).toHaveText(money(day!.total))
+  }
+  await page.getByRole('tab', { name: 'Yesterday' }).click()
+  await expect(page.getByTestId('table-sales-total')).toHaveText('PKR 0')
+  await page.getByRole('tab', { name: 'Custom' }).click()
+  await expect(page.getByLabel('From')).toBeVisible()
+  await expect(page.getByTestId('table-sales-total')).toHaveText('PKR 0') // custom starts from the last period (yesterday)
+  await page.getByRole('tab', { name: 'Today' }).click()
+  await expect(page.getByTestId('table-sales-total')).toHaveText(money(day!.total))
 })
 
 test('refreshing keeps the signed-in page; signing out ends the session', async () => {

@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Boxes, CalendarClock, FileText, Gauge, HandCoins, History, LayoutGrid, ReceiptText, Settings2, UserCog, Users, Wallet } from 'lucide-react'
+import { Boxes, CalendarClock, CupSoda, FileText, Gauge, HandCoins, History, LayoutGrid, ReceiptText, Settings2, UserCog, Users, Wallet } from 'lucide-react'
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { useAuth } from '@/features/auth/AuthProvider'
@@ -20,6 +20,7 @@ export function useNavItems(): NavItem[] {
   const items: (NavItem | false)[] = [
     { to: '/', label: 'Dashboard', icon: Gauge },
     { to: '/tables', label: 'Tables', icon: LayoutGrid },
+    { to: '/snacks', label: 'Snacks', icon: CupSoda },
     !isAdmin && { to: '/counter', label: 'My counter', icon: Wallet },
     !isAdmin && (can('view_own_sales') || can('delete_sales')) && { to: '/sales', label: 'My sales', icon: ReceiptText },
     isAdmin && { to: '/bookings', label: 'Pre-bookings', icon: CalendarClock },

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useMemo, useState, type ReactNode } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { LayoutGrid, ShoppingBag } from 'lucide-react'
 import { useTablesOverview } from '@/data/hooks'
 import { errorMessage } from '@/lib/errors'
@@ -11,11 +11,31 @@ import { CheckoutDialog } from '@/features/pos/CheckoutDialog'
 import { SessionPanel } from './SessionPanel'
 import { StartSessionDialog } from './StartSessionDialog'
 import { TableCard } from './TableCard'
+import { TableSalesReport } from './TableSalesReport'
 import { statusMeta, useSessionActions } from './session'
 
 type StatusFilter = 'all' | 'available' | 'active' | 'billing'
 
 export function TablesPage() {
+  const { isAdmin } = useAuth()
+  const [params, setParams] = useSearchParams()
+  // The Table Sales Report shows money, so it is for administrators only.
+  const view = isAdmin && params.get('view') === 'report' ? 'report' : 'floor'
+  const tabs = isAdmin ? (
+    <Segmented
+      layoutId="tables-view"
+      value={view}
+      onChange={(v) => setParams(v === 'floor' ? {} : { view: v })}
+      options={[
+        { value: 'floor', label: 'Live floor' },
+        { value: 'report', label: 'Table Sales Report' }
+      ]}
+    />
+  ) : null
+  return view === 'report' ? <TableSalesReport tabs={tabs} /> : <TablesFloor tabs={tabs} />
+}
+
+function TablesFloor({ tabs }: { tabs: ReactNode }) {
   const { data, isLoading, error, refetch } = useTablesOverview()
   const { isAdmin, can, profile } = useAuth()
   const navigate = useNavigate()
@@ -45,7 +65,7 @@ export function TablesPage() {
   const count = (fn: (t: TableOverview) => boolean) => tables.filter((t) => (floor === 'all' || String(t.floor_id) === floor) && fn(t)).length
 
   const panelTable = panelId ? tables.find((t) => t.id === panelId) ?? null : null
-  const busyIds = new Set([actions.pause, actions.resume, actions.end].filter((m) => m.isPending).map((m) => m.variables))
+  const busyIds = new Set([actions.pause, actions.resume, actions.end, actions.keepPlaying].filter((m) => m.isPending).map((m) => m.variables))
 
   return (
     <Page>
@@ -53,12 +73,14 @@ export function TablesPage() {
         title="Tables"
         subtitle={isAdmin ? 'Every floor, live. Payments are taken at staff counters.' : `${profile?.floor_name ?? 'All floors'} · live`}
         actions={
-          !isAdmin &&
-          can('counter_sale') && (
-            <Button variant="secondary" icon={<ShoppingBag className="size-4" />} onClick={() => openCheckout(null)}>
-              Counter sale
-            </Button>
-          )
+          <>
+            {tabs}
+            {!isAdmin && can('counter_sale') && (
+              <Button variant="secondary" icon={<ShoppingBag className="size-4" />} onClick={() => openCheckout(null)}>
+                Counter sale
+              </Button>
+            )}
+          </>
         }
       >
         <div className="flex flex-wrap items-center gap-3">
@@ -125,6 +147,7 @@ export function TablesPage() {
               onPause={(id) => actions.pause.mutate(id)}
               onResume={(id) => actions.resume.mutate(id)}
               onEnd={(x) => x.session && actions.end.mutate(x.session.id, { onSuccess: () => openCheckout(x.id) })}
+              onContinue={(id) => actions.keepPlaying.mutate(id)}
             />
           ))}
         </div>

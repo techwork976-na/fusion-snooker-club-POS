@@ -39,9 +39,15 @@ beforeEach(async () => {
 afterEach(async () => db.close())
 
 /** Plays Snooker 1 for `minutes` (optionally booked / with colas) and ends it. */
-async function played(user: string, minutes: number, opts: { booking?: Record<string, unknown>; cola?: number } = {}) {
+async function played(user: string, minutes: number, opts: { booking?: Record<string, unknown>; cola?: number; continueAfter?: number } = {}) {
   const s = await db.rpc<{ id: string }>(user, 'start_session', { p_table_id: club.tables.snooker1, ...opts.booking })
   if (opts.cola) await db.rpc(user, 'add_session_item', { p_session_id: s.id, p_product_id: club.products.cola, p_quantity: opts.cola })
+  if (opts.continueAfter != null) {
+    // A booking holds when it runs out; staff continue it to play on.
+    await db.ageSession(s.id, opts.continueAfter * 60)
+    await db.rpc(user, 'continue_after_allocation', { p_session_id: s.id })
+    minutes -= opts.continueAfter
+  }
   await db.ageSession(s.id, minutes * 60)
   await db.rpc(user, 'end_session', { p_session_id: s.id })
   return s.id
@@ -120,7 +126,7 @@ describe('custom rate per minute at checkout', () => {
   })
 
   it('re-prices booked time at the custom rate (60 booked + 5 over at 9/min = 585)', async () => {
-    const sessionId = await played(cashier.id, 65, { booking: { p_booking: 'minutes', p_minutes: 60 } })
+    const sessionId = await played(cashier.id, 65, { booking: { p_booking: 'minutes', p_minutes: 60 }, continueAfter: 60 })
     const [s] = await db.sql<{ base_amount: string }>(`select base_amount from public.sessions where id = $1`, [sessionId])
     expect(Number(s!.base_amount)).toBe(650) // 600 booking + 5 min × 10
     const r = await checkout(cashier.id, sessionId, { p_custom_rate_per_minute: 9 })

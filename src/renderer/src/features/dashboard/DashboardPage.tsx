@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   AlertTriangle,
@@ -22,7 +23,7 @@ import { cn } from '@/lib/cn'
 import { errorMessage } from '@/lib/errors'
 import type { Dashboard, DayTotals, Shift, StaffDayRow, TableOverview } from '@/lib/types'
 import * as api from '@/data/api'
-import { accountingKeys, useAction, useDashboard, useSettings, useTablesOverview } from '@/data/hooks'
+import { accountingKeys, keys, useAction, useBusinessDate, useDashboard, useSettings, useTablesOverview } from '@/data/hooks'
 import { BarChart, compactMoney, SERIES_COLORS } from '@/components/charts/BarChart'
 import { AnimatedMoney } from '@/components/motion/AnimatedNumber'
 import { Button } from '@/components/ui/Button'
@@ -143,6 +144,23 @@ export function DashboardPage() {
  * The day at a glance: the headline figure, its make-up, and the hourly
  * pattern beneath — one continuous panel, the chart set straight onto it.
  */
+/** Snacks sold without a table today (Snacks page / counter sales), kept live by the sales feed. */
+function SnackOnlyNote() {
+  const { data: day } = useBusinessDate()
+  const { data } = useQuery({
+    queryKey: keys.snackSales(day ?? '', day ?? ''),
+    queryFn: () => api.getSnackSales(day!, day!),
+    enabled: Boolean(day)
+  })
+  if (!data) return null
+  return (
+    <span data-testid="snack-only-today">
+      {' '}
+      Snacks without a table: {formatMoney(data.totals.total)} ({data.totals.count} sale{data.totals.count === 1 ? '' : 's'}).
+    </span>
+  )
+}
+
 function TodayHero({ data }: { data: Dashboard }) {
   const today = data.today!
   const cashShare = today.total > 0 ? today.cash / today.total : 0
@@ -210,7 +228,10 @@ function TodayHero({ data }: { data: Dashboard }) {
           <SplitFigure label="Expenses" value={today.expenses} />
           <SplitFigure label="Net" value={today.net} strong />
         </div>
-        <p className="mt-4 text-xs text-fg-4">Snack sales {formatMoney(today.snack)} — already included in Cash and Bank.</p>
+        <p className="mt-4 text-xs text-fg-4">
+          Snack sales {formatMoney(today.snack)} — already included in Cash and Bank.
+          <SnackOnlyNote />
+        </p>
       </div>
 
       <HourlyChart data={data} />

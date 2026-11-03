@@ -5,6 +5,8 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { useLiveUpdates, useServerClockSync, useSettings } from '@/data/hooks'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { TablesPage } from '@/features/tables/TablesPage'
+import { AllocationAlerts } from '@/features/tables/AllocationAlerts'
+import { SnacksPage } from '@/features/snacks/SnacksPage'
 import { SalesPage } from '@/features/sales/SalesPage'
 import { MyCounterPage } from '@/features/counter/MyCounterPage'
 import { HistoryPage } from '@/features/history/HistoryPage'
@@ -57,6 +59,7 @@ export function AppShell() {
 
   return (
     <div className="flex h-full bg-canvas">
+      <AllocationAlerts />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
       <TopBar />
@@ -65,6 +68,7 @@ export function AppShell() {
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/tables" element={<TablesPage />} />
+            <Route path="/snacks" element={<SnacksPage />} />
             <Route
               path="/counter"
               element={

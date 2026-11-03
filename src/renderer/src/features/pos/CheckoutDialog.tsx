@@ -23,7 +23,7 @@ import { ProductPicker } from './ProductPicker'
 import { ReceiptPanel } from './ReceiptView'
 import { printReceipt, readPrinterPrefs } from './printing'
 
-interface CartLine {
+export interface CartLine {
   key: string
   itemId: string | null
   productId: string
@@ -49,11 +49,17 @@ function parsePercent(text: string): number | null {
 export function CheckoutDialog({
   open,
   onOpenChange,
-  tableId
+  tableId,
+  initialCart,
+  onCompleted
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
   tableId: string | null
+  /** Counter sale only: the cart to start from (the Snacks page builds it). */
+  initialCart?: CartLine[]
+  /** Called once the sale is saved. */
+  onCompleted?: () => void
 }) {
   const qc = useQueryClient()
   const toast = useToast()
@@ -83,6 +89,12 @@ export function CheckoutDialog({
   const [error, setError] = useState<string | null>(null)
   const clientRef = useRef<string>(crypto.randomUUID())
   const sessionCustomerApplied = useRef(false)
+
+  // A counter sale prepared elsewhere (Snacks page) opens with its cart.
+  useEffect(() => {
+    // Only when the dialog opens; edits inside the dialog stay local.
+    if (open && isCounter && initialCart) setCounterCart(initialCart)
+  }, [open])
 
   useEffect(() => {
     if (open) return
@@ -212,6 +224,7 @@ export function CheckoutDialog({
         customRatePerMinute: rateApplied ? customRate : null
       })
       setReceipt(result)
+      onCompleted?.()
       for (const key of [keys.tables, ...accountingKeys, ['product-search'], ['products']]) {
         void qc.invalidateQueries({ queryKey: key })
       }

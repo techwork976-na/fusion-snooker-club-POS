@@ -44,7 +44,20 @@ export function periodLabel(p: Period): string {
   return p.from === p.to ? formatBusinessDate(p.from) : `${formatBusinessDate(p.from)} – ${formatBusinessDate(p.to)}`
 }
 
-export function PeriodPicker({ value, onChange, today, layoutId }: { value: Period; onChange: (p: Period) => void; today: string; layoutId: string }) {
+export function PeriodPicker({
+  value,
+  onChange,
+  today,
+  layoutId,
+  labels = {}
+}: {
+  value: Period
+  onChange: (p: Period) => void
+  today: string
+  layoutId: string
+  /** Other wording for a preset (e.g. "Weekly"); the dates stay the same. */
+  labels?: Partial<Record<PeriodPreset, string>>
+}) {
   const error = periodError(value, today)
   return (
     <div className="flex flex-wrap items-center gap-3" data-testid="period-picker">
@@ -55,8 +68,8 @@ export function PeriodPicker({ value, onChange, today, layoutId }: { value: Peri
         options={[
           { value: 'today', label: 'Today' },
           { value: 'yesterday', label: 'Yesterday' },
-          { value: 'week', label: 'Week' },
-          { value: 'month', label: 'Month' },
+          { value: 'week', label: labels.week ?? 'Week' },
+          { value: 'month', label: labels.month ?? 'Month' },
           { value: 'custom', label: 'Custom' }
         ]}
       />

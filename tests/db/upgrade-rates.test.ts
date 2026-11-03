@@ -45,7 +45,7 @@ describe('upgrading hourly rates to per-minute rates', () => {
       p_amount: 500
     })
     expect(prepaid.booked_seconds).toBe(3000)
-    await db.ageSession(prepaid.id, 55 * 60)
+    await db.ageSession(prepaid.id, 50 * 60) // the booking is just used up
 
     const before = await db.sql(
       `select (select json_agg(s order by s.receipt_no) from (select receipt_no, base_amount, final_amount, discount from public.sales) s) sales,
@@ -80,7 +80,10 @@ describe('upgrading hourly rates to per-minute rates', () => {
     expect(after).toEqual(before)
 
     // Running sessions bill exactly as the hourly price would have:
-    // 100 min at 400/h = 666.67 -> 667; PKR 500 booking + 5 min at 600/h = 550.
+    // 100 min at 400/h = 666.67 -> 667; PKR 500 booking + 5 min at 600/h = 550
+    // (a used-up booking holds until staff continue it — migration 1000).
+    await db.rpc(staff.id, 'continue_after_allocation', { p_session_id: prepaid.id })
+    await db.ageSession(prepaid.id, 5 * 60)
     expect((await pay(await end(pool.id))).final_amount).toBe(667)
     expect((await pay(await end(prepaid.id))).final_amount).toBe(550)
     const closed = await db.rpc<{ total: number; invoices: number }>(staff.id, 'close_counter')

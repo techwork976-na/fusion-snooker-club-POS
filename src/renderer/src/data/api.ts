@@ -35,10 +35,12 @@ import type {
   Role,
   Sale,
   SalesReport,
+  SnackSalesReport,
   Settings,
   Shift,
   ShiftDetail,
   SwitchTarget,
+  TableSalesReport,
   TablesOverview
 } from '@/lib/types'
 
@@ -96,6 +98,10 @@ export const pauseSession = (id: string) => rpc('pause_session', { p_session_id:
 export const resumeSession = (id: string) => rpc('resume_session', { p_session_id: id })
 export const endSession = (id: string) => rpc('end_session', { p_session_id: id })
 export const reopenSession = (id: string) => rpc('reopen_session', { p_session_id: id })
+/** A booking ran out: silence its alarm on every terminal (the session is unchanged). */
+export const acknowledgeAllocationAlert = (id: string) => rpc('acknowledge_allocation_alert', { p_session_id: id })
+/** A booking ran out: keep playing; extra time is billed per minute from now. */
+export const continueAfterAllocation = (id: string) => rpc('continue_after_allocation', { p_session_id: id })
 export const cancelSession = (id: string) => rpc('cancel_session', { p_session_id: id })
 export const addSessionItem = (sessionId: string, productId: string, quantity = 1) =>
   rpc('add_session_item', { p_session_id: sessionId, p_product_id: productId, p_quantity: quantity })
@@ -229,6 +235,8 @@ export const addBusinessExpense = (e: { clientRef: string; date: string; categor
     p_description: e.description
   })
 export const voidBusinessExpense = (id: string) => rpc<Expense>('admin_void_expense', { p_expense_id: id })
+export const getSnackSales = (from: string, to: string) => rpc<SnackSalesReport>('get_snack_sales', { p_from: from, p_to: to })
+export const getTableSales = (from: string, to: string) => rpc<TableSalesReport>('get_table_sales', { p_from: from, p_to: to })
 
 export const getRetentionStatus = () => rpc<RetentionStatus>('get_retention_status')
 export const runRetention = () => rpc<RetentionRun>('admin_run_retention')

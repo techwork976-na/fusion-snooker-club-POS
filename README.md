@@ -27,7 +27,9 @@ FUSION runs FUSION Gaming Lounge: tables (snooker, pool, table tennis, PS5…), 
 | Start / pause / resume / end a table (open play, fixed minutes, or prepaid amount) | Staff, Admin | **Tables** |
 | Add snacks to a running table's tab | Staff, Admin | Click the table card → *Tab* |
 | Checkout (table charge + tab, custom rate per minute, discount in PKR or %, Cash or Bank Transfer, receipt) | Staff with an open counter | *End* → Checkout |
-| Sell products without a table | Staff with *Counter sales* | **Counter sale** (Tables or Dashboard) |
+| Sell snacks and drinks without a table (cart, quantities, Cash or Bank Transfer) | Staff with *Counter sales* (admins see stock and every snack sale) | **Snacks** (or *Counter sale* on Tables / Dashboard) |
+| A fixed-time or fixed-amount booking runs out: popup + alarm; silence it, then end or continue the session | Staff, Admin | Any page (alert) · **Tables** |
+| Sales per table for a period (Today / Yesterday / Weekly / Monthly / Custom) | Admin | **Tables → Table Sales Report** |
 | Watch every staff member's figures live; close a forgotten counter | Admin | **Dashboard → Staff today** |
 | Shift history, invoices, daily figures (Today / Weekly / Monthly / Custom) | Admin | **History** |
 | Financial summary for a period (Today / Yesterday / Week / Month / Custom), staff-wise and shift-wise, **Export PDF** | Admin | **Reports** |
@@ -47,7 +49,8 @@ Configured in **Settings → Billing rules** and applied identically by the time
 - Rates are **rupees per minute** per category (tables may override), up to four decimals. The rate is **snapshotted when a session starts**.
 - Played time = elapsed time − paused time. Time is billed in blocks (default 1 minute), rounded **up** (default), **to nearest**, or **down**, with an optional minimum charge.
 - Table charge = billed minutes × rate per minute, rounded half-up to a whole rupee.
-- **Fixed time** bookings charge the booked minutes; **fixed amount** bookings convert PKR into whole seconds of play (e.g. PKR 400 at PKR 10/min = 40 min). Leaving early still pays the booking; extra time is billed at the rate per minute (without the minimum).
+- **Fixed time** bookings charge the booked minutes; **fixed amount** bookings convert PKR into whole seconds of play (e.g. PKR 400 at PKR 10/min = 40 min). Leaving early still pays the booking.
+- **Time's up:** when a booking is used up, its clock stops at 0:00 and billing **holds at the booked amount** — however long staff take to react. A popup and an alarm appear on every computer showing that table, each table on its own. *Silence alarm* stops the sound everywhere (also after a refresh) and changes nothing else. Staff then **End** the session (the booked amount is charged) or **Continue**: play goes on and extra time is billed per minute from that moment (without the minimum); the minutes the session was held are never charged.
 - **Custom rate per minute (regulars):** at checkout a cashier with the *Discounts & custom rates* permission can enter another rate. It re-prices all of the played time with the same rules (a booking's time pro rata), e.g. 100 min at 10/min = 1,000 → at 9/min = 900. The discount (PKR or %) then applies to that bill: 900 − 30 = 870. The invoice and receipt show the custom rate and the standard rate it replaced; the counter, ledger, History and customer statistics record the amount actually paid, and only the discount counts as a discount.
 - *End* freezes the bill; *Reopen* resumes the clock without charging the time spent at checkout.
 
@@ -65,6 +68,10 @@ Finalises a business day's Cash, Bank, Total, Expenses and Net in `daily_summari
 - **Business expenses** are recorded by an administrator with a date and category. They count in Reports and Expenses but never change a counter's cash, the shift ledger or History. Counter expenses are still recorded and voided by staff at their counter.
 - **Gross profit** (Inventory → Sales & profit) = product sales after their share of invoice discounts − the cost price recorded at each sale. Table time is never product revenue, and business expenses are not deducted. Products sold before cost tracking (migration 0900) show sales but no profit; FUSION does not guess past costs.
 
+### Snacks and table sales
+- **Snacks** sells to customers who are not playing: the sale belongs to the staff member's open counter like any counter sale, takes the stock (never below zero), counts in snack sales, Reports and Inventory → Sales & profit, and is never assigned to a table.
+- **Table Sales Report** (Tables → Table Sales Report, admin) shows, per table, the paid sessions, cash, bank transfer and total — table time plus snacks put on that table's tab, after discounts. Snack-only sales are not table sales. It reads the invoices themselves, so once the retention policy removes old invoices their table sales are gone too: no hidden totals are kept.
+
 ### Automatic invoice cleanup (retention)
 Detailed invoices (sales + sale items) older than the chosen period — **Monthly (30 days) by default**, or Weekly / Daily — are removed hourly by a server-side job, but only from **closed** counter shifts, whoever made the sale. Shift summaries, the daily ledger, expenses, customers and their statistics, product sales and every Cash / Bank / Total / Net figure are permanent, so History and Reports stay correct. Each run is logged (Settings → Data retention). Deleted rows free space for reuse straight away; PostgreSQL does not shrink the database file immediately, so the size shown in Supabase falls only after routine maintenance.
 
@@ -72,6 +79,8 @@ Detailed invoices (sales + sale items) older than the chosen period — **Monthl
 The `…0700` migration attaches every existing sale to an *imported* closed shift (one per cashier per day), builds the ledger and customer statistics from them, and keeps totals saved by the old "Close Day & Archive" as legacy amounts. Nothing is deleted. Redeploy the Edge Function.
 
 The `…0800` migration switches every rate to **per minute**: stored hourly rates (categories, table overrides and the snapshots on past sessions and invoices) are divided by 60 and kept to four decimals, so prices bill exactly as before (PKR 600/hour → 10/min; 400/hour → 6.6667/min — set a round figure in Settings if you prefer). No stored amount is recalculated and nothing is deleted.
+
+The `…1000` migration adds the time's-up hold (two columns on `sessions`), snack-sales and table-sales report functions. Nothing is deleted.
 
 The `…0900` migration adds business expenses, cost-at-sale on invoice lines and the permanent product sales table (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#8-apply-database-migrations-safely)). Nothing is deleted.
 

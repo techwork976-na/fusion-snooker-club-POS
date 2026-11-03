@@ -31,7 +31,9 @@ export const keys = {
   retention: ['retention'] as const,
   financialReport: (from: string, to: string) => ['financial-report', from, to] as const,
   expenses: (from: string, to: string) => ['expenses', from, to] as const,
-  productSales: (from: string, to: string) => ['product-sales', from, to] as const
+  productSales: (from: string, to: string) => ['product-sales', from, to] as const,
+  snackSales: (from: string, to: string) => ['snack-sales', from, to] as const,
+  tableSales: (from: string, to: string) => ['table-sales', from, to] as const
 }
 
 /** Everything that shows money or shift state; refreshed after any counter activity. */
@@ -47,7 +49,9 @@ export const accountingKeys: QueryKey[] = [
   keys.retention,
   ['financial-report'],
   ['expenses'],
-  ['product-sales']
+  ['product-sales'],
+  ['snack-sales'],
+  ['table-sales']
 ]
 
 export const useSettings = () => useQuery({ queryKey: keys.settings, queryFn: api.getSettings, staleTime: 60_000 })

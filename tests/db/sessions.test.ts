@@ -184,11 +184,15 @@ describe('billing rules', () => {
     expect(Number(ended.base_amount)).toBe(450)
   })
 
-  it('charges overtime beyond the booking at the normal rate', async () => {
+  it('charges overtime beyond the booking at the normal rate once staff continue it', async () => {
     const s = await start(staff.id, club.tables.snooker1, { p_booking: 'minutes', p_minutes: 30 })
-    await db.ageSession(s.id, 30 * 60 + 5 * 60 + 10)
+    // The booking runs out and holds for 2 minutes before staff choose Continue…
+    await db.ageSession(s.id, 30 * 60 + 2 * 60)
+    await db.rpc(staff.id, 'continue_after_allocation', { p_session_id: s.id })
+    // …then 5:10 more is played.
+    await db.ageSession(s.id, 5 * 60 + 10)
     const ended = await db.rpc<Session>(staff.id, 'end_session', { p_session_id: s.id })
-    // PKR 300 booking + 5:10 overtime -> 6 minutes -> PKR 60.
+    // PKR 300 booking + 5:10 overtime -> 6 minutes -> PKR 60; the 2 held minutes are never billed.
     expect(Number(ended.base_amount)).toBe(360)
   })
 

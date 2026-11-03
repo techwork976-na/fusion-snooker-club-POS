@@ -22,6 +22,10 @@
 | Reports show "Open counters · live, not final" | Those counters are still open. Their figures become final once each staff member closes their counter. |
 | Product profit shows "—" or a note about units sold before cost prices were recorded | Those items were sold before migration 0900 recorded cost prices with each sale. They count in sales, not in profit; FUSION does not guess past costs. |
 | "Counter expenses are voided from the counter while it is open." | Counter expenses belong to a staff member's shift; void them in **My counter** while it is open. The Expenses page voids business expenses only. |
+| The "Time's up" alarm makes no sound | Browsers allow sound only after someone clicks on the page; the popup says so until then. Check the computer's volume. The popup and the table card still show "Time's up". |
+| "This booking still has time left." | *Continue* is only possible once the booking is used up. |
+| A booked table shows 0:00 and the charge doesn't grow | Working as intended: billing holds at the booked amount until staff press **Continue** (extra time billed from then) or **End**. |
+| Table Sales Report shows less than History for an old period | The report reads invoices, and the retention policy removes old invoices (History keeps permanent totals). |
 | "Enter a rate per minute above zero." | Rates are rupees per minute (e.g. 10, 7.50 or 6.6667), above zero and at most 10,000. |
 | "You do not have permission to set a custom rate." | Custom rates use the *Discounts & custom rates* permission (Staff → edit the account). Entering the table's own rate needs no permission. |
 | Saving a category or table fails on a computer | It runs an old copy of the desktop app that sends hourly rates; use the web app instead. |

@@ -6,6 +6,7 @@ import {
   billableSeconds,
   billedMinutes,
   chargeAtRate,
+  isAllocationComplete,
   isValidRate,
   sameRate,
   secondsForAmount,
@@ -134,5 +135,31 @@ describe('live clock', () => {
 
   it('uses the server-computed value once ended', () => {
     expect(billableSeconds({ ...base, status: 'billing', ended_at: '2026-10-31T19:00:00Z', billable_seconds: 3333 }, t0)).toBe(3333)
+  })
+})
+
+describe("time's up: a booking holds at its allocation", () => {
+  const t0 = Date.parse('2026-11-03T18:00:00Z')
+  const booked = { status: 'running' as const, started_at: '2026-11-03T18:00:00Z', paused_at: null, ended_at: null, paused_ms: 0, booked_seconds: 1800 }
+
+  it('stops the billable clock at the booked time until staff continue', () => {
+    expect(billableSeconds(booked, t0 + 29 * 60_000)).toBe(29 * 60)
+    expect(isAllocationComplete(booked, t0 + 29 * 60_000)).toBe(false)
+    expect(billableSeconds(booked, t0 + 45 * 60_000)).toBe(1800)
+    expect(isAllocationComplete(booked, t0 + 30 * 60_000)).toBe(true)
+    // The charge therefore stays at the booked amount.
+    expect(sessionCharge({ billableSeconds: billableSeconds(booked, t0 + 45 * 60_000), ratePerMinute: 10, bookedSeconds: 1800, bookedAmount: 300 }, perMinuteUp)).toBe(300)
+  })
+
+  it('counts on after Continue, without the held minutes (recorded as paused)', () => {
+    const continued = { ...booked, paused_ms: 10 * 60_000, allocation_extended_at: '2026-11-03T18:40:00Z' }
+    expect(billableSeconds(continued, t0 + 45 * 60_000)).toBe(35 * 60)
+    expect(isAllocationComplete(continued, t0 + 45 * 60_000)).toBe(false)
+  })
+
+  it('never holds open play', () => {
+    const open = { ...booked, booked_seconds: null }
+    expect(billableSeconds(open, t0 + 90 * 60_000)).toBe(90 * 60)
+    expect(isAllocationComplete(open, t0 + 90 * 60_000)).toBe(false)
   })
 })

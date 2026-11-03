@@ -78,6 +78,10 @@ export interface ActiveSession {
   ended_at: string | null
   billable_seconds: number | null
   base_amount: number | null
+  /** Bookings: when staff dismissed the "time's up" alarm (any terminal). */
+  allocation_alert_ack_at: string | null
+  /** Bookings: when staff chose to continue past the allocation (billing held until then). */
+  allocation_extended_at: string | null
   /** id is null for a name-only customer (no profile without a phone number). */
   customer: { id: string | null; name: string; phone: string | null } | null
   booking_id: string | null
@@ -613,4 +617,52 @@ export interface ProductSalesReport {
   days: { date: string; quantity: number; net_revenue: number; gross_profit: number }[]
   tracking_since: string | null
   cost_tracking_since: string | null
+}
+
+// --- Snack sales and table sales (migration 1000) ---------------------------
+export interface SnackSale {
+  id: string
+  receipt_no: number
+  created_at: string
+  business_date: string
+  cashier_name: string
+  payment_method: 'cash' | 'bank_transfer'
+  discount: number
+  final_amount: number
+  items: { name: string; quantity: number }[]
+}
+
+export interface SnackSalesReport {
+  from: string
+  to: string
+  /** "all" for an administrator; a staff member sees their own sales. */
+  scope: 'all' | 'mine'
+  totals: { total: number; cash: number; bank: number; count: number; items: number }
+  sales: SnackSale[]
+}
+
+export interface TableSalesRow {
+  table_id: string
+  name: string
+  active: boolean
+  floor_name: string
+  category_name: string
+  sessions: number
+  total: number
+  cash: number
+  bank: number
+  table_time: number
+  snacks: number
+  discounts: number
+}
+
+export interface TableSalesReport {
+  from: string
+  to: string
+  tables: TableSalesRow[]
+  totals: { sessions: number; total: number; cash: number; bank: number; table_time: number; snacks: number; discounts: number }
+  retention_days: number
+  /** Invoices of closed counters dated before this may already be removed. */
+  retention_cutoff: string
+  oldest_invoice_date: string | null
 }

@@ -13,6 +13,7 @@ Supabase PostgreSQL is the single source of truth. Migrations live in `supabase/
 | `…0700_counter_shifts_history_retention.sql` | Counter shifts, the permanent ledger, expenses, staff isolation, admin-cannot-sell, History, non-deleting Close Day, pre-bookings, customer statistics, safe deletes, scheduled sales-detail retention. Existing sales are attached to imported shifts; nothing is deleted |
 | `…0800_per_minute_rates_custom_rate.sql` | Rates become rupees **per minute** (hourly columns renamed and divided by 60, to 4 decimals — prices unchanged); `complete_checkout(…, p_custom_rate_per_minute)` re-prices a table's time at a custom rate; invoices keep the standard rate/charge it replaced. Nothing is deleted |
 | `…0900_reports_expenses_product_sales.sql` | Business expenses (`expenses.shift_id` optional + `category`), `sale_items.unit_cost` (cost at sale), permanent `product_sales_daily`, admin report functions (`get_financial_report`, `get_expenses`, `get_product_sales`, `admin_add_expense`, `admin_void_expense`). Checkout posts / sale deletion reverses the product ledger. Nothing is deleted |
+| `…1000_times_up_snacks_table_sales.sql` | `sessions.allocation_alert_ack_at` / `allocation_extended_at`; a used-up booking holds its billable clock at the booked time (`fusion_billable_seconds`, used by `end_session` / `cancel_session`) until `continue_after_allocation`; `acknowledge_allocation_alert`; `get_snack_sales`; `get_table_sales` (reads `sales`, so retention removes old figures) |
 
 ## Tables
 
@@ -50,7 +51,9 @@ Floor operations (any active user, floor-checked): `start_session`, `pause_sessi
 
 Staff counter (own data only; administrators are refused with hint `admin_no_sales`): `open_counter`, `close_counter` (an admin may close any open counter), `complete_checkout` (needs the caller's open shift), `delete_sale` (own sales, open shift only), `add_expense`, `void_expense`, `get_my_counter`, `get_shift_detail`, `get_receipt`.
 
-Administration (admin only): `get_financial_report`, `get_expenses`, `admin_add_expense`, `admin_void_expense`, `get_product_sales`, `admin_update_settings`, `admin_save_floor`, `admin_delete_floor`, `admin_save_category`, `admin_delete_category`, `admin_save_table`, `admin_set_table_active`, `admin_delete_table`, `admin_save_product`, `admin_set_product_active`, `admin_delete_product`, `admin_create_user_profile`, `admin_update_user`, `admin_set_user_active`, `admin_check_user_deletable`, `get_history`, `get_sales_report`, `list_open_business_dates`, `close_business_day`, `admin_save_booking`, `admin_set_booking_status`, `admin_delete_booking`, `start_booking`, `list_bookings`, `get_customer_rankings`, `get_retention_status`, `admin_run_retention`.
+Floor operations added in 1000: `acknowledge_allocation_alert`, `continue_after_allocation` (floor-checked), `get_snack_sales` (own sales; all for an admin).
+
+Administration (admin only): `get_table_sales`, `get_financial_report`, `get_expenses`, `admin_add_expense`, `admin_void_expense`, `get_product_sales`, `admin_update_settings`, `admin_save_floor`, `admin_delete_floor`, `admin_save_category`, `admin_delete_category`, `admin_save_table`, `admin_set_table_active`, `admin_delete_table`, `admin_save_product`, `admin_set_product_active`, `admin_delete_product`, `admin_create_user_profile`, `admin_update_user`, `admin_set_user_active`, `admin_check_user_deletable`, `get_history`, `get_sales_report`, `list_open_business_dates`, `close_business_day`, `admin_save_booking`, `admin_set_booking_status`, `admin_delete_booking`, `start_booking`, `list_bookings`, `get_customer_rankings`, `get_retention_status`, `admin_run_retention`.
 
 Scheduler only (not callable from the API): `fusion_retention_job()` — run hourly by pg_cron.
 

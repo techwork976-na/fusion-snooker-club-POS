@@ -29,7 +29,8 @@ export function SessionPanel({
   const { data: settings } = useSettings()
   const [confirmCancel, setConfirmCancel] = useState(false)
   const tz = settings?.business_timezone
-  const busy = actions.pause.isPending || actions.resume.isPending || actions.end.isPending || actions.reopen.isPending
+  const busy = actions.pause.isPending || actions.resume.isPending || actions.end.isPending || actions.reopen.isPending || actions.keepPlaying.isPending
+  const timeUp = live?.timeUp ?? false
   const tabBusy = actions.addItem.isPending || actions.setQty.isPending
 
   const end = () => {
@@ -44,16 +45,21 @@ export function SessionPanel({
         onOpenChange={(o) => !o && onClose()}
         title={table?.name}
         subtitle={table ? `${table.category_name} · ${table.floor_name}` : undefined}
-        aside={session && <StatusPill status={session.status} />}
+        aside={session && <StatusPill status={session.status} timeUp={timeUp} />}
         footer={
           session && (
             <div className="flex gap-2.5">
-              {session.status === 'running' && (
+              {timeUp && (
+                <Button variant="secondary" size="lg" className="flex-1" icon={<Play className="size-4" />} loading={actions.keepPlaying.isPending} disabled={busy} onClick={() => actions.keepPlaying.mutate(session.id)}>
+                  Continue playing
+                </Button>
+              )}
+              {session.status === 'running' && !timeUp && (
                 <Button variant="secondary" size="lg" className="flex-1" icon={<Pause className="size-4" />} loading={actions.pause.isPending} disabled={busy} onClick={() => actions.pause.mutate(session.id)}>
                   Pause
                 </Button>
               )}
-              {session.status === 'paused' && (
+              {session.status === 'paused' && !timeUp && (
                 <Button variant="primary" size="lg" className="flex-1" icon={<Play className="size-4" />} loading={actions.resume.isPending} disabled={busy} onClick={() => actions.resume.mutate(session.id)}>
                   Resume
                 </Button>
@@ -80,7 +86,7 @@ export function SessionPanel({
         {session && live && (
           <div className="space-y-6">
             <section>
-              <p className="label">{session.status === 'billing' ? 'Final time' : session.status === 'paused' ? 'Paused at' : 'Playing time'}</p>
+              <p className="label">{timeUp ? "Time's up" : session.status === 'billing' ? 'Final time' : session.status === 'paused' ? 'Paused at' : 'Playing time'}</p>
               <p className="mt-3 figure text-[64px] leading-none text-forest-950">{formatClock(live.seconds)}</p>
               <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div>
@@ -98,12 +104,22 @@ export function SessionPanel({
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-fg-4">{live.remaining !== null ? (live.remaining >= 0 ? 'Remaining' : 'Over time') : 'Paused total'}</dt>
-                  <dd className={live.remaining !== null && live.remaining < 0 ? 'font-semibold text-claret-600 tabular' : 'font-semibold text-fg tabular'}>
-                    {live.remaining !== null ? formatClock(Math.abs(live.remaining)) : formatDuration(Math.floor(Number(session.paused_ms) / 1000))}
+                  <dt className="text-xs text-fg-4">{live.extraSeconds !== null ? 'Extra time' : live.remaining !== null ? 'Remaining' : 'Paused total'}</dt>
+                  <dd className={timeUp ? 'font-semibold text-claret-600 tabular' : 'font-semibold text-fg tabular'}>
+                    {live.extraSeconds !== null
+                      ? `+${formatClock(live.extraSeconds)}`
+                      : live.remaining !== null
+                        ? formatClock(live.remaining)
+                        : formatDuration(Math.floor(Number(session.paused_ms) / 1000))}
                   </dd>
                 </div>
               </dl>
+              {timeUp && (
+                <p className="mt-5 rounded-xl bg-claret-50 px-3.5 py-3 text-sm text-claret-800">
+                  The booking is used up. Billing has stopped at the booked amount ({formatMoney(session.booked_amount)}). End the session, or
+                  continue playing — extra time is then billed per minute from that moment.
+                </p>
+              )}
               {session.customer && (
                 <div className="mt-5 flex items-center gap-2.5 rounded-xl bg-sunken/70 px-3.5 py-2.5 text-sm">
                   <UserRound className="size-4 text-fg-4" />

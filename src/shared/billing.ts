@@ -148,13 +148,14 @@ export interface SessionClock {
   ended_at: string | null
   paused_ms: number
   billable_seconds?: number | null
+  /** Fixed-time / fixed-amount bookings: the allocated play time. */
+  booked_seconds?: number | null
+  /** Set when staff chose to continue past a used-up booking. */
+  allocation_extended_at?: string | null
 }
 
-/**
- * Billable milliseconds at `nowMs` (server-aligned). Paused and post-end time
- * never counts, so the value is stable while paused and after ending.
- */
-export function billableMs(session: SessionClock, nowMs: number): number {
+/** Time played, ignoring the booking hold: paused and post-end time never count. */
+export function playedMs(session: SessionClock, nowMs: number): number {
   const start = Date.parse(session.started_at)
   const stop = session.ended_at
     ? Date.parse(session.ended_at)
@@ -162,6 +163,26 @@ export function billableMs(session: SessionClock, nowMs: number): number {
       ? Date.parse(session.paused_at)
       : nowMs
   return Math.max(0, stop - start - Number(session.paused_ms))
+}
+
+/**
+ * Billable milliseconds at `nowMs` (server-aligned), stable while paused and
+ * after ending. A booking holds at its allocation — the clock stops at zero
+ * time left — until staff choose to continue (fusion_billable_seconds in SQL).
+ */
+export function billableMs(session: SessionClock, nowMs: number): number {
+  const played = playedMs(session, nowMs)
+  return isAllocationHeld(session) ? Math.min(played, session.booked_seconds! * 1000) : played
+}
+
+/** A booked session that has not been continued past its allocation. */
+export function isAllocationHeld(session: SessionClock): boolean {
+  return session.booked_seconds != null && !session.allocation_extended_at
+}
+
+/** The allocation of a booked, not-continued session is used up ("time's up"). */
+export function isAllocationComplete(session: SessionClock, nowMs: number): boolean {
+  return isAllocationHeld(session) && playedMs(session, nowMs) >= session.booked_seconds! * 1000
 }
 
 export function billableSeconds(session: SessionClock, nowMs: number): number {
