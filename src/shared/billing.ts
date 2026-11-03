@@ -89,6 +89,31 @@ export function amountForSeconds(seconds: number, ratePerMinute: number | string
   return Math.floor((2 * num + den) / (2 * den))
 }
 
+/** Category pricing: per minute (e.g. Snooker, Pool) or hourly with a special 30-minute price (e.g. PS5, table tennis). */
+export type PricingMode = 'per_minute' | 'hourly_special30'
+
+/** Hourly-priced categories sell time in steps of this many minutes. */
+export const SLOT_STEP_MINUTES = 30
+/** The longest booking, in minutes (also the database limit). */
+export const MAX_BOOKED_MINUTES = 1440
+
+export function isValidSlotMinutes(minutes: number): boolean {
+  return Number.isInteger(minutes) && minutes >= SLOT_STEP_MINUTES && minutes <= MAX_BOOKED_MINUTES && minutes % SLOT_STEP_MINUTES === 0
+}
+
+/**
+ * The price of a duration on an hourly-priced category (fusion_slot_price in
+ * SQL): exactly 30 minutes = the special 30-minute price; 1 hour or more = the
+ * hourly rate × hours (1.5 h = 1.5 × hourly — the special price is never added
+ * on top), rounded half-up to a rupee.
+ */
+export function slotPrice(minutes: number, hourlyRate: number | string, special30: number | string): number {
+  if (minutes === SLOT_STEP_MINUTES) return Number(special30)
+  const num = toPaisa(hourlyRate) * minutes
+  const den = 60 * 100
+  return Math.floor((2 * num + den) / (2 * den))
+}
+
 export interface ChargeInput {
   billableSeconds: number
   ratePerMinute: number | string

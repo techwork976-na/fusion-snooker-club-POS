@@ -11,6 +11,7 @@ import { keys, useAction, useBusinessDate, useSettings, useTablesOverview } from
 import { Button, IconButton } from '@/components/ui/Button'
 import { FieldShell, inputClass, Select, TextField } from '@/components/ui/Field'
 import { ConfirmDialog, Modal } from '@/components/ui/Modal'
+import { DurationPicker } from '@/features/tables/DurationPicker'
 import { EmptyState, ErrorState, LoadingBlock, Page, PageHeader, Segmented } from '@/components/ui/Misc'
 
 const STATUS: Record<BookingStatus, { label: string; pill: string }> = {
@@ -348,13 +349,19 @@ function BookingDialog({ booking, defaultDate, onClose }: { booking: Booking | '
 function StartDialog({ booking, onClose }: { booking: Booking | null; onClose: () => void }) {
   const { data: overview } = useTablesOverview()
   const [tableId, setTableId] = useState<string | null>(null)
-  useEffect(() => setTableId(booking?.table_id ?? null), [booking])
-  const start = useAction((a: { id: string; tableId: string | null }) => api.startBooking(a.id, a.tableId), {
+  const [minutes, setMinutes] = useState(60)
+  useEffect(() => {
+    setTableId(booking?.table_id ?? null)
+    setMinutes(60)
+  }, [booking])
+  const start = useAction((a: { id: string; tableId: string | null; minutes: number | null }) => api.startBooking(a.id, a.tableId, a.minutes), {
     invalidate: bookingKeys,
     success: 'Booking started — the table timer is running.'
   })
   const free = (overview?.tables ?? []).filter((t) => !t.session)
   const chosen = overview?.tables.find((t) => t.id === tableId)
+  // A table priced by the hour is booked for a chosen time (30-minute steps).
+  const hourly = chosen?.pricing_mode === 'hourly_special30' && chosen.hourly_rate != null && chosen.special_30_rate != null
   return (
     <Modal
       open={booking !== null}
@@ -372,7 +379,7 @@ function StartDialog({ booking, onClose }: { booking: Booking | null; onClose: (
             icon={<Play className="size-4" />}
             loading={start.isPending}
             disabled={!tableId || Boolean(chosen?.session)}
-            onClick={() => booking && start.mutate({ id: booking.id, tableId }, { onSuccess: onClose })}
+            onClick={() => booking && start.mutate({ id: booking.id, tableId, minutes: hourly ? minutes : null }, { onSuccess: onClose })}
             data-testid="confirm-start-booking"
           >
             Start table
@@ -391,6 +398,12 @@ function StartDialog({ booking, onClose }: { booking: Booking | null; onClose: (
           ...free.map((t) => ({ value: t.id, label: t.name, hint: `${t.category_name} · ${t.floor_name}` }))
         ]}
       />
+      {hourly && (
+        <div className="mt-5">
+          <p className="mb-2.5 text-[13px] font-semibold text-fg-2">How long? {chosen!.category_name} is priced by the hour.</p>
+          <DurationPicker minutes={minutes} onChange={setMinutes} hourlyRate={Number(chosen!.hourly_rate)} special30={Number(chosen!.special_30_rate)} />
+        </div>
+      )}
     </Modal>
   )
 }

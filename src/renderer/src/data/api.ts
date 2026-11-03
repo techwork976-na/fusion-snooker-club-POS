@@ -19,6 +19,7 @@ import type {
   Dashboard,
   Expense,
   ExpenseCategory,
+  PricingMode,
   ExpensesReport,
   FinancialReport,
   Floor,
@@ -100,6 +101,12 @@ export const endSession = (id: string) => rpc('end_session', { p_session_id: id 
 export const reopenSession = (id: string) => rpc('reopen_session', { p_session_id: id })
 /** A booking ran out: silence its alarm on every terminal (the session is unchanged). */
 export const acknowledgeAllocationAlert = (id: string) => rpc('acknowledge_allocation_alert', { p_session_id: id })
+/**
+ * Hourly-priced session: add 30-minute steps; the whole time is re-priced.
+ * `fromBookedSeconds` is the booked time on screen, so a second click never extends twice.
+ */
+export const extendSession = (a: { id: string; minutes: number; fromBookedSeconds: number }) =>
+  rpc('extend_session', { p_session_id: a.id, p_minutes: a.minutes, p_from_booked_seconds: a.fromBookedSeconds })
 /** A booking ran out: keep playing; extra time is billed per minute from now. */
 export const continueAfterAllocation = (id: string) => rpc('continue_after_allocation', { p_session_id: id })
 export const cancelSession = (id: string) => rpc('cancel_session', { p_session_id: id })
@@ -266,7 +273,9 @@ export const saveBooking = (b: BookingInput) =>
 export const setBookingStatus = (id: string, status: Extract<BookingStatus, 'booked' | 'cancelled' | 'no_show'>) =>
   rpc('admin_set_booking_status', { p_id: id, p_status: status })
 export const deleteBooking = (id: string) => rpc('admin_delete_booking', { p_id: id })
-export const startBooking = (id: string, tableId: string | null) => rpc('start_booking', { p_booking_id: id, p_table_id: tableId })
+/** `minutes` is required for a table priced by the hour (30-minute steps). */
+export const startBooking = (id: string, tableId: string | null, minutes: number | null = null) =>
+  rpc('start_booking', { p_booking_id: id, p_table_id: tableId, p_minutes: minutes })
 
 // --- customers ------------------------------------------------------------
 export const getCustomerRankings = (metric: RankingMetric, limit = 25) =>
@@ -277,13 +286,25 @@ export const updateSettings = (patch: Partial<Settings>) => rpc<Settings>('admin
 export const saveFloor = (id: number | null, name: string, sortOrder: number) =>
   rpc<Floor>('admin_save_floor', { p_id: id, p_name: name, p_sort_order: sortOrder })
 export const deleteFloor = (id: number) => rpc('admin_delete_floor', { p_id: id })
-export const saveCategory = (c: { id: number | null; name: string; rate_per_minute: number; sort_order: number; is_active: boolean }) =>
+export const saveCategory = (c: {
+  id: number | null
+  name: string
+  pricing_mode: PricingMode
+  rate_per_minute: number | null
+  hourly_rate: number | null
+  special_30_rate: number | null
+  sort_order: number
+  is_active: boolean
+}) =>
   rpc<Category>('admin_save_category', {
     p_id: c.id,
     p_name: c.name,
     p_rate_per_minute: c.rate_per_minute,
     p_sort_order: c.sort_order,
-    p_is_active: c.is_active
+    p_is_active: c.is_active,
+    p_pricing_mode: c.pricing_mode,
+    p_hourly_rate: c.hourly_rate,
+    p_special_30_rate: c.special_30_rate
   })
 export const saveTable = (t: {
   id: string | null

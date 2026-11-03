@@ -8,6 +8,8 @@ import {
   chargeAtRate,
   isAllocationComplete,
   isValidRate,
+  isValidSlotMinutes,
+  slotPrice,
   sameRate,
   secondsForAmount,
   sessionCharge,
@@ -161,5 +163,24 @@ describe("time's up: a booking holds at its allocation", () => {
     const open = { ...booked, booked_seconds: null }
     expect(billableSeconds(open, t0 + 90 * 60_000)).toBe(90 * 60)
     expect(isAllocationComplete(open, t0 + 90 * 60_000)).toBe(false)
+  })
+})
+
+describe('hourly + special 30-minute pricing', () => {
+  it('PS5 (PKR 600/hour, 30 min PKR 400): the special price is for 30 minutes only, never added on top', () => {
+    const ps5 = (minutes: number) => slotPrice(minutes, 600, 400)
+    expect([30, 60, 90, 120, 150, 180].map(ps5)).toEqual([400, 600, 900, 1200, 1500, 1800])
+  })
+
+  it('Table tennis (PKR 400/hour, 30 min PKR 250)', () => {
+    const tt = (minutes: number) => slotPrice(minutes, 400, 250)
+    expect([30, 60, 90, 120, 150, 180].map(tt)).toEqual([250, 400, 600, 800, 1000, 1200])
+  })
+
+  it('rounds half-up to a rupee and sells only 30-minute steps', () => {
+    expect(slotPrice(90, 605, 400)).toBe(908) // 907.5
+    expect(slotPrice(30, 600, 399.5)).toBe(399.5)
+    expect([30, 60, 1440].every(isValidSlotMinutes)).toBe(true)
+    expect([0, 15, 45, 61, 1470, 30.5].some(isValidSlotMinutes)).toBe(false)
   })
 })

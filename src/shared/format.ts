@@ -19,6 +19,23 @@ export function formatRate(value: number | string | null | undefined, withCurren
   return `${withCurrency ? 'PKR ' : ''}${text}/min`
 }
 
+/** Hourly pricing with its special 30-minute price: "PKR 600/hour · 30 min PKR 400". */
+export function formatHourlyPricing(hourlyRate: number | string, special30: number | string): string {
+  return `${formatMoney(hourlyRate)}/hour · 30 min ${formatMoney(special30)}`
+}
+
+/** How a category, table or session is priced: "PKR 10/min", or "PKR 600/hour · 30 min PKR 400". */
+export function formatPricing(p: {
+  pricing_mode?: string | null
+  rate_per_minute: number | string
+  hourly_rate?: number | string | null
+  special_30_rate?: number | string | null
+}): string {
+  return p.pricing_mode === 'hourly_special30' && p.hourly_rate != null && p.special_30_rate != null
+    ? formatHourlyPricing(p.hourly_rate, p.special_30_rate)
+    : formatRate(p.rate_per_minute)
+}
+
 /** 3725 → "1:02:05", 125 → "2:05". */
 export function formatClock(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds))

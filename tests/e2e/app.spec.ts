@@ -791,6 +791,86 @@ test('the admin sees snack sales and the Table Sales Report with every date filt
   await expect(page.getByTestId('table-sales-total')).toHaveText(money(day!.total))
 })
 
+test('hourly + special 30-minute pricing: priced by duration, extensions re-price the total, checkout at that price', async () => {
+  // The admin prices PS5 by the hour: PKR 600/hour, 30 minutes PKR 400.
+  await nav('Settings').click()
+  await page.getByRole('button', { name: 'Categories & rates' }).click()
+  await page.getByRole('button', { name: 'Add category' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByLabel('Name').fill('PS5')
+  await dialog.getByRole('tab', { name: 'Hourly + special 30-minute rate' }).click()
+  await dialog.getByTestId('category-hourly').fill('600')
+  await dialog.getByTestId('category-special').fill('400')
+  const table = dialog.getByTestId('category-price-table')
+  for (const price of ['PKR 400', 'PKR 600', 'PKR 900', 'PKR 1,200', 'PKR 1,500', 'PKR 1,800']) await expect(table).toContainText(price)
+  await shot('26-hourly-category')
+  await dialog.getByTestId('save-category').click()
+  await expect(page.getByTestId('category-price-PS5')).toHaveText('PKR 600/hour · 30 min PKR 400')
+  await expect(page.getByTestId('category-price-Snooker')).toHaveText('PKR 10/min') // per-minute categories unchanged
+  await db(
+    `insert into public.club_tables (name, category_id, floor_id, sort_order)
+     values ('PS5 Lounge', (select id from public.table_categories where name = 'PS5'), $1, 9)`,
+    [club.ground]
+  )
+
+  // Ali (staff) starts an hour: the price is shown before confirming.
+  await page.getByTestId('account-menu').click()
+  await page.getByRole('menuitem', { name: 'Switch to Staff portal' }).click()
+  await page.getByRole('button', { name: /staff ali/ }).click()
+  await page.getByLabel('Password').fill('ali-pass-123')
+  await page.getByRole('button', { name: 'Switch' }).click()
+  await nav('Tables').click()
+  const card = page.getByTestId('table-card-PS5 Lounge')
+  await expect(card).toContainText('PKR 600/hour · 30 min PKR 400')
+  await card.getByRole('button', { name: 'Start' }).click()
+  await expect(page.getByRole('button', { name: /Open play/ })).toHaveCount(0)
+  await page.getByTestId('duration-30').click()
+  await expect(page.getByTestId('duration-price')).toHaveText('PKR 400')
+  await page.getByTestId('duration-90').click()
+  await expect(page.getByTestId('duration-price')).toHaveText('PKR 900')
+  await page.getByTestId('duration-60').click()
+  await expect(page.getByTestId('duration-price')).toHaveText('PKR 600')
+  await shot('27-hourly-start')
+  await page.getByTestId('confirm-start').click()
+  await expect(card).toContainText('PKR 600')
+
+  // Extending by 30 minutes re-prices the whole time: 1.5 hours = PKR 900, not 600 + 400.
+  await card.click()
+  await expect(page.getByTestId('extend-30')).toContainText('1.5 h · PKR 900')
+  await page.getByTestId('extend-30').click()
+  await expect(page.getByTestId('extend-30')).toContainText('2 h · PKR 1,200')
+  await page.keyboard.press('Escape')
+  await expect(card).toContainText('PKR 900')
+
+  // Time's up (moved forward in the database): the alert offers extensions, not per-minute play.
+  await db(`update public.sessions set started_at = now() - interval '90 minutes' + interval '2 seconds' where table_id = (select id from public.club_tables where name = 'PS5 Lounge') and status = 'running'`)
+  await page.reload()
+  await expect(page.getByTestId('time-up-PS5 Lounge')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId('time-up-PS5 Lounge').getByRole('button', { name: 'Continue playing' })).toHaveCount(0)
+  await page.getByTestId('time-up-PS5 Lounge').getByTestId('alert-extend-30').click()
+  await expect(page.getByTestId('time-up-alert')).toHaveCount(0)
+  await expect(card).toContainText('PKR 1,200')
+  const [booked] = await db<{ seconds: number; amount: string; acked: boolean }>(
+    `select booked_seconds seconds, booked_amount::text amount, allocation_alert_ack_at is not null acked from public.sessions
+     where table_id = (select id from public.club_tables where name = 'PS5 Lounge') and status = 'running'`
+  )
+  expect(booked).toEqual({ seconds: 7200, amount: '1200.00', acked: false })
+
+  // Checkout charges the booked price; there is no per-minute custom rate for this table.
+  await card.getByRole('button', { name: 'End' }).click()
+  await expect(page.getByTestId('checkout-total')).toHaveText('PKR 1,200')
+  await expect(page.getByTestId('custom-rate')).toHaveCount(0)
+  await page.getByTestId('complete-checkout').click()
+  const receipt = page.getByTestId('receipt')
+  await expect(receipt).toContainText('PKR 600/hour')
+  await expect(receipt).not.toContainText('PKR 400') // only the price that applied
+  await expect(receipt).toContainText('1,200')
+  await shot('28-hourly-receipt')
+  await page.getByRole('button', { name: 'Done' }).click()
+  const [sale] = await db<{ base: string }>(`select base_amount::text base from public.sales where table_name = 'PS5 Lounge'`)
+  expect(sale!.base).toBe('1200.00')
+})
+
 test('refreshing keeps the signed-in page; signing out ends the session', async () => {
   // Ali (staff) is signed in from the previous test.
   await nav('Tables').click()

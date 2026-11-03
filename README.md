@@ -24,7 +24,8 @@ FUSION runs FUSION Gaming Lounge: tables (snooker, pool, table tennis, PS5…), 
 | Task | Who | Where |
 |---|---|---|
 | Open / close my counter, record expenses, see my Cash, Bank, Snacks, Total, Expenses, Net | Staff | **My counter** |
-| Start / pause / resume / end a table (open play, fixed minutes, or prepaid amount) | Staff, Admin | **Tables** |
+| Start / pause / resume / end a table (open play, fixed minutes, or prepaid amount; hourly-priced categories: a duration in 30-minute steps) | Staff, Admin | **Tables** |
+| Extend an hourly-priced session (re-priced from the total time) | Staff, Admin | **Tables** → the session, or the time's-up alert |
 | Add snacks to a running table's tab | Staff, Admin | Click the table card → *Tab* |
 | Checkout (table charge + tab, custom rate per minute, discount in PKR or %, Cash or Bank Transfer, receipt) | Staff with an open counter | *End* → Checkout |
 | Sell snacks and drinks without a table (cart, quantities, Cash or Bank Transfer) | Staff with *Counter sales* (admins see stock and every snack sale) | **Snacks** (or *Counter sale* on Tables / Dashboard) |
@@ -46,7 +47,10 @@ Every time of day in FUSION is shown in 12-hour form (e.g. 07:15 PM).
 ### Billing rules
 Configured in **Settings → Billing rules** and applied identically by the timer, checkout, receipt and reports:
 
-- Rates are **rupees per minute** per category (tables may override), up to four decimals. The rate is **snapshotted when a session starts**.
+- Each category has a **pricing mode** (Settings → Categories & rates):
+  - **Per minute** (e.g. Snooker, Pool): rupees per minute (tables may override), up to four decimals; open play, fixed time or fixed amount.
+  - **Hourly + special 30-minute rate** (e.g. PS5 PKR 600/hour with 30 minutes at PKR 400): time is sold in 30-minute steps. Exactly 30 minutes costs the special price; an hour or more costs the hourly rate × hours (1.5 h = PKR 900 — the special price is never added on top). Staff pick the duration and see the price before starting. **Extending** (Tables → the session, or the time's-up alert) adds 30-minute steps and re-prices the whole time (1 h + 30 min = 1.5 h = PKR 900, not 600 + 400). No open play, prepaid amount, per-minute "continue" or per-minute custom rate for these categories; a discount still applies.
+- A session **keeps the prices it started with**, so changing a category's prices never changes a running session, its extensions or any invoice.
 - Played time = elapsed time − paused time. Time is billed in blocks (default 1 minute), rounded **up** (default), **to nearest**, or **down**, with an optional minimum charge.
 - Table charge = billed minutes × rate per minute, rounded half-up to a whole rupee.
 - **Fixed time** bookings charge the booked minutes; **fixed amount** bookings convert PKR into whole seconds of play (e.g. PKR 400 at PKR 10/min = 40 min). Leaving early still pays the booking.
@@ -79,6 +83,8 @@ Detailed invoices (sales + sale items) older than the chosen period — **Monthl
 The `…0700` migration attaches every existing sale to an *imported* closed shift (one per cashier per day), builds the ledger and customer statistics from them, and keeps totals saved by the old "Close Day & Archive" as legacy amounts. Nothing is deleted. Redeploy the Edge Function.
 
 The `…0800` migration switches every rate to **per minute**: stored hourly rates (categories, table overrides and the snapshots on past sessions and invoices) are divided by 60 and kept to four decimals, so prices bill exactly as before (PKR 600/hour → 10/min; 400/hour → 6.6667/min — set a round figure in Settings if you prefer). No stored amount is recalculated and nothing is deleted.
+
+The `…1100` migration adds the "hourly + special 30-minute rate" pricing mode (columns on `table_categories` and `sessions`, extension). Existing categories stay per minute; nothing is deleted.
 
 The `…1000` migration adds the time's-up hold (two columns on `sessions`), snack-sales and table-sales report functions. Nothing is deleted.
 

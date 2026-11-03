@@ -12,7 +12,7 @@ import {
   fromClockParts,
   toClockParts
 } from '@shared/format'
-import { receiptSchema, renderReceiptHtml, type Receipt } from '@shared/receipt'
+import { rateRows, receiptSchema, renderReceiptHtml, type Receipt } from '@shared/receipt'
 import { isServiceRoleJwt, validateServerConfig } from '../../src/main/validation'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -148,5 +148,17 @@ describe('auth identity mapping', () => {
     for (const file of ['supabase/functions/admin-users/index.ts', 'scripts/create-admin.mjs']) {
       expect(readFileSync(join(root, file), 'utf8')).toContain(`AUTH_EMAIL_DOMAIN = '${AUTH_EMAIL_DOMAIN}'`)
     }
+  })
+})
+
+describe('receipt rate lines for hourly pricing', () => {
+  const session = {
+    started_at: null, ended_at: null, billable_seconds: 5400, rate_per_minute: 10, booked_amount: 1200,
+    pricing_mode: 'hourly_special30' as const, hourly_rate: 600, special_30_rate: 400
+  }
+  it('shows only the price that applied', () => {
+    expect(rateRows({ ...session, booked_seconds: 7200 })).toEqual([['Rate', 'PKR 600/hour']])
+    expect(rateRows({ ...session, booked_seconds: 1800 })).toEqual([['Rate', '30-minute price PKR 400']])
+    expect(rateRows({ ...session, pricing_mode: undefined, hourly_rate: undefined, special_30_rate: undefined, booked_seconds: null })).toEqual([['Rate', 'PKR 10/min']])
   })
 })

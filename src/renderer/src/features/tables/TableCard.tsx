@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { Pause, Play, Plus, Receipt, Square } from 'lucide-react'
-import { formatClock, formatMoney, formatRate } from '@shared/format'
+import { formatClock, formatMoney, formatPricing } from '@shared/format'
 import { cn } from '@/lib/cn'
 import type { TableOverview } from '@/lib/types'
 import { Button } from '@/components/ui/Button'
@@ -25,8 +25,10 @@ interface Props {
   onPause: (sessionId: string) => void
   onResume: (sessionId: string) => void
   onEnd: (table: TableOverview) => void
-  /** A used-up booking: keep playing (extra time billed from now). */
+  /** A used-up per-minute booking: keep playing (extra time billed from now). */
   onContinue: (sessionId: string) => void
+  /** A table priced by the hour: add 30 minutes (the whole time is re-priced). */
+  onExtend: (sessionId: string, fromBookedSeconds: number) => void
   busy: boolean
 }
 
@@ -37,7 +39,7 @@ interface Props {
  * tables sit lighter and quieter, so the floor reads at a glance. No artwork —
  * the same card serves snooker, pool, table tennis and consoles.
  */
-export const TableCard = memo(function TableCard({ table, onOpen, onStart, onCheckout, onPause, onResume, onEnd, onContinue, busy }: Props) {
+export const TableCard = memo(function TableCard({ table, onOpen, onStart, onCheckout, onPause, onResume, onEnd, onContinue, onExtend, busy }: Props) {
   const session = table.session
   const status = session?.status ?? 'available'
   const live = useLive(session)
@@ -73,7 +75,7 @@ export const TableCard = memo(function TableCard({ table, onOpen, onStart, onChe
           <StatusPill status={status} timeUp={timeUp} />
         </div>
         <h3 className="mt-4 truncate font-display-tight text-[28px] leading-[1.05] text-forest-950">{table.name}</h3>
-        <p className="mt-1.5 text-[13px] font-medium text-fg-3 tabular">{formatRate(session?.rate_per_minute ?? table.rate_per_minute)}</p>
+        <p className="mt-1.5 text-[13px] font-medium text-fg-3 tabular">{formatPricing(session ?? table)}</p>
       </header>
 
       <div className="mt-auto pt-7">
@@ -122,9 +124,15 @@ export const TableCard = memo(function TableCard({ table, onOpen, onStart, onChe
           )}
           {timeUp && (
             <>
-              <Button variant="secondary" className="flex-1" icon={<Play className="size-4" />} disabled={busy} onClick={() => onContinue(session!.id)} data-testid="table-continue">
-                Continue
-              </Button>
+              {session!.pricing_mode === 'hourly_special30' ? (
+                <Button variant="secondary" className="flex-1" icon={<Plus className="size-4" />} disabled={busy} onClick={() => onExtend(session!.id, session!.booked_seconds!)} data-testid="table-extend">
+                  30 min
+                </Button>
+              ) : (
+                <Button variant="secondary" className="flex-1" icon={<Play className="size-4" />} disabled={busy} onClick={() => onContinue(session!.id)} data-testid="table-continue">
+                  Continue
+                </Button>
+              )}
               <Button variant="primary" className="flex-1" icon={<Square className="size-3.5" />} disabled={busy} onClick={() => onEnd(table)}>
                 End
               </Button>

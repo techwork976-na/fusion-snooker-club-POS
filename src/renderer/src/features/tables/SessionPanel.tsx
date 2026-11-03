@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Ban, Minus, Pause, Play, Plus, Receipt, RotateCcw, Square, Trash2, UserRound } from 'lucide-react'
-import { formatClock, formatDuration, formatMoney, formatRate, formatTime } from '@shared/format'
+import { formatClock, formatDuration, formatMoney, formatPricing, formatTime } from '@shared/format'
+import { slotPrice } from '@shared/billing'
 import type { TableOverview } from '@/lib/types'
 import { useSettings } from '@/data/hooks'
 import { Drawer } from '@/components/ui/Drawer'
@@ -10,6 +11,7 @@ import { ConfirmDialog } from '@/components/ui/Modal'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { ProductPicker } from '@/features/pos/ProductPicker'
 import { StatusPill } from './TableCard'
+import { durationLabel } from './DurationPicker'
 import { useLive, useSessionActions } from './session'
 
 /** Live session detail: timer, booking, tab items and every session action. */
@@ -29,7 +31,10 @@ export function SessionPanel({
   const { data: settings } = useSettings()
   const [confirmCancel, setConfirmCancel] = useState(false)
   const tz = settings?.business_timezone
-  const busy = actions.pause.isPending || actions.resume.isPending || actions.end.isPending || actions.reopen.isPending || actions.keepPlaying.isPending
+  const busy =
+    actions.pause.isPending || actions.resume.isPending || actions.end.isPending || actions.reopen.isPending || actions.keepPlaying.isPending || actions.extend.isPending
+  const hourly = session?.pricing_mode === 'hourly_special30' && session.hourly_rate != null && session.special_30_rate != null
+  const extend = (minutes: number) => session && actions.extend.mutate({ id: session.id, minutes, fromBookedSeconds: session.booked_seconds! })
   const timeUp = live?.timeUp ?? false
   const tabBusy = actions.addItem.isPending || actions.setQty.isPending
 
@@ -49,7 +54,12 @@ export function SessionPanel({
         footer={
           session && (
             <div className="flex gap-2.5">
-              {timeUp && (
+              {timeUp && hourly && (
+                <Button variant="secondary" size="lg" className="flex-1" icon={<Plus className="size-4" />} loading={actions.extend.isPending} disabled={busy} onClick={() => extend(30)}>
+                  Extend 30 min
+                </Button>
+              )}
+              {timeUp && !hourly && (
                 <Button variant="secondary" size="lg" className="flex-1" icon={<Play className="size-4" />} loading={actions.keepPlaying.isPending} disabled={busy} onClick={() => actions.keepPlaying.mutate(session.id)}>
                   Continue playing
                 </Button>
@@ -95,7 +105,7 @@ export function SessionPanel({
                 </div>
                 <div>
                   <dt className="text-xs text-fg-4">Rate</dt>
-                  <dd className="font-semibold text-fg tabular">{formatRate(session.rate_per_minute)}</dd>
+                  <dd className="font-semibold text-fg tabular">{formatPricing(session)}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-fg-4">Booking</dt>
@@ -116,9 +126,36 @@ export function SessionPanel({
               </dl>
               {timeUp && (
                 <p className="mt-5 rounded-xl bg-claret-50 px-3.5 py-3 text-sm text-claret-800">
-                  The booking is used up. Billing has stopped at the booked amount ({formatMoney(session.booked_amount)}). End the session, or
-                  continue playing — extra time is then billed per minute from that moment.
+                  The booking is used up. Billing has stopped at the booked amount ({formatMoney(session.booked_amount)}).{' '}
+                  {hourly
+                    ? 'End the session, or extend it — the whole time is then re-priced.'
+                    : 'End the session, or continue playing — extra time is then billed per minute from that moment.'}
                 </p>
+              )}
+              {hourly && (session.status === 'running' || session.status === 'paused') && (
+                <div className="mt-5" data-testid="extend-session">
+                  <p className="text-xs font-semibold text-fg-3">Extend — the whole time is re-priced</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {[30, 60, 90, 120].map((m) => {
+                      const total = session.booked_seconds! / 60 + m
+                      return (
+                        <button
+                          type="button"
+                          key={m}
+                          disabled={busy || total > 1440}
+                          onClick={() => extend(m)}
+                          className="rounded-xl bg-sunken/80 px-3.5 py-2 text-left transition-colors hover:bg-sunken disabled:opacity-45"
+                          data-testid={`extend-${m}`}
+                        >
+                          <span className="block text-[13px] font-bold text-fg">+{durationLabel(m)}</span>
+                          <span className="block text-[11px] text-fg-4 tabular">
+                            {durationLabel(total)} · {formatMoney(slotPrice(total, Number(session.hourly_rate), Number(session.special_30_rate)))}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               )}
               {session.customer && (
                 <div className="mt-5 flex items-center gap-2.5 rounded-xl bg-sunken/70 px-3.5 py-2.5 text-sm">

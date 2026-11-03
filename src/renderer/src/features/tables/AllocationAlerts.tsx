@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BellRing, Play, Square, VolumeX } from 'lucide-react'
+import { BellRing, Play, Plus, Square, VolumeX } from 'lucide-react'
 import { isAllocationComplete } from '@shared/billing'
 import { formatDuration, formatMoney } from '@shared/format'
 import type { TableOverview } from '@/lib/types'
@@ -113,17 +113,35 @@ export function AllocationAlerts() {
               <Button variant="secondary" icon={<VolumeX className="size-4" />} onClick={() => silence([t.session.id])} data-testid="silence-alarm">
                 Silence alarm
               </Button>
-              <Button
-                variant="secondary"
-                icon={<Play className="size-4" />}
-                disabled={actions.keepPlaying.isPending}
-                onClick={() => {
-                  setSilenced((s) => new Set([...s, t.session.id]))
-                  actions.keepPlaying.mutate(t.session.id)
-                }}
-              >
-                Continue playing
-              </Button>
+              {t.session.pricing_mode === 'hourly_special30' ? (
+                [30, 60].map((m) => (
+                  <Button
+                    key={m}
+                    variant="secondary"
+                    icon={<Plus className="size-4" />}
+                    disabled={actions.extend.isPending}
+                    onClick={() => {
+                      setSilenced((s) => new Set([...s, t.session.id]))
+                      actions.extend.mutate({ id: t.session.id, minutes: m, fromBookedSeconds: t.session.booked_seconds! })
+                    }}
+                    data-testid={`alert-extend-${m}`}
+                  >
+                    {m === 30 ? '30 min' : '1 hour'}
+                  </Button>
+                ))
+              ) : (
+                <Button
+                  variant="secondary"
+                  icon={<Play className="size-4" />}
+                  disabled={actions.keepPlaying.isPending}
+                  onClick={() => {
+                    setSilenced((s) => new Set([...s, t.session.id]))
+                    actions.keepPlaying.mutate(t.session.id)
+                  }}
+                >
+                  Continue playing
+                </Button>
+              )}
               <Button
                 variant="primary"
                 icon={<Square className="size-3.5" />}

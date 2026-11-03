@@ -23,6 +23,9 @@
 | Product profit shows "—" or a note about units sold before cost prices were recorded | Those items were sold before migration 0900 recorded cost prices with each sale. They count in sales, not in profit; FUSION does not guess past costs. |
 | "Counter expenses are voided from the counter while it is open." | Counter expenses belong to a staff member's shift; void them in **My counter** while it is open. The Expenses page voids business expenses only. |
 | The "Time's up" alarm makes no sound | Browsers allow sound only after someone clicks on the page; the popup says so until then. Check the computer's volume. The popup and the table card still show "Time's up". |
+| "… is priced by the hour: choose a duration" | Categories with hourly + special 30-minute pricing have no open play or prepaid amount: choose a duration in 30-minute steps. |
+| "Extend in steps of 30 minutes." / "This session was just changed on another terminal." | Extensions are 30, 60, 90 … minutes. If another computer extended it a moment ago, check the new time and extend again only if needed. |
+| "Custom rates per minute do not apply to tables priced by the hour." | Use a discount for regulars on hourly-priced tables. |
 | "This booking still has time left." | *Continue* is only possible once the booking is used up. |
 | A booked table shows 0:00 and the charge doesn't grow | Working as intended: billing holds at the booked amount until staff press **Continue** (extra time billed from then) or **End**. |
 | Table Sales Report shows less than History for an old period | The report reads invoices, and the retention policy removes old invoices (History keeps permanent totals). |

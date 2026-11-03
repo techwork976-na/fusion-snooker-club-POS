@@ -86,6 +86,7 @@ export function useSessionActions() {
     reopen: useAction(api.reopenSession, { invalidate, success: 'Session reopened — the clock is running again.' }),
     acknowledge: useAction(api.acknowledgeAllocationAlert, { invalidate }),
     keepPlaying: useAction(api.continueAfterAllocation, { invalidate, success: 'Playing on — extra time is billed per minute from now.' }),
+    extend: useAction(api.extendSession, { invalidate, success: 'Session extended.' }),
     cancel: useAction(api.cancelSession, { invalidate, success: 'Session cancelled without charge.' }),
     addItem: useAction((a: { sessionId: string; productId: string; quantity?: number }) => api.addSessionItem(a.sessionId, a.productId, a.quantity), {
       invalidate

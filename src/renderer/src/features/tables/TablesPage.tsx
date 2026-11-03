@@ -65,7 +65,10 @@ function TablesFloor({ tabs }: { tabs: ReactNode }) {
   const count = (fn: (t: TableOverview) => boolean) => tables.filter((t) => (floor === 'all' || String(t.floor_id) === floor) && fn(t)).length
 
   const panelTable = panelId ? tables.find((t) => t.id === panelId) ?? null : null
-  const busyIds = new Set([actions.pause, actions.resume, actions.end, actions.keepPlaying].filter((m) => m.isPending).map((m) => m.variables))
+  const busyIds = new Set([
+    ...[actions.pause, actions.resume, actions.end, actions.keepPlaying].filter((m) => m.isPending).map((m) => m.variables),
+    ...(actions.extend.isPending && actions.extend.variables ? [actions.extend.variables.id] : [])
+  ])
 
   return (
     <Page>
@@ -148,6 +151,7 @@ function TablesFloor({ tabs }: { tabs: ReactNode }) {
               onResume={(id) => actions.resume.mutate(id)}
               onEnd={(x) => x.session && actions.end.mutate(x.session.id, { onSuccess: () => openCheckout(x.id) })}
               onContinue={(id) => actions.keepPlaying.mutate(id)}
+              onExtend={(id, from) => actions.extend.mutate({ id, minutes: 30, fromBookedSeconds: from })}
             />
           ))}
         </div>

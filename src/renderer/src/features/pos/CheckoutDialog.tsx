@@ -5,7 +5,7 @@ import { Banknote, Landmark, Minus, Plus, ShieldAlert, ShoppingBag, Trash2, Wall
 import { chargeAtRate, sameRate, toPaisa } from '@shared/billing'
 import type { PaymentMethod } from '@shared/constants'
 import type { Receipt } from '@shared/receipt'
-import { formatDuration, formatMoney, formatRate } from '@shared/format'
+import { formatDuration, formatMoney, formatPricing, formatRate } from '@shared/format'
 import { cn } from '@/lib/cn'
 import { errorMessage } from '@/lib/errors'
 import type { ProductSearchResult } from '@/lib/types'
@@ -139,6 +139,8 @@ export function CheckoutDialog({
   )
 
   const canDiscount = can('apply_discount')
+  // Tables priced by the hour are not re-priced per minute (a discount still applies).
+  const perMinuteTable = session?.pricing_mode !== 'hourly_special30'
   const billing = session?.status === 'billing'
   const standardBasePaisa = billing ? toPaisa(session.base_amount ?? 0) : 0
 
@@ -147,7 +149,7 @@ export function CheckoutDialog({
   const customRate = rateText.trim() === '' ? null : parseRate(rateText)
   const rateError = rateText.trim() !== '' && customRate === null ? 'Enter a rate above zero (up to 4 decimals).' : null
   const rateApplied =
-    canDiscount && billing && policy !== null && customRate !== null && !sameRate(customRate, session.rate_per_minute)
+    canDiscount && perMinuteTable && billing && policy !== null && customRate !== null && !sameRate(customRate, session.rate_per_minute)
   const basePaisa = rateApplied
     ? toPaisa(chargeAtRate({ billableSeconds: session.billable_seconds ?? 0, bookedSeconds: session.booked_seconds }, customRate, policy))
     : standardBasePaisa
@@ -256,7 +258,7 @@ export function CheckoutDialog({
               <div className="grid grid-cols-4 gap-6 rounded-2xl bg-sunken/60 px-5 py-4">
                 {[
                   ['Played', session.billable_seconds != null ? formatDuration(session.billable_seconds) : '—'],
-                  ['Rate', rateApplied ? formatRate(customRate) : formatRate(session.rate_per_minute)],
+                  ['Rate', rateApplied ? formatRate(customRate) : formatPricing(session)],
                   ['Booking', session.booked_seconds ? formatDuration(session.booked_seconds) : 'Open play'],
                   ['Table charge', formatMoney(basePaisa / 100)]
                 ].map(([label, value]) => (
@@ -338,7 +340,7 @@ export function CheckoutDialog({
             }}
           >
             <CustomerField value={customer} onChange={setCustomer} />
-            {canDiscount && session && (
+            {canDiscount && session && perMinuteTable && (
               <TextField
                 label="Custom rate per minute"
                 prefix="PKR"

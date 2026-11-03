@@ -29,7 +29,11 @@ export const receiptSchema = z.object({
       standard_rate_per_minute: z.number().positive().nullable().optional(),
       standard_base_amount: z.number().nonnegative().nullable().optional(),
       booked_seconds: z.number().int().nullable(),
-      booked_amount: z.number().nullable()
+      booked_amount: z.number().nullable(),
+      /** Hourly pricing with a special 30-minute price (absent on older receipts = per minute). */
+      pricing_mode: z.enum(['per_minute', 'hourly_special30']).optional(),
+      hourly_rate: z.number().positive().nullable().optional(),
+      special_30_rate: z.number().positive().nullable().optional()
     })
     .nullable(),
   base_amount: z.number().nonnegative(),
@@ -52,6 +56,12 @@ export type Receipt = z.infer<typeof receiptSchema>
 
 /** Rate lines for a receipt: the rate charged, and the standard rate when a custom one replaced it. */
 export function rateRows(session: NonNullable<Receipt['session']>): [string, string][] {
+  // Hourly pricing: only the price that applied (the special price for exactly 30 minutes).
+  if (session.pricing_mode === 'hourly_special30' && session.hourly_rate != null && session.special_30_rate != null) {
+    return session.booked_seconds === 1800
+      ? [['Rate', `30-minute price ${formatMoney(session.special_30_rate)}`]]
+      : [['Rate', `${formatMoney(session.hourly_rate)}/hour`]]
+  }
   if (session.standard_rate_per_minute == null) return [['Rate', formatRate(session.rate_per_minute)]]
   return [
     ['Rate', `${formatRate(session.rate_per_minute)} (custom)`],

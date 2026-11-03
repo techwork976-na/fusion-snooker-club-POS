@@ -14,6 +14,7 @@ Supabase PostgreSQL is the single source of truth. Migrations live in `supabase/
 | `…0800_per_minute_rates_custom_rate.sql` | Rates become rupees **per minute** (hourly columns renamed and divided by 60, to 4 decimals — prices unchanged); `complete_checkout(…, p_custom_rate_per_minute)` re-prices a table's time at a custom rate; invoices keep the standard rate/charge it replaced. Nothing is deleted |
 | `…0900_reports_expenses_product_sales.sql` | Business expenses (`expenses.shift_id` optional + `category`), `sale_items.unit_cost` (cost at sale), permanent `product_sales_daily`, admin report functions (`get_financial_report`, `get_expenses`, `get_product_sales`, `admin_add_expense`, `admin_void_expense`). Checkout posts / sale deletion reverses the product ledger. Nothing is deleted |
 | `…1000_times_up_snacks_table_sales.sql` | `sessions.allocation_alert_ack_at` / `allocation_extended_at`; a used-up booking holds its billable clock at the booked time (`fusion_billable_seconds`, used by `end_session` / `cancel_session`) until `continue_after_allocation`; `acknowledge_allocation_alert`; `get_snack_sales`; `get_table_sales` (reads `sales`, so retention removes old figures) |
+| `…1100_hourly_special_pricing.sql` | Category `pricing_mode` (`per_minute` / `hourly_special30`) with `hourly_rate` and `special_30_rate`, snapshotted on each session; `fusion_slot_price` (30 min = special price, ≥ 1 h = hourly × hours); `start_session` books hourly categories in 30-minute steps; `extend_session` re-prices the total; `start_booking(…, p_minutes)`; `admin_save_category` takes the mode and prices; per-minute continue and custom rates refused for hourly sessions |
 
 ## Tables
 
@@ -21,7 +22,7 @@ Supabase PostgreSQL is the single source of truth. Migrations live in `supabase/
 |---|---|---|
 | `app_users` | Profile + authorization for each Supabase Auth user (`id` → `auth.users`) | `role` ∈ admin/staff; `floor_id` (null = all floors); `permissions` ⊆ the 7 known keys; `is_active` |
 | `floors` | Floors of the club | unique name |
-| `table_categories` | Snooker / Pool / Table Tennis … with `rate_per_minute` (rupees per minute, up to 4 decimals) | 0 < rate ≤ 10,000 |
+| `table_categories` | Snooker / Pool / Table Tennis … with `rate_per_minute` (rupees per minute, up to 4 decimals), or `pricing_mode = hourly_special30` with `hourly_rate` and `special_30_rate` | 0 < rate ≤ 10,000; hourly prices required exactly when the mode is hourly |
 | `club_tables` | Tables: name, category, floor, optional `rate_override` (per minute), `is_active` | unique active name |
 | `sessions` | A table's play session — **never deleted** | status ∈ running/paused/billing/completed/cancelled/voided; **partial unique index: one open session per table**; consistency checks between status, `paused_at`, `ended_at`, `billable_seconds`, `base_amount`; `rate_per_minute` snapshotted at start; booking fields (`booked_seconds`, `booked_amount`); `custom_rate_per_minute` when checkout used a custom rate (`base_amount` is then the charge billed) |
 | `session_items` | A session's tab | price snapshotted when served; stock taken when served |

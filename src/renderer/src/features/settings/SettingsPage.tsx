@@ -2,18 +2,18 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Building2, CalendarClock, Clock3, Database, Layers, LayoutGrid, Monitor, Pencil, Plus, ShieldCheck, Tags, Trash2, ArchiveRestore, PackageMinus } from 'lucide-react'
-import { describePolicy, sessionCharge, type RoundingMode } from '@shared/billing'
-import { formatHour, formatMoney, formatRate } from '@shared/format'
+import { describePolicy, sessionCharge, slotPrice, type RoundingMode } from '@shared/billing'
+import { formatHour, formatMoney, formatPricing, formatRate } from '@shared/format'
 import { RetentionSection } from './RetentionSection'
 import { cn } from '@/lib/cn'
 import type { AppInfo, PrinterInfo } from '@shared/ipc'
-import type { Category, ClubTable, Floor, Settings } from '@/lib/types'
+import type { Category, ClubTable, Floor, PricingMode, Settings } from '@/lib/types'
 import * as api from '@/data/api'
 import { keys, useAction, useCategories, useFloors, useSettings } from '@/data/hooks'
 import { Button, IconButton } from '@/components/ui/Button'
-import { parseIntStrict, parseRate, Select, Switch, TextField } from '@/components/ui/Field'
+import { parseAmount, parseIntStrict, parseRate, Select, Switch, TextField } from '@/components/ui/Field'
 import { ConfirmDialog, Modal } from '@/components/ui/Modal'
-import { LoadingBlock, Page, PageHeader } from '@/components/ui/Misc'
+import { LoadingBlock, Page, PageHeader, Segmented } from '@/components/ui/Misc'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { ChangePasswordDialog } from '@/features/auth/ChangePasswordDialog'
 import { canChoosePrinter, getAppInfo, isDesktop, listPrinters, printReceiptDocument } from '@/lib/platform'
@@ -408,7 +408,7 @@ function RatesSection() {
   return (
     <Panel
       title="Categories & rates"
-      description="Hourly rate per game type (e.g. Snooker, Pool, Table Tennis). Individual tables can override it."
+      description="Price per game type: per minute (e.g. Snooker, Pool), or hourly with a special 30-minute price (e.g. PS5, Table Tennis)."
       footer={
         <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>
           Add category
@@ -426,7 +426,9 @@ function RatesSection() {
                 {!c.is_active && <span className="ml-2 text-xs text-fg-4">hidden</span>}
               </span>
               <div className="flex items-center gap-3">
-                <span className="font-bold text-fg tabular">{formatRate(c.rate_per_minute)}</span>
+                <span className="font-bold text-fg tabular" data-testid={`category-price-${c.name}`}>
+                  {formatPricing(c)}
+                </span>
                 <IconButton size="sm" label="Edit" onClick={() => setEditing(c)}>
                   <Pencil className="size-4" />
                 </IconButton>
@@ -455,22 +457,35 @@ function RatesSection() {
 
 function CategoryDialog({ category, count, onClose }: { category: Category | 'new' | null; count: number; onClose: () => void }) {
   const [name, setName] = useState('')
+  const [mode, setMode] = useState<PricingMode>('per_minute')
   const [rate, setRate] = useState('')
+  const [hourly, setHourly] = useState('')
+  const [special, setSpecial] = useState('')
   const [active, setActive] = useState(true)
   const save = useAction(api.saveCategory, { invalidate: [keys.categories, keys.tables], success: 'Category saved.' })
   useEffect(() => {
     if (category === 'new') {
       setName('')
+      setMode('per_minute')
       setRate('')
+      setHourly('')
+      setSpecial('')
       setActive(true)
     } else if (category) {
       setName(category.name)
-      setRate(String(Number(category.rate_per_minute)))
+      setMode(category.pricing_mode)
+      setRate(category.pricing_mode === 'per_minute' ? String(Number(category.rate_per_minute)) : '')
+      setHourly(category.hourly_rate != null ? String(Number(category.hourly_rate)) : '')
+      setSpecial(category.special_30_rate != null ? String(Number(category.special_30_rate)) : '')
       setActive(category.is_active)
     }
   }, [category])
   const rateN = parseRate(rate)
-  const valid = name.trim() && rateN !== null
+  const hourlyN = parseAmount(hourly)
+  const specialN = parseAmount(special)
+  const hourlyOk = hourlyN !== null && hourlyN > 0
+  const specialOk = specialN !== null && specialN > 0
+  const valid = Boolean(name.trim()) && (mode === 'per_minute' ? rateN !== null : hourlyOk && specialOk)
   const submit = () =>
     valid &&
     category &&
@@ -478,7 +493,10 @@ function CategoryDialog({ category, count, onClose }: { category: Category | 'ne
       {
         id: category === 'new' ? null : category.id,
         name: name.trim(),
-        rate_per_minute: rateN!,
+        pricing_mode: mode,
+        rate_per_minute: mode === 'per_minute' ? rateN : null,
+        hourly_rate: mode === 'hourly_special30' ? hourlyN : null,
+        special_30_rate: mode === 'hourly_special30' ? specialN : null,
         sort_order: category === 'new' ? count + 1 : category.sort_order,
         is_active: active
       },
@@ -488,14 +506,14 @@ function CategoryDialog({ category, count, onClose }: { category: Category | 'ne
     <Modal
       open={category !== null}
       onOpenChange={(o) => !o && onClose()}
-      size="sm"
+      size="md"
       title={category === 'new' ? 'Add category' : 'Edit category'}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" loading={save.isPending} disabled={!valid} onClick={submit}>
+          <Button variant="primary" loading={save.isPending} disabled={!valid} onClick={submit} data-testid="save-category">
             Save
           </Button>
         </>
@@ -509,18 +527,76 @@ function CategoryDialog({ category, count, onClose }: { category: Category | 'ne
         }}
       >
         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Snooker" maxLength={40} autoFocus />
-        <TextField
-          label="Rate per minute"
-          prefix="PKR"
-          suffix="/min"
-          inputMode="decimal"
-          placeholder="10"
-          value={rate}
-          onChange={(e) => setRate(e.target.value)}
-          error={rate.trim() && rateN === null ? 'Enter a rate above zero (up to 4 decimals).' : null}
-          hint="Running sessions keep the rate they started with."
-          data-testid="category-rate"
-        />
+        <div>
+          <p className="mb-2 text-[13px] font-semibold text-fg-2">Pricing</p>
+          <Segmented
+            layoutId="category-pricing-mode"
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'per_minute', label: 'Per minute' },
+              { value: 'hourly_special30', label: 'Hourly + special 30-minute rate' }
+            ]}
+          />
+        </div>
+        {mode === 'per_minute' ? (
+          <TextField
+            label="Rate per minute"
+            prefix="PKR"
+            suffix="/min"
+            inputMode="decimal"
+            placeholder="10"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            error={rate.trim() && rateN === null ? 'Enter a rate above zero (up to 4 decimals).' : null}
+            hint="Open play, fixed time and fixed amount are billed at this rate. Running sessions keep the rate they started with."
+            data-testid="category-rate"
+          />
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <TextField
+                label="Hourly rate"
+                prefix="PKR"
+                suffix="/hour"
+                inputMode="decimal"
+                placeholder="600"
+                value={hourly}
+                onChange={(e) => setHourly(e.target.value)}
+                error={hourly.trim() && !hourlyOk ? 'Enter an amount above zero.' : null}
+                data-testid="category-hourly"
+              />
+              <TextField
+                label="Special 30-minute rate"
+                prefix="PKR"
+                inputMode="decimal"
+                placeholder="400"
+                value={special}
+                onChange={(e) => setSpecial(e.target.value)}
+                error={special.trim() && !specialOk ? 'Enter an amount above zero.' : null}
+                data-testid="category-special"
+              />
+            </div>
+            {hourlyOk && specialOk && (
+              <div className="rounded-xl bg-sunken/70 px-4 py-3" data-testid="category-price-table">
+                <p className="text-xs font-semibold text-fg-3">Customers pay</p>
+                <dl className="mt-2 grid grid-cols-3 gap-x-4 gap-y-1.5 text-sm">
+                  {[30, 60, 90, 120, 150, 180].map((m) => (
+                    <div key={m} className="flex justify-between gap-2">
+                      <dt className="text-fg-3">{m < 60 ? '30 min' : `${m / 60} h`}</dt>
+                      <dd className="font-semibold text-fg tabular">{formatMoney(slotPrice(m, hourlyN!, specialN!))}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
+            <p className="text-xs leading-relaxed text-fg-4">
+              Sold in 30-minute steps: exactly 30 minutes is the special price; an hour or more is the hourly rate × hours (1.5 hours = 1.5 × the
+              hourly rate — the special price is never added on top). Extensions re-price the whole time. Running sessions keep the prices they
+              started with.
+            </p>
+          </>
+        )}
         {category !== 'new' && <Switch checked={active} onChange={setActive} label="Available for new tables" />}
         <button type="submit" hidden />
       </form>
@@ -679,8 +755,12 @@ function TableDialog({ table, floors, categories, onClose }: { table: ClubTable 
         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Snooker 1" maxLength={40} autoFocus />
         <TextField label="Display order" inputMode="numeric" value={sort} onChange={(e) => setSort(e.target.value)} />
         <Select label="Floor" value={floor} onChange={setFloor} options={floors.map((f) => ({ value: String(f.id), label: f.name }))} />
-        <Select label="Category" value={category} onChange={setCategory} options={categories.map((c) => ({ value: String(c.id), label: c.name, hint: formatRate(c.rate_per_minute) }))} />
-        <TextField containerClassName="col-span-2" label="Custom rate per minute" prefix="PKR" suffix="/min" inputMode="decimal" placeholder="Use category rate" value={rate} onChange={(e) => setRate(e.target.value)} error={rateInvalid ? 'Enter a rate above zero or leave empty.' : null} />
+        <Select label="Category" value={category} onChange={setCategory} options={categories.map((c) => ({ value: String(c.id), label: c.name, hint: formatPricing(c) }))} />
+        {categories.find((c) => String(c.id) === category)?.pricing_mode === 'hourly_special30' ? (
+          <p className="col-span-2 rounded-xl bg-sunken/70 px-4 py-3 text-sm text-fg-3">This table uses its category's hourly and 30-minute prices.</p>
+        ) : (
+          <TextField containerClassName="col-span-2" label="Custom rate per minute" prefix="PKR" suffix="/min" inputMode="decimal" placeholder="Use category rate" value={rate} onChange={(e) => setRate(e.target.value)} error={rateInvalid ? 'Enter a rate above zero or leave empty.' : null} />
+        )}
         <button type="submit" hidden />
       </form>
     </Modal>

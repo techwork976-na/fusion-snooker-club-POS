@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Clock3, Coins, Infinity as InfinityIcon } from 'lucide-react'
 import { amountForBookedMinutes, describePolicy, secondsForAmount } from '@shared/billing'
-import { formatDuration, formatMoney, formatRate } from '@shared/format'
+import { formatDuration, formatHourlyPricing, formatMoney, formatRate } from '@shared/format'
 import { cn } from '@/lib/cn'
 import type { TableOverview } from '@/lib/types'
 import { useBillingPolicy } from '@/data/hooks'
@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { parseAmount, parseIntStrict, TextField } from '@/components/ui/Field'
 import { CustomerField, emptyCustomer, type CustomerValue } from '@/features/pos/CustomerField'
+import { DurationPicker } from './DurationPicker'
 import { useSessionActions } from './session'
 
 type Mode = 'open' | 'minutes' | 'amount'
@@ -23,12 +24,16 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
   const [minutesText, setMinutesText] = useState('60')
   const [amountText, setAmountText] = useState('')
   const [customer, setCustomer] = useState<CustomerValue>(emptyCustomer)
+  // Tables priced by the hour sell time in 30-minute steps (no open play).
+  const hourly = table?.pricing_mode === 'hourly_special30' && table.hourly_rate != null && table.special_30_rate != null
+  const [slotMinutes, setSlotMinutes] = useState(60)
 
   useEffect(() => {
     if (table) {
       setMode('open')
       setMinutesText('60')
       setAmountText('')
+      setSlotMinutes(60)
       setCustomer(emptyCustomer)
     }
   }, [table])
@@ -53,14 +58,20 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
             : 'Enter the amount received'
         : `Billed as played at ${formatRate(rate)}`
 
-  const canSubmit = mode === 'open' || (mode === 'minutes' ? minutesValid : amountValid)
+  const canSubmit = hourly || mode === 'open' || (mode === 'minutes' ? minutesValid : amountValid)
 
   const submit = () => {
     if (!table || !canSubmit) return
     start.mutate(
       {
         tableId: table.id,
-        booking: mode === 'open' ? { kind: 'open' } : mode === 'minutes' ? { kind: 'minutes', minutes: minutes! } : { kind: 'amount', amount: amount! },
+        booking: hourly
+          ? { kind: 'minutes', minutes: slotMinutes }
+          : mode === 'open'
+            ? { kind: 'open' }
+            : mode === 'minutes'
+              ? { kind: 'minutes', minutes: minutes! }
+              : { kind: 'amount', amount: amount! },
         customer: { id: customer.id, name: customer.name.trim() || null, phone: customer.phone.trim() || null }
       },
       { onSuccess: onClose }
@@ -78,7 +89,7 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
       open={table !== null}
       onOpenChange={(o) => !o && !start.isPending && onClose()}
       title={`Start ${table?.name ?? ''}`}
-      description={`${table?.category_name} · ${table?.floor_name} · ${formatRate(rate)}`}
+      description={`${table?.category_name} · ${table?.floor_name} · ${hourly ? formatHourlyPricing(table!.hourly_rate!, table!.special_30_rate!) : formatRate(rate)}`}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={start.isPending}>
@@ -97,6 +108,17 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
           submit()
         }}
       >
+        {hourly ? (
+          <div className="space-y-2.5">
+            <p className="text-[13px] font-semibold text-fg-2">How long?</p>
+            <DurationPicker minutes={slotMinutes} onChange={setSlotMinutes} hourlyRate={Number(table!.hourly_rate)} special30={Number(table!.special_30_rate)} />
+            <p className="text-xs text-fg-4">
+              30 minutes is the special price; an hour or more is the hourly rate × hours. The session can be extended in 30-minute steps — the
+              whole time is then re-priced.
+            </p>
+          </div>
+        ) : (
+          <>
         <div className="grid grid-cols-3 gap-2">
           {tabs.map((t) => (
             <button
@@ -157,6 +179,8 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
             </p>
           )}
         </div>
+          </>
+        )}
 
         <CustomerField value={customer} onChange={setCustomer} />
         <button type="submit" hidden />

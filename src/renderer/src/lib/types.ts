@@ -35,10 +35,22 @@ export interface Floor {
   sort_order: number
 }
 
-export interface Category {
+/** Per minute, or hourly with a special 30-minute price (sold in 30-minute steps). */
+export type PricingMode = 'per_minute' | 'hourly_special30'
+
+/** The prices of an hourly-priced category or session. */
+export interface HourlyPricing {
+  pricing_mode: PricingMode
+  /** Rupees per hour (hourly_special30 only). */
+  hourly_rate: number | null
+  /** Price of exactly 30 minutes (hourly_special30 only). */
+  special_30_rate: number | null
+}
+
+export interface Category extends HourlyPricing {
   id: number
   name: string
-  /** Rupees per minute. */
+  /** Rupees per minute (for hourly pricing: the hourly rate ÷ 60, for display only). */
   rate_per_minute: number
   sort_order: number
   is_active: boolean
@@ -65,7 +77,7 @@ export interface TabItem {
   quantity: number
 }
 
-export interface ActiveSession {
+export interface ActiveSession extends HourlyPricing {
   id: string
   status: SessionStatus
   /** Rupees per minute, snapshotted when the session started. */
@@ -88,7 +100,7 @@ export interface ActiveSession {
   items: TabItem[]
 }
 
-export interface TableOverview {
+export interface TableOverview extends HourlyPricing {
   id: string
   name: string
   sort_order: number
