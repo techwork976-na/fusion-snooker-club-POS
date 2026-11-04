@@ -46,7 +46,8 @@ type Size = 'sm' | 'md' | 'lg'
 // Solid, matte fills; the secondary button is raised by a soft shadow, not outlined.
 const variants: Record<Variant, string> = {
   primary: 'bg-forest-950 text-cream shadow-[var(--shadow-control)] hover:bg-forest-800 active:bg-forest-900',
-  secondary: 'bg-surface text-fg shadow-[var(--shadow-control)] hover:bg-field hover:shadow-[0_1px_2px_rgb(10_31_20/0.08),0_6px_14px_-6px_rgb(10_31_20/0.14)]',
+  secondary:
+    'bg-surface text-fg shadow-[var(--shadow-control)] ring-1 ring-forest-950/[0.07] ring-inset hover:bg-field hover:shadow-[0_1px_2px_rgb(10_31_20/0.08),0_6px_14px_-6px_rgb(10_31_20/0.14)]',
   ghost: 'text-fg-2 hover:bg-forest-950/[0.05] hover:text-fg',
   danger: 'bg-claret-50 text-claret-700 hover:bg-claret-100',
   brass: 'bg-brass-600 text-surface shadow-[var(--shadow-control)] hover:bg-brass-700'

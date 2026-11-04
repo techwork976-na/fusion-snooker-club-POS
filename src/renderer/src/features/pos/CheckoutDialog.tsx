@@ -500,53 +500,53 @@ export function CheckoutDialog({
               )}
             </div>
 
-            <div className="mt-auto rounded-2xl bg-sunken/70 p-4 sm:p-5">
+            <div className="felt rail relative mt-auto rounded-2xl bg-forest-950 p-4 text-side-fg [--rail:var(--color-brass-300)] sm:p-5" data-testid="checkout-summary">
               <div className="space-y-2 text-sm">
                 {!isCounter && (
-                  <div className="flex justify-between text-fg-3">
+                  <div className="flex justify-between text-side-muted">
                     <span>Table charge{rateApplied && ` · ${formatRate(customRate)}`}</span>
-                    <span className="tabular text-fg">
-                      {rateApplied && <span className="mr-2 text-fg-4 line-through">{formatMoney(standardBasePaisa / 100)}</span>}
+                    <span className="tabular text-side-fg">
+                      {rateApplied && <span className="mr-2 text-side-muted/70 line-through">{formatMoney(standardBasePaisa / 100)}</span>}
                       <span data-testid="checkout-table-charge">{formatMoney(basePaisa / 100)}</span>
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between text-fg-3">
+                <div className="flex justify-between text-side-muted">
                   <span>Snacks total</span>
-                  <span className="tabular text-fg">{formatMoney(itemsPaisa / 100)}</span>
+                  <span className="tabular text-side-fg">{formatMoney(itemsPaisa / 100)}</span>
                 </div>
                 {discountPaisa > 0 && !discountError && (
-                  <div className="flex justify-between text-fg-3">
+                  <div className="flex justify-between text-side-muted">
                     <span>Discount</span>
-                    <span className="tabular text-brass-700">−{formatMoney(discountPaisa / 100)}</span>
+                    <span className="tabular text-brass-300">−{formatMoney(discountPaisa / 100)}</span>
                   </div>
                 )}
                 {payment === 'split' && !splitError && (
-                  <div className="flex justify-between text-fg-3" data-testid="split-summary">
+                  <div className="flex justify-between text-side-muted" data-testid="split-summary">
                     <span>Paid</span>
-                    <span className="tabular text-fg">
+                    <span className="tabular text-side-fg">
                       Cash {formatMoney(splitCashPaisa! / 100)} + Bank {formatMoney(splitBankPaisa! / 100)}
                     </span>
                   </div>
                 )}
               </div>
-              <div className="mt-4 flex items-end justify-between border-t border-forest-950/[0.07] pt-4">
-                <span className="label">Total</span>
-                <span className="figure text-[36px] leading-none text-forest-950 sm:text-[44px]" data-testid="checkout-total">
+              <div className="mt-4 flex items-end justify-between border-t border-cream/10 pt-4">
+                <span className="label !text-side-muted">Total</span>
+                <span className="figure text-[36px] leading-none text-cream sm:text-[44px]" data-testid="checkout-total">
                   {formatMoney(totalPaisa / 100)}
                 </span>
               </div>
-              {error && <p className="mt-4 rounded-lg bg-claret-500/10 px-3 py-2.5 text-sm text-claret-700">{error}</p>}
+              {error && <p className="mt-4 rounded-lg bg-claret-500/25 px-3 py-2.5 text-sm text-claret-100">{error}</p>}
               {counterBlock === 'admin' && (
-                <p className="mt-4 flex items-start gap-2 rounded-xl bg-sunken px-3.5 py-3 text-sm text-fg-2" data-testid="admin-no-sales">
+                <p className="mt-4 flex items-start gap-2 rounded-xl bg-cream/[0.08] px-3.5 py-3 text-sm text-side-fg" data-testid="admin-no-sales">
                   <ShieldAlert className="mt-0.5 size-4 shrink-0" />
                   Payments are taken at a staff counter. Administrators manage the business and do not take payments.
                 </p>
               )}
               {counterBlock === 'closed' && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-brass-50 px-3.5 py-2.5 text-sm text-brass-800">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-brass-300/15 px-3.5 py-2.5 text-sm text-brass-100">
                   <span>Open your counter to take this payment.</span>
-                  <Button size="sm" variant="primary" icon={<Wallet className="size-3.5" />} loading={startCounter.isPending} onClick={() => startCounter.mutate(undefined)}>
+                  <Button size="sm" variant="brass" icon={<Wallet className="size-3.5" />} loading={startCounter.isPending} onClick={() => startCounter.mutate(undefined)}>
                     Open counter
                   </Button>
                 </div>
@@ -555,7 +555,7 @@ export function CheckoutDialog({
                 type="submit"
                 variant="primary"
                 size="lg"
-                className="mt-5 w-full"
+                className="mt-5 w-full !bg-cream !text-forest-950 hover:!bg-white"
                 loading={submitting}
                 disabled={notReady || emptyCounter || Boolean(discountError) || Boolean(rateError) || Boolean(splitError) || tabBusy || Boolean(counterBlock)}
                 data-testid="complete-checkout"

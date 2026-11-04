@@ -10,7 +10,7 @@ function ClubClock() {
   return (
     <span className="flex items-center gap-1.5 tabular">
       <Clock3 className="size-3.5 text-fg-4" />
-      {formatTime(new Date(now), settings?.business_timezone)}
+      <span data-testid="club-clock">{formatTime(new Date(now), settings?.business_timezone)}</span>
     </span>
   )
 }
@@ -21,14 +21,16 @@ export function TopBar() {
   return (
     <>
       <header className="drag-region relative z-30 hidden h-12 shrink-0 items-center justify-between pl-5 md:flex md:pl-8 xl:pl-10">
-        <div className="flex items-center gap-5 text-[12.5px] font-semibold text-fg-3">
+        <div className="flex items-center gap-2 text-[12.5px] font-semibold text-fg-3">
           {businessDate && (
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5 rounded-full bg-surface/70 px-3 py-1 ring-1 ring-forest-950/[0.05]">
               <CalendarDays className="size-3.5 text-fg-4" />
               Business day · {formatBusinessDate(businessDate)}
             </span>
           )}
-          <ClubClock />
+          <span className="rounded-full bg-surface/70 px-3 py-1 ring-1 ring-forest-950/[0.05]">
+            <ClubClock />
+          </span>
         </div>
         <div className="h-full">
           <WindowControls />

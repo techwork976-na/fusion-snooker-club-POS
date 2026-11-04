@@ -12,25 +12,29 @@ export interface NavItem {
   to: string
   label: string
   icon: ComponentType<{ className?: string; strokeWidth?: number }>
+  /** Where it sits in the menu: running the floor, the business, or the club's set-up. */
+  group: 'floor' | 'business' | 'manage'
 }
+
+const GROUP_LABEL: Record<NavItem['group'], string> = { floor: 'Floor', business: 'Business', manage: 'Manage' }
 
 export function useNavItems(): NavItem[] {
   const { isAdmin, can } = useAuth()
   // Admin: a management portal (no counter). Staff: their own counter and sales.
   const items: (NavItem | false)[] = [
-    { to: '/', label: 'Dashboard', icon: Gauge },
-    { to: '/tables', label: 'Tables', icon: LayoutGrid },
-    { to: '/snacks', label: 'Snacks', icon: CupSoda },
-    !isAdmin && { to: '/counter', label: 'My counter', icon: Wallet },
-    !isAdmin && (can('view_own_sales') || can('delete_sales')) && { to: '/sales', label: 'My sales', icon: ReceiptText },
-    isAdmin && { to: '/bookings', label: 'Pre-bookings', icon: CalendarClock },
-    isAdmin && { to: '/history', label: 'History', icon: History },
-    isAdmin && { to: '/reports', label: 'Reports', icon: FileText },
-    isAdmin && { to: '/expenses', label: 'Expenses', icon: HandCoins },
-    (isAdmin || can('adjust_stock')) && { to: '/inventory', label: 'Inventory', icon: Boxes },
-    (isAdmin || can('manage_customers')) && { to: '/customers', label: 'Customers', icon: Users },
-    isAdmin && { to: '/staff', label: 'Staff', icon: UserCog },
-    isAdmin && { to: '/settings', label: 'Settings', icon: Settings2 }
+    { to: '/', label: 'Dashboard', icon: Gauge, group: 'floor' },
+    { to: '/tables', label: 'Tables', icon: LayoutGrid, group: 'floor' },
+    { to: '/snacks', label: 'Snacks', icon: CupSoda, group: 'floor' },
+    !isAdmin && { to: '/counter', label: 'My counter', icon: Wallet, group: 'floor' },
+    !isAdmin && (can('view_own_sales') || can('delete_sales')) && { to: '/sales', label: 'My sales', icon: ReceiptText, group: 'floor' },
+    isAdmin && { to: '/bookings', label: 'Pre-bookings', icon: CalendarClock, group: 'business' },
+    isAdmin && { to: '/history', label: 'History', icon: History, group: 'business' },
+    isAdmin && { to: '/reports', label: 'Reports', icon: FileText, group: 'business' },
+    isAdmin && { to: '/expenses', label: 'Expenses', icon: HandCoins, group: 'business' },
+    (isAdmin || can('adjust_stock')) && { to: '/inventory', label: 'Inventory', icon: Boxes, group: 'manage' },
+    (isAdmin || can('manage_customers')) && { to: '/customers', label: 'Customers', icon: Users, group: 'manage' },
+    isAdmin && { to: '/staff', label: 'Staff', icon: UserCog, group: 'manage' },
+    isAdmin && { to: '/settings', label: 'Settings', icon: Settings2, group: 'manage' }
   ]
   return items.filter((i): i is NavItem => Boolean(i))
 }
@@ -64,10 +68,10 @@ export function Sidebar() {
     )
   return (
     <aside
-      className="drag-region relative z-40 hidden w-[76px] shrink-0 flex-col bg-forest-950 text-side-fg md:flex xl:w-[236px]"
+      className="felt drag-region relative z-40 hidden w-[76px] shrink-0 flex-col bg-forest-950 text-side-fg shadow-[inset_-1px_0_0_rgb(244_240_231/0.05)] md:flex xl:w-[240px]"
       data-layout={wide ? 'wide' : 'rail'}
     >
-      <div className="flex items-center justify-center gap-3.5 px-3 pt-6 pb-9 xl:justify-start xl:px-5">
+      <div className="flex items-center justify-center gap-3.5 px-3 pt-6 pb-7 xl:justify-start xl:px-5">
         <Logo size={42} className="ring-cream/10" />
         <div className="hidden min-w-0 xl:block">
           <Wordmark className="block text-[14px] text-side-fg" />
@@ -77,9 +81,24 @@ export function Sidebar() {
         </div>
       </div>
 
-      <p className="mb-2 hidden px-6 text-[10.5px] font-semibold tracking-[0.2em] text-side-muted/80 xl:block">MENU</p>
-      <nav aria-label="Main" className="no-drag flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3">
-        {items.map((item) => hint(item.to, item.label,
+      <span className="mx-5 mb-5 hidden h-px bg-brass-300/20 xl:block" aria-hidden />
+      <nav aria-label="Main" className="no-drag flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-2">
+        {items.flatMap((item, i) => [
+          ...(i === 0 || items[i - 1]!.group !== item.group
+            ? [
+                <p
+                  key={`group-${item.group}`}
+                  className={cn(
+                    'hidden px-3 pb-1.5 text-[10.5px] font-semibold tracking-[0.2em] text-side-muted/75 uppercase xl:block',
+                    i > 0 && 'pt-4'
+                  )}
+                >
+                  {GROUP_LABEL[item.group]}
+                </p>,
+                ...(i > 0 ? [<span key={`rule-${item.group}`} className="mx-4 my-2 h-px shrink-0 bg-cream/[0.07] xl:hidden" aria-hidden />] : [])
+              ]
+            : []),
+          hint(item.to, item.label,
           <NavLink
             key={item.to}
             to={item.to}
@@ -108,7 +127,8 @@ export function Sidebar() {
               </>
             )}
           </NavLink>
-        ))}
+          )
+        ])}
       </nav>
 
       <div className="no-drag px-3 pt-3 pb-4">

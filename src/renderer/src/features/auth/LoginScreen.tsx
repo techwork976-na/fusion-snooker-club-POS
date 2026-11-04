@@ -71,7 +71,7 @@ export function LoginScreen() {
   return (
     <div className="relative flex h-full flex-col bg-canvas">
       <BareTitleBar />
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1.05fr_1fr]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1.1fr_1fr]">
         <BrandPanel />
 
         <section className="flex items-center justify-center px-6 sm:px-8">
@@ -84,9 +84,9 @@ export function LoginScreen() {
             <div className="mb-8 lg:hidden">
               <Logo size={88} />
             </div>
-            <p className="label !text-brass-700">FUSION Gaming Lounge</p>
-            <h1 className="mt-2.5 font-display-tight text-[36px] leading-tight text-forest-950">Sign in</h1>
-            <p className="mt-2 mb-8 text-sm text-fg-3">Use the username and password your administrator gave you.</p>
+            <p className="eyebrow">FUSION Gaming Lounge</p>
+            <h1 className="mt-4 font-display-tight text-[40px] leading-[1.02] text-forest-950">Sign in</h1>
+            <p className="mt-3 mb-9 text-sm leading-relaxed text-fg-3">Use the username and password your administrator gave you.</p>
             {notice && <div className="mb-5 rounded-2xl bg-brass-50 px-4 py-3 text-sm text-brass-800">{notice}</div>}
             <form
               className="space-y-4"
@@ -119,7 +119,7 @@ export function LoginScreen() {
                 {waiting > 0 ? `Try again in ${waiting} s` : 'Sign in'}
               </Button>
             </form>
-            <p className="mt-10 text-xs leading-relaxed text-fg-4">
+            <p className="mt-10 border-t border-line pt-5 text-xs leading-relaxed text-fg-4">
               Forgot your password? An administrator can set a new one under Staff.
             </p>
           </motion.div>

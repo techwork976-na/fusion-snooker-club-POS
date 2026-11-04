@@ -35,7 +35,7 @@ export function EmptyState({
   return (
     <div className={cn('flex flex-col items-center justify-center px-6 py-14 text-center', className)}>
       {icon && (
-        <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-sunken text-forest-700">
+        <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-sunken text-forest-700 ring-1 ring-brass-300/50 ring-inset">
           {icon}
         </div>
       )}
@@ -76,9 +76,9 @@ export function PageHeader({
     <div className="mb-6 flex flex-col gap-4 md:mb-9 md:gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          {eyebrow && <p className="label mb-2.5 !text-brass-700 md:mb-3">{eyebrow}</p>}
-          <h1 className="font-display-tight text-[30px] leading-[1.05] text-forest-950 md:text-[36px] md:leading-none">{title}</h1>
-          {subtitle && <p className="mt-2.5 text-sm text-fg-3 md:mt-3">{subtitle}</p>}
+          {eyebrow && <p className="eyebrow mb-3 md:mb-3.5">{eyebrow}</p>}
+          <h1 className="font-display-tight text-[30px] leading-[1.05] text-forest-950 md:text-[38px] md:leading-[1.02]">{title}</h1>
+          {subtitle && <p className="mt-2.5 max-w-2xl text-[14px] leading-relaxed text-fg-3 md:mt-3">{subtitle}</p>}
         </div>
         {actions && <div className="flex max-w-full min-w-0 flex-wrap items-center gap-2.5">{actions}</div>}
       </div>
@@ -101,7 +101,7 @@ export function Segmented<V extends string>({
   layoutId: string
 }) {
   return (
-    <div role="tablist" className="inline-flex max-w-full rounded-xl bg-forest-950/[0.05] p-1 max-md:overflow-x-auto max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden">
+    <div role="tablist" className="inline-flex max-w-full rounded-xl bg-forest-950/[0.05] p-1 ring-1 ring-forest-950/[0.035] ring-inset max-md:overflow-x-auto max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden">
       {options.map((o) => {
         const active = o.value === value
         return (
@@ -119,7 +119,7 @@ export function Segmented<V extends string>({
             {active && (
               <motion.span
                 layoutId={layoutId}
-                className="absolute inset-0 z-0 rounded-lg bg-surface shadow-[var(--shadow-control)]"
+                className="absolute inset-0 z-0 rounded-lg bg-surface shadow-[var(--shadow-control)] ring-1 ring-forest-950/[0.06]"
                 transition={{ type: 'spring', stiffness: 520, damping: 40 }}
               />
             )}

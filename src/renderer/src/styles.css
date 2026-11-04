@@ -99,6 +99,9 @@
   --color-side-fg: #ebe6da;
   --color-side-muted: #9fb0a3;
 
+  /* Felt: the faint grain on deep forest surfaces (sidebar, tab bar, hero panels). */
+  --felt-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+
   --radius-card: 20px;
   /* Soft, diffused elevation — a faint contact shadow plus a wide, low one. */
   --shadow-card: 0 1px 2px rgb(10 31 20 / 0.035), 0 10px 30px -14px rgb(10 31 20 / 0.12);
@@ -185,6 +188,11 @@
   font-weight: 650;
   letter-spacing: -0.022em;
 }
+/* Deep forest surfaces carry a faint felt grain (static; no glow, no gradient). */
+@utility felt {
+  background-image: var(--felt-grain);
+  background-size: 180px 180px;
+}
 /* Money and timer figures: semibold tabular numerals that line up in columns. */
 @utility figure {
   font-family: var(--font-sans);
@@ -195,10 +203,38 @@
 }
 
 @layer components {
-  /* Content panels: warm white lifted off the cream page by shadow alone. */
+  /* Content panels: warm white lifted off the cream page — a hairline edge for
+     crispness, then the soft, diffused shadow. */
   .card {
     @apply relative rounded-[var(--radius-card)] bg-surface;
-    box-shadow: var(--shadow-card);
+    box-shadow:
+      0 0 0 1px rgb(10 31 20 / 0.045),
+      var(--shadow-card);
+  }
+  /* The cushion rail: a short, rounded bar along a panel's top edge in its
+     state colour (set --rail), like the rail of a snooker table. */
+  .rail::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 22px;
+    right: 22px;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: var(--rail, var(--color-brass-400));
+    pointer-events: none;
+  }
+  /* Small tracked capitals in brass, led by a short rule: the eyebrow above a title. */
+  .eyebrow {
+    @apply inline-flex items-center gap-2.5 text-[11px] font-semibold tracking-[0.16em] text-brass-700 uppercase;
+  }
+  .eyebrow::before {
+    content: '';
+    width: 18px;
+    height: 1.5px;
+    border-radius: 2px;
+    background: currentColor;
+    opacity: 0.7;
   }
   /* Small tracked capitals for section labels. */
   .label {

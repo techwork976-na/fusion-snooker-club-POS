@@ -41,18 +41,27 @@ const rise = (i: number) => ({
   transition: { duration: 0.4, delay: 0.05 * i, ease: [0.22, 1, 0.36, 1] as const }
 })
 
-function PanelHeading({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
+/** Cash and bank on the deep forest hero: the series hues, lightened to read on the dark. */
+const ON_DARK = { cash: '#aebb9f', bank: '#d4bb84' }
+
+function PanelHeading({ children, aside, dark }: { children: ReactNode; aside?: ReactNode; dark?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="label">{children}</span>
+      <span className={cn('label', dark && '!text-side-muted')}>{children}</span>
       {aside}
     </div>
   )
 }
 
-function PanelLink({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+function PanelLink({ children, onClick, dark }: { children: ReactNode; onClick: () => void; dark?: boolean }) {
   return (
-    <button onClick={onClick} className="group flex items-center gap-1 text-xs font-bold text-brass-700 transition-colors hover:text-forest-950">
+    <button
+      onClick={onClick}
+      className={cn(
+        'group flex items-center gap-1 text-xs font-bold transition-colors',
+        dark ? 'text-brass-300 hover:text-cream' : 'text-brass-700 hover:text-forest-950'
+      )}
+    >
       {children} <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
     </button>
   )
@@ -167,11 +176,12 @@ function TodayHero({ data }: { data: Dashboard }) {
   const delta = data.yesterday_total && data.yesterday_total > 0 ? (today.total - data.yesterday_total) / data.yesterday_total : null
   return (
     <div className="card flex h-full flex-col overflow-hidden" data-testid="today-sales">
-      <div className="px-5 pt-6 sm:px-8 sm:pt-8">
+      <div className="felt rail relative bg-forest-950 px-5 pt-6 pb-7 [--rail:var(--color-brass-300)] sm:px-8 sm:pt-8 sm:pb-8">
         <PanelHeading
+          dark
           aside={
             today.archived && (
-              <span className="flex items-center gap-1.5 rounded-full bg-sunken px-2.5 py-1 text-[11px] font-semibold text-fg-3">
+              <span className="flex items-center gap-1.5 rounded-full bg-cream/10 px-2.5 py-1 text-[11px] font-semibold text-side-fg">
                 <Archive className="size-3" /> Includes archived total
               </span>
             )
@@ -182,29 +192,29 @@ function TodayHero({ data }: { data: Dashboard }) {
         <AnimatedMoney
           value={today.total}
           duration={0.9}
-          className="mt-5 block figure text-[clamp(40px,12vw,54px)] leading-[0.92] text-forest-950 sm:text-[clamp(54px,5.6vw,78px)]"
+          className="mt-5 block figure text-[clamp(40px,12vw,54px)] leading-[0.92] text-cream sm:text-[clamp(54px,5.6vw,78px)]"
           data-testid="today-total"
         />
-        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-fg-3">
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-side-muted">
           <span>
             {today.count} sale{today.count === 1 ? '' : 's'}
           </span>
           {today.discounts > 0 && <span>{formatMoney(today.discounts)} in discounts</span>}
           {delta !== null && (
-            <span className={cn('flex items-center gap-1 font-semibold', delta >= 0 ? 'text-forest-700' : 'text-claret-600')}>
+            <span className={cn('flex items-center gap-1 font-semibold', delta >= 0 ? 'text-sage-300' : 'text-claret-300')}>
               {delta >= 0 ? <ArrowUpRight className="size-4" /> : <ArrowDownRight className="size-4" />}
               {Math.abs(Math.round(delta * 100))}% vs yesterday
             </span>
           )}
         </div>
 
-        <div className="mt-9 flex h-1.5 gap-[2px] overflow-hidden rounded-full bg-forest-950/[0.06]">
+        <div className="mt-9 flex h-1.5 gap-[2px] overflow-hidden rounded-full bg-cream/10">
           {today.total > 0 && (
             <>
               {cashShare > 0 && (
                 <motion.div
                   className="h-full shrink-0 rounded-l-full"
-                  style={{ background: SERIES_COLORS.cash }}
+                  style={{ background: ON_DARK.cash }}
                   initial={{ width: 0 }}
                   animate={{ width: `${cashShare * 100}%` }}
                   transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
@@ -213,7 +223,7 @@ function TodayHero({ data }: { data: Dashboard }) {
               {cashShare < 1 && (
                 <motion.div
                   className="h-full flex-1 rounded-r-full"
-                  style={{ background: SERIES_COLORS.bank }}
+                  style={{ background: ON_DARK.bank }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.25 }}
@@ -223,12 +233,12 @@ function TodayHero({ data }: { data: Dashboard }) {
           )}
         </div>
         <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4 sm:gap-6">
-          <SplitFigure color={SERIES_COLORS.cash} label="Cash" value={today.cash} />
-          <SplitFigure color={SERIES_COLORS.bank} label="Bank transfer" value={today.bank} />
+          <SplitFigure color={ON_DARK.cash} label="Cash" value={today.cash} />
+          <SplitFigure color={ON_DARK.bank} label="Bank transfer" value={today.bank} />
           <SplitFigure label="Expenses" value={today.expenses} />
           <SplitFigure label="Net" value={today.net} strong />
         </div>
-        <p className="mt-4 text-xs text-fg-4">
+        <p className="mt-5 text-xs text-side-muted">
           Snack sales {formatMoney(today.snack)} — already included in Cash and Bank.
           <SnackOnlyNote />
         </p>
@@ -381,25 +391,28 @@ function MyCounterCard({ shift }: { shift: Shift | null }) {
     )
   }
   return (
-    <div className="card h-full p-5 sm:p-8" data-testid="my-counter-card">
-      <PanelHeading aside={<PanelLink onClick={() => navigate('/counter')}>My counter</PanelLink>}>My counter · open</PanelHeading>
-      <AnimatedMoney value={shift.total} duration={0.9} className="mt-5 block figure text-[clamp(40px,12vw,50px)] leading-[0.92] text-forest-950 sm:text-[clamp(50px,5.2vw,68px)]" />
-      <p className="mt-4 text-sm text-fg-3">
+    <div className="card felt rail h-full overflow-hidden bg-forest-950 p-5 [--rail:var(--color-brass-300)] sm:p-8" data-testid="my-counter-card">
+      <PanelHeading dark aside={<PanelLink dark onClick={() => navigate('/counter')}>My counter</PanelLink>}>
+        My counter · open
+      </PanelHeading>
+      <AnimatedMoney value={shift.total} duration={0.9} className="mt-5 block figure text-[clamp(40px,12vw,50px)] leading-[0.92] text-cream sm:text-[clamp(50px,5.2vw,68px)]" />
+      <p className="mt-4 text-sm text-side-muted">
         {shift.invoices} invoice{shift.invoices === 1 ? '' : 's'} on this shift
       </p>
-      <ShiftFigures figures={shift} className="mt-8 sm:mt-10" />
+      <ShiftFigures figures={shift} tone="dark" className="mt-8 sm:mt-10 xl:!grid-cols-3" />
     </div>
   )
 }
 
+/** A figure on the hero panel. */
 function SplitFigure({ color, label, value, strong }: { color?: string; label: string; value: number; strong?: boolean }) {
   return (
     <div>
-      <p className="flex items-center gap-2 text-xs font-semibold text-fg-3">
+      <p className="flex items-center gap-2 text-xs font-semibold text-side-muted">
         {color && <span className="size-2 rounded-full" style={{ background: color }} />}
         {label}
       </p>
-      <AnimatedMoney value={value} className={cn('mt-2 block figure text-[21px] leading-none sm:text-[25px]', strong ? 'text-forest-950' : 'text-fg-2')} />
+      <AnimatedMoney value={value} className={cn('mt-2 block figure text-[21px] leading-none sm:text-[25px]', strong ? 'text-brass-200' : 'text-side-fg')} />
     </div>
   )
 }

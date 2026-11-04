@@ -38,11 +38,25 @@ export function shiftTimes(shift: Pick<Shift, 'opened_at' | 'closed_at'>, tz?: s
 
 type Figures = Pick<Shift, 'cash' | 'bank' | 'total' | 'snack' | 'expenses' | 'net'>
 
-/** The six accounting figures, in the same order everywhere. */
-export function ShiftFigures({ figures, size = 'md', className }: { figures: Figures; size?: 'md' | 'lg'; className?: string }) {
+/** Cash and bank on a deep forest panel: the same hues, lightened to read on the dark. */
+const ON_DARK = { cash: '#aebb9f', bank: '#d4bb84' }
+
+/** The six accounting figures, in the same order everywhere (`tone="dark"` on a forest hero panel). */
+export function ShiftFigures({
+  figures,
+  size = 'md',
+  className,
+  tone = 'light'
+}: {
+  figures: Figures
+  size?: 'md' | 'lg'
+  className?: string
+  tone?: 'light' | 'dark'
+}) {
+  const dark = tone === 'dark'
   const items: { label: string; value: number; color?: string; hint?: string; strong?: boolean; negative?: boolean }[] = [
-    { label: 'Cash', value: figures.cash, color: SERIES_COLORS.cash },
-    { label: 'Bank transfer', value: figures.bank, color: SERIES_COLORS.bank },
+    { label: 'Cash', value: figures.cash, color: dark ? ON_DARK.cash : SERIES_COLORS.cash },
+    { label: 'Bank transfer', value: figures.bank, color: dark ? ON_DARK.bank : SERIES_COLORS.bank },
     { label: 'Total sales', value: figures.total, strong: true },
     { label: 'Snack sales', value: figures.snack, hint: 'included above' },
     { label: 'Expenses', value: figures.expenses, negative: true },
@@ -52,7 +66,7 @@ export function ShiftFigures({ figures, size = 'md', className }: { figures: Fig
     <div className={cn('grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-5 xl:grid-cols-6', className)}>
       {items.map((f) => (
         <div key={f.label} className="min-w-0">
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-fg-3">
+          <p className={cn('flex items-center gap-1.5 text-xs font-semibold', dark ? 'text-side-muted' : 'text-fg-3')}>
             {f.color && <span className="size-2 rounded-full" style={{ background: f.color }} />}
             {f.label}
           </p>
@@ -60,12 +74,22 @@ export function ShiftFigures({ figures, size = 'md', className }: { figures: Fig
             value={f.value}
             format={(n) => `${f.negative && n > 0 ? '−' : ''}${formatMoney(n)}`}
             className={cn(
-              'mt-2 block figure leading-none',
+              'mt-2 block figure leading-none sm:whitespace-nowrap',
               size === 'lg' ? 'text-[clamp(19px,6.2vw,24px)] sm:text-[28px]' : 'text-[clamp(17px,5.4vw,19px)] sm:text-[21px]',
-              f.strong ? 'text-forest-950' : f.negative && f.value > 0 ? 'text-claret-600' : 'text-fg-2'
+              dark
+                ? f.strong
+                  ? 'text-cream'
+                  : f.negative && f.value > 0
+                    ? 'text-claret-300'
+                    : 'text-side-fg'
+                : f.strong
+                  ? 'text-forest-950'
+                  : f.negative && f.value > 0
+                    ? 'text-claret-600'
+                    : 'text-fg-2'
             )}
           />
-          {f.hint && <p className="mt-1 text-[11px] text-fg-4">{f.hint}</p>}
+          {f.hint && <p className={cn('mt-1 text-[11px]', dark ? 'text-side-muted/80' : 'text-fg-4')}>{f.hint}</p>}
         </div>
       ))}
     </div>

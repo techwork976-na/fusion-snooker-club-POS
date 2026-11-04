@@ -49,7 +49,7 @@ export function MobileNav() {
     <>
       <nav
         aria-label="Main"
-        className="relative z-40 flex shrink-0 items-stretch bg-forest-950 px-1 pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="felt relative z-40 flex shrink-0 items-stretch bg-forest-950 px-1 pb-[env(safe-area-inset-bottom)] md:hidden"
         data-testid="mobile-nav"
       >
         {primary.map((item) => (

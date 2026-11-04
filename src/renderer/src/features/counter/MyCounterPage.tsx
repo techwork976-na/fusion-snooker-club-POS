@@ -152,9 +152,9 @@ export function MyCounterPage() {
 function CurrentShift({ shift }: { shift: Shift }) {
   const now = useServerNow()
   return (
-    <section className="card p-5 sm:p-7" data-testid="my-counter">
+    <section className="card felt rail overflow-hidden bg-forest-950 p-5 [--rail:var(--color-brass-300)] sm:p-7" data-testid="my-counter">
       <div className="flex items-center justify-between">
-        <span className="label">Current shift</span>
+        <span className="label !text-side-muted">Current shift</span>
         <ShiftStatusPill status="open" />
       </div>
       <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
@@ -162,21 +162,21 @@ function CurrentShift({ shift }: { shift: Shift }) {
           <AnimatedMoney
             value={shift.total}
             duration={0.9}
-            className="block figure text-[clamp(40px,12vw,50px)] leading-[0.92] text-forest-950 sm:text-[clamp(50px,5.2vw,70px)]"
+            className="block figure text-[clamp(40px,12vw,50px)] leading-[0.92] text-cream sm:text-[clamp(50px,5.2vw,70px)]"
             data-testid="shift-total"
           />
-          <p className="mt-4 text-sm text-fg-3">
+          <p className="mt-4 text-sm text-side-muted">
             {shift.invoices} invoice{shift.invoices === 1 ? '' : 's'} · open for {formatDuration((now - Date.parse(shift.opened_at)) / 1000)}
             {shift.voided_count > 0 ? ` · ${shift.voided_count} voided` : ''}
           </p>
         </div>
         {shift.open_sessions > 0 && (
-          <p className="rounded-full bg-brass-50 px-3 py-1.5 text-xs font-semibold text-brass-700">
+          <p className="rounded-full bg-brass-300/15 px-3 py-1.5 text-xs font-semibold text-brass-200">
             {shift.open_sessions} table session{shift.open_sessions === 1 ? '' : 's'} you started still open
           </p>
         )}
       </div>
-      <ShiftFigures figures={shift} size="lg" className="mt-8 sm:mt-10" />
+      <ShiftFigures figures={shift} size="lg" tone="dark" className="mt-8 sm:mt-10" />
     </section>
   )
 }

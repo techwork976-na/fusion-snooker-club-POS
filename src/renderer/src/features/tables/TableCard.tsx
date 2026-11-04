@@ -7,6 +7,17 @@ import type { TableOverview } from '@/lib/types'
 import { Button } from '@/components/ui/Button'
 import { statusMeta, timeUpMeta, useLive } from './session'
 
+/** The cushion rail along a card's top edge, in the table's state colour. */
+const RAIL: Record<keyof typeof statusMeta, string | null> = {
+  available: null,
+  running: 'var(--color-forest-600)',
+  paused: 'var(--color-brass-300)',
+  billing: 'var(--color-brass-600)',
+  completed: null,
+  cancelled: null,
+  voided: null
+}
+
 export function StatusPill({ status, timeUp = false }: { status: keyof typeof statusMeta; timeUp?: boolean }) {
   const m = timeUp ? timeUpMeta : statusMeta[status]
   return (
@@ -56,12 +67,13 @@ export const TableCard = memo(function TableCard({ table, onOpen, onStart, onChe
       whileHover={{ y: -3 }}
       transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        'relative flex min-h-[220px] cursor-pointer flex-col rounded-[var(--radius-card)] p-5 transition-[background-color,box-shadow] duration-200 sm:min-h-[256px] sm:p-6',
+        'relative flex min-h-[220px] cursor-pointer flex-col rounded-[var(--radius-card)] p-5 transition-[background-color,box-shadow,border-color] duration-200 sm:min-h-[256px] sm:p-6',
         session
-          ? 'bg-surface shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-raised)]'
-          : 'bg-surface/55 hover:bg-surface hover:shadow-[var(--shadow-card)]',
+          ? 'rail bg-surface shadow-[0_0_0_1px_rgb(10_31_20/0.045),var(--shadow-card)] hover:shadow-[0_0_0_1px_rgb(10_31_20/0.06),var(--shadow-raised)]'
+          : 'border border-dashed border-forest-950/[0.13] bg-surface/45 hover:border-solid hover:border-forest-950/[0.08] hover:bg-surface hover:shadow-[var(--shadow-card)]',
         timeUp && 'ring-2 ring-claret-500/45'
       )}
+      style={session ? ({ '--rail': timeUp ? 'var(--color-claret-500)' : RAIL[status] } as React.CSSProperties) : undefined}
       onClick={() => (session ? onOpen(table) : onStart(table))}
       data-testid={`table-card-${table.name}`}
     >
