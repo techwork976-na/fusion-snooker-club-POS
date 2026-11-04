@@ -96,13 +96,14 @@ describe('prices', () => {
 })
 
 describe('a session', () => {
-  it('bills its booked price: leaving early, pausing and over-staying do not change it', async () => {
+  it('bills its booked price when used in full; ended early (1500) it bills only the time played', async () => {
+    // 20 of 60 minutes: the existing slot price of 20 minutes (the hourly rate pro rata).
     const early = await book(ps5Table, 60)
     await db.ageSession(early.id, 20 * 60)
-    expect(Number((await end(early.id)).base_amount)).toBe(600)
+    expect(Number((await end(early.id)).base_amount)).toBe(200)
     await clear(early.id)
 
-    // 20 min of play, a 30-minute pause, 10 more minutes: 30 minutes used, 30 left.
+    // 20 min of play, a 30-minute pause, 10 more minutes: 30 minutes used, 30 left — the pause is never billed.
     const paused = await book(ps5Table, 60)
     await db.ageSession(paused.id, 20 * 60)
     await db.rpc(staff.id, 'pause_session', { p_session_id: paused.id })
@@ -110,7 +111,7 @@ describe('a session', () => {
     await db.rpc(staff.id, 'resume_session', { p_session_id: paused.id })
     await db.ageSession(paused.id, 10 * 60)
     const pausedEnd = await end(paused.id)
-    expect([pausedEnd.billable_seconds, Number(pausedEnd.base_amount)]).toEqual([30 * 60, 600])
+    expect([pausedEnd.billable_seconds, Number(pausedEnd.base_amount)]).toEqual([30 * 60, 400])
     await clear(paused.id)
 
     // Time's up and nobody reacts for half an hour: held at the booking.
@@ -172,7 +173,7 @@ describe('checkout and history', () => {
     await db.openCounter(staff.id)
     const s = await book(ps5Table, 90)
     await db.rpc(staff.id, 'add_session_item', { p_session_id: s.id, p_product_id: club.products.cola })
-    await db.ageSession(s.id, 80 * 60)
+    await db.ageSession(s.id, 90 * 60) // played in full (ended early it would charge the time played — see early-end-billing)
     await end(s.id)
     const pay = (args: Record<string, unknown>) =>
       db.rpc<{ base_amount: number; products_subtotal: number; final_amount: number; session: Record<string, unknown> }>(
@@ -191,6 +192,7 @@ describe('checkout and history', () => {
     await saveCategory({ p_id: ps5.id, p_name: 'PS5', p_pricing_mode: 'hourly_special30', p_hourly_rate: 800, p_special_30_rate: 500 })
     const extended = await extend(running, 30)
     expect(Number(extended.booked_amount)).toBe(900) // 1.5 h at the price it started with
+    await db.ageSession(running.id, 90 * 60) // the 1.5 hours are played in full
     await end(running.id)
     const paid = await db.rpc<{ sale_id: string; base_amount: number }>(staff.id, 'complete_checkout', {
       p_client_ref: randomUUID(), p_payment_method: 'cash', p_session_id: running.id

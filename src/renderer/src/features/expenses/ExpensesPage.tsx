@@ -29,9 +29,10 @@ export const CATEGORY_LABELS: Record<ExpenseCategory | 'counter', string> = {
 /** Short names for chart labels. */
 const CATEGORY_SHORT: Record<ExpenseCategory | 'counter', string> = { ...CATEGORY_LABELS, counter: 'Counter', maintenance: 'Repairs', stock: 'Stock' }
 
+/** Expenses wear claret everywhere; counter petty cash in its lighter step. */
 const SERIES = [
-  { key: 'business', label: 'Business', color: SERIES_COLORS.bank },
-  { key: 'counter', label: 'Counter', color: SERIES_COLORS.cash }
+  { key: 'business', label: 'Business', color: SERIES_COLORS.expenses },
+  { key: 'counter', label: 'Counter', color: SERIES_COLORS.counterExpenses }
 ]
 
 export function ExpensesPage() {
@@ -87,22 +88,28 @@ function ExpensesBody({ data }: { data: ExpensesReport }) {
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <span className="label">Total expenses</span>
-            <AnimatedMoney value={t.total} duration={0.8} className="mt-5 block figure text-[clamp(38px,11vw,44px)] leading-[0.92] text-forest-950 sm:text-[clamp(44px,4.6vw,60px)]" data-testid="expense-total" />
+            <AnimatedMoney value={t.total} duration={0.8} className="mt-5 block figure-display text-[clamp(42px,12vw,48px)] leading-[0.9] text-forest-950 sm:text-[clamp(48px,4.8vw,66px)]" data-testid="expense-total" />
             <p className="mt-4 text-sm text-fg-3">
               {t.count} expense{t.count === 1 ? '' : 's'}
               {t.voided_count > 0 ? ` · ${t.voided_count} voided (not counted)` : ''}
             </p>
           </div>
           <div className="flex gap-8 sm:gap-10">
-            <div>
-              <p className="label">Business</p>
-              <p className="mt-2.5 figure text-[24px] leading-none text-fg" data-testid="expense-business">
+            <div className="border-l border-line pl-5">
+              <p className="label flex items-center gap-2">
+                <span className="h-[3px] w-3 rounded-full" style={{ background: SERIES[0]!.color }} />
+                Business
+              </p>
+              <p className="mt-3 figure-display text-[26px] leading-none text-fg" data-testid="expense-business">
                 {formatMoney(t.business)}
               </p>
             </div>
-            <div>
-              <p className="label">Counter</p>
-              <p className="mt-2.5 figure text-[24px] leading-none text-fg" data-testid="expense-counter">
+            <div className="border-l border-line pl-5">
+              <p className="label flex items-center gap-2">
+                <span className="h-[3px] w-3 rounded-full" style={{ background: SERIES[1]!.color }} />
+                Counter
+              </p>
+              <p className="mt-3 figure-display text-[26px] leading-none text-fg" data-testid="expense-counter">
                 {formatMoney(t.counter)}
               </p>
             </div>
@@ -140,7 +147,7 @@ function ExpensesBody({ data }: { data: ExpensesReport }) {
               <span className="label">By category</span>
               <HorizontalBarChart
                 className="mt-5"
-                series={[{ key: 'total', label: 'Amount', color: SERIES_COLORS.total }]}
+                series={[{ key: 'total', label: 'Amount', color: SERIES_COLORS.expenses }]}
                 data={data.by_category.map((c) => ({
                   key: c.category,
                   label: CATEGORY_SHORT[c.category],

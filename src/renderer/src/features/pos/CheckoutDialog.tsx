@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Banknote, Landmark, Minus, Plus, ShieldAlert, ShoppingBag, Split, Trash2, Wallet } from 'lucide-react'
-import { chargeAtRate, sameRate, toPaisa } from '@shared/billing'
+import { chargeAtRate, endedEarly, sameRate, toPaisa } from '@shared/billing'
 import type { PaymentMethod } from '@shared/constants'
 import type { Receipt } from '@shared/receipt'
 import { formatDuration, formatMoney, formatPricing, formatRate } from '@shared/format'
@@ -305,6 +305,11 @@ export function CheckoutDialog({
                 ))}
               </div>
             )}
+            {session && session.booked_amount != null && session.billable_seconds != null && endedEarly(session.billable_seconds, session.booked_seconds) && (
+              <p className="-mt-2 rounded-xl bg-baize-50 px-4 py-2.5 text-[13px] text-baize-700" data-testid="ended-early-note">
+                Ended early: charged for the {formatDuration(session.billable_seconds)} played, not the full {formatMoney(session.booked_amount)} booking.
+              </p>
+            )}
             {notReady && session && (
               <div className="rounded-xl bg-brass-50 px-4 py-3 text-sm text-brass-800">
                 This session is {session.status} again. End it before checking out.
@@ -532,7 +537,7 @@ export function CheckoutDialog({
               </div>
               <div className="mt-4 flex items-end justify-between border-t border-cream/10 pt-4">
                 <span className="label !text-side-muted">Total</span>
-                <span className="figure text-[36px] leading-none text-cream sm:text-[44px]" data-testid="checkout-total">
+                <span className="figure-display text-[40px] leading-none text-cream sm:text-[48px]" data-testid="checkout-total">
                   {formatMoney(totalPaisa / 100)}
                 </span>
               </div>

@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthProvider'
@@ -54,6 +54,7 @@ function useAdminIdleLock() {
 export function AppShell() {
   const location = useLocation()
   const { isAdmin, can } = useAuth()
+  const main = useRef<HTMLElement>(null)
   useServerClockSync()
   useLiveUpdates(true)
   useAdminIdleLock()
@@ -64,8 +65,9 @@ export function AppShell() {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
       <TopBar />
-      <main className="relative min-h-0 flex-1 overflow-y-auto" id="main">
-        <AnimatePresence mode="wait" initial={false}>
+      <main ref={main} className="relative min-h-0 flex-1 overflow-y-auto" id="main">
+        {/* A new page opens at its top (the scroll area is shared by every page); tabs within a page keep their place. */}
+        <AnimatePresence mode="wait" initial={false} onExitComplete={() => main.current?.scrollTo({ top: 0 })}>
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/tables" element={<TablesPage />} />

@@ -24,6 +24,7 @@ import type {
   PricingMode,
   ExpensesReport,
   FinancialReport,
+  SalesByHour,
   Floor,
   HistoryReport,
   MyCounter,
@@ -240,6 +241,9 @@ export const closeBusinessDay = (date: string) =>
 // --- sales retention ------------------------------------------------------
 // --- reports, business expenses, product sales (admin) -----------------------
 export const getFinancialReport = (from: string, to: string) => rpc<FinancialReport>('get_financial_report', { p_from: from, p_to: to })
+/** One business day hour by hour, from its invoices (closedOnly: counters already closed, as Reports' final figures). */
+export const getSalesByHour = (date: string, closedOnly: boolean) =>
+  rpc<SalesByHour>('get_sales_by_hour', { p_date: date, p_closed_only: closedOnly })
 export const getExpenses = (from: string, to: string) => rpc<ExpensesReport>('get_expenses', { p_from: from, p_to: to })
 export const getProductSales = (from: string, to: string) => rpc<ProductSalesReport>('get_product_sales', { p_from: from, p_to: to })
 export const addBusinessExpense = (e: { clientRef: string; date: string; category: ExpenseCategory; amount: number; description: string }) =>

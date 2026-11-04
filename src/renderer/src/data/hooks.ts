@@ -34,7 +34,8 @@ export const keys = {
   expenses: (from: string, to: string) => ['expenses', from, to] as const,
   productSales: (from: string, to: string) => ['product-sales', from, to] as const,
   snackSales: (from: string, to: string) => ['snack-sales', from, to] as const,
-  tableSales: (from: string, to: string) => ['table-sales', from, to] as const
+  tableSales: (from: string, to: string) => ['table-sales', from, to] as const,
+  salesByHour: (date: string, closedOnly: boolean) => ['sales-by-hour', date, closedOnly] as const
 }
 
 /** Everything that shows money or shift state; refreshed after any counter activity. */
@@ -52,7 +53,8 @@ export const accountingKeys: QueryKey[] = [
   ['expenses'],
   ['product-sales'],
   ['snack-sales'],
-  ['table-sales']
+  ['table-sales'],
+  ['sales-by-hour']
 ]
 
 export const useSettings = () => useQuery({ queryKey: keys.settings, queryFn: api.getSettings, staleTime: 60_000 })

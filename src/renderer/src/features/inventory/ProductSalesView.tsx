@@ -1,20 +1,21 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Info, PackageSearch } from 'lucide-react'
-import { formatBusinessDate, formatMoney } from '@shared/format'
+import { addDays, formatBusinessDate, formatMoney } from '@shared/format'
 import { cn } from '@/lib/cn'
 import { errorMessage } from '@/lib/errors'
 import type { ProductSalesReport } from '@/lib/types'
 import { getProductSales } from '@/data/api'
 import { keys, useBusinessDate } from '@/data/hooks'
-import { BarChart, compactMoney, HorizontalBarChart, SERIES_COLORS } from '@/components/charts/BarChart'
+import { compactMoney, HorizontalBarChart, SERIES_COLORS } from '@/components/charts/BarChart'
+import { TrendChart } from '@/components/charts/TrendChart'
 import { AnimatedMoney } from '@/components/motion/AnimatedNumber'
 import { EmptyState, ErrorState, LoadingBlock, Page, PageHeader } from '@/components/ui/Misc'
 import { PeriodPicker, periodError, periodFor, type Period } from '@/features/reports/PeriodPicker'
 
 // Profit is part of net sales, so the chart shows net sales alone and names
 // the day's profit in the tooltip (stacking them would overstate the day).
-const SERIES = [{ key: 'net_revenue', label: 'Net sales', color: SERIES_COLORS.cash }]
+const SERIES = [{ key: 'net_revenue', label: 'Net sales', color: SERIES_COLORS.products }]
 
 /** Admin view: which products sold in a period, and the gross profit they made. */
 export function ProductSalesView({ tabs }: { tabs: ReactNode }) {
@@ -64,7 +65,7 @@ function SalesBody({ data }: { data: ProductSalesReport }) {
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <span className="label">Net product sales</span>
-            <AnimatedMoney value={t.net_revenue} duration={0.8} className="mt-5 block figure text-[clamp(38px,11vw,44px)] leading-[0.92] text-forest-950 sm:text-[clamp(44px,4.6vw,60px)]" data-testid="product-net" />
+            <AnimatedMoney value={t.net_revenue} duration={0.8} className="mt-5 block figure-display text-[clamp(42px,12vw,48px)] leading-[0.92] text-forest-950 sm:text-[clamp(48px,4.8vw,66px)]" data-testid="product-net" />
             <p className="mt-4 text-sm text-fg-3">
               {t.quantity} unit{t.quantity === 1 ? '' : 's'} of {t.products} product{t.products === 1 ? '' : 's'} · {formatMoney(t.revenue)} at selling price
               {t.discount > 0 ? ` − ${formatMoney(t.discount)} share of discounts` : ''}
@@ -73,13 +74,13 @@ function SalesBody({ data }: { data: ProductSalesReport }) {
           <div className="flex flex-wrap gap-x-8 gap-y-4 sm:gap-10">
             <div>
               <p className="label">Cost of goods sold</p>
-              <p className="mt-2.5 figure text-[24px] leading-none text-fg" data-testid="product-cogs">
+              <p className="mt-2.5 figure-display text-[26px] leading-none text-fg" data-testid="product-cogs">
                 {formatMoney(t.cost)}
               </p>
             </div>
             <div>
               <p className="label">Gross profit</p>
-              <p className={cn('mt-2.5 figure text-[30px] leading-none', t.gross_profit < 0 ? 'text-claret-700' : 'text-forest-800')} data-testid="product-profit">
+              <p className={cn('mt-2.5 figure-display text-[32px] leading-none', t.gross_profit < 0 ? 'text-claret-700' : 'text-forest-800')} data-testid="product-profit">
                 {formatMoney(t.gross_profit)}
               </p>
             </div>
@@ -99,14 +100,17 @@ function SalesBody({ data }: { data: ProductSalesReport }) {
         )}
       </section>
 
+      {/* One day has no course to draw by day: the ranking then takes the width. */}
       <div className="grid grid-cols-12 gap-6">
+        {data.from !== data.to && (
         <section className="card col-span-12 p-5 sm:p-7 xl:col-span-7">
           <span className="label">Net product sales by day</span>
-          <BarChart
+          <TrendChart
             className="mt-6"
             height={240}
+            label="Net product sales by day"
             series={SERIES}
-            data={data.days.map((d) => ({
+            data={fillDays(data.from, data.to, data.days).map((d) => ({
               key: d.date,
               label: formatBusinessDate(d.date, { weekday: false, year: false }),
               title: formatBusinessDate(d.date),
@@ -117,11 +121,12 @@ function SalesBody({ data }: { data: ProductSalesReport }) {
             formatAxis={compactMoney}
           />
         </section>
-        <section className="card col-span-12 p-5 sm:p-7 xl:col-span-5">
+        )}
+        <section className={cn('card col-span-12 p-5 sm:p-7', data.from !== data.to && 'xl:col-span-5')}>
           <span className="label">Best sellers by net sales</span>
           <HorizontalBarChart
             className="mt-5"
-            series={[{ key: 'net', label: 'Net sales', color: SERIES_COLORS.total }]}
+            series={[{ key: 'net', label: 'Net sales', color: SERIES_COLORS.products }]}
             data={data.products.slice(0, 8).map((p) => ({
               key: p.product_key,
               label: p.name.length > 14 ? `${p.name.slice(0, 13)}…` : p.name,
@@ -210,4 +215,15 @@ function uncostedNote(d: ProductSalesReport): string {
   const n = d.totals.uncosted_quantity
   if (n === 0) return ''
   return `${n} unit${n === 1 ? ' was' : 's were'} sold before cost prices were recorded with each sale (${formatMoney(d.totals.net_revenue - d.totals.costed_net_revenue)} in net sales). They are included in sales but not in cost or profit — FUSION does not guess past cost prices.`
+}
+
+/** Every date of a short period (zero days included) so the curve shows quiet days; long periods as given. */
+function fillDays<D extends { date: string; quantity: number; net_revenue: number; gross_profit: number }>(from: string, to: string, days: D[]) {
+  const span = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1
+  if (span > 62) return days
+  const byDate = new Map(days.map((d) => [d.date, d]))
+  return Array.from({ length: span }, (_, i) => {
+    const date = addDays(from, i)
+    return byDate.get(date) ?? { date, quantity: 0, net_revenue: 0, gross_profit: 0 }
+  })
 }

@@ -75,7 +75,7 @@ export function Sidebar() {
         <Logo size={42} className="ring-cream/10" />
         <div className="hidden min-w-0 xl:block">
           <Wordmark className="block text-[14px] text-side-fg" />
-          <p className="mt-1.5 text-[10px] leading-none font-semibold tracking-[0.28em] whitespace-nowrap text-brass-300" data-testid="brand-tagline">
+          <p className="mt-1.5 font-mono text-[9.5px] leading-none font-medium tracking-[0.26em] whitespace-nowrap text-brass-300" data-testid="brand-tagline">
             GAMING LOUNGE
           </p>
         </div>
@@ -89,7 +89,7 @@ export function Sidebar() {
                 <p
                   key={`group-${item.group}`}
                   className={cn(
-                    'hidden px-3 pb-1.5 text-[10.5px] font-semibold tracking-[0.2em] text-side-muted/75 uppercase xl:block',
+                    'hidden px-3 pb-1.5 font-mono text-[10px] font-medium tracking-[0.16em] text-side-muted/70 uppercase xl:block',
                     i > 0 && 'pt-4'
                   )}
                 >

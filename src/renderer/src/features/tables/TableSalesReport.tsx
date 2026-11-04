@@ -66,7 +66,7 @@ function ReportBody({ data, period, stale }: { data: Report; period: Period; sta
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <span className="label">Table sales · {periodLabel(period)}</span>
-            <AnimatedMoney value={t.total} duration={0.8} className="mt-5 block figure text-[clamp(38px,11vw,44px)] leading-[0.92] text-forest-950 sm:text-[clamp(44px,4.6vw,60px)]" data-testid="table-sales-total" />
+            <AnimatedMoney value={t.total} duration={0.8} className="mt-5 block figure-display text-[clamp(42px,12vw,48px)] leading-[0.92] text-forest-950 sm:text-[clamp(48px,4.8vw,66px)]" data-testid="table-sales-total" />
             <p className="mt-4 text-sm text-fg-3">
               {t.sessions} paid session{t.sessions === 1 ? '' : 's'} on {played.length} table{played.length === 1 ? '' : 's'}
               {t.snacks > 0 ? ` · includes ${formatMoney(t.snacks)} of snacks on tabs` : ''}
@@ -76,13 +76,13 @@ function ReportBody({ data, period, stale }: { data: Report; period: Period; sta
           <div className="flex flex-wrap gap-x-8 gap-y-4 sm:gap-10">
             <div>
               <p className="label">Cash</p>
-              <p className="mt-2.5 figure text-[24px] leading-none text-fg" data-testid="table-sales-cash">
+              <p className="mt-2.5 figure-display text-[26px] leading-none text-fg" data-testid="table-sales-cash">
                 {formatMoney(t.cash)}
               </p>
             </div>
             <div>
               <p className="label">Bank transfer</p>
-              <p className="mt-2.5 figure text-[24px] leading-none text-fg" data-testid="table-sales-bank">
+              <p className="mt-2.5 figure-display text-[26px] leading-none text-fg" data-testid="table-sales-bank">
                 {formatMoney(t.bank)}
               </p>
             </div>

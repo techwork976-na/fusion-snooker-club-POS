@@ -167,7 +167,7 @@ describe('Hourly + under-1-hour rate', () => {
     expect(await charge(thirty, 50 * 60)).toBe(400) // held at the booked 30 minutes
     const ninety = await start({ p_booking: 'minutes', p_minutes: 90 })
     expect(ninety.booked_amount).toBe('900.00')
-    expect(await charge(ninety, 20 * 60)).toBe(900) // leaving early still pays the booking
+    expect(await charge(ninety, 20 * 60)).toBe(267) // ended early (1500): 20 minutes at the under-1-hour rate
     // (The minute held at "time's up" before staff continue is never billed.)
     // 30 minutes booked, continued to 70 billed minutes: all of it at the hourly rate.
     expect(await charge(await start({ p_booking: 'minutes', p_minutes: 30 }), 71 * 60, { continueAt: 31 * 60 })).toBe(700)

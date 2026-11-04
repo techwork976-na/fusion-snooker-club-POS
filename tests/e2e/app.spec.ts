@@ -401,7 +401,7 @@ test('dashboard and history animations stay smooth', async () => {
   })
   const history = await measure(async () => {
     await nav('History').click()
-    await page.getByRole('tab', { name: 'Overview' }).click()
+    await page.getByRole('tab', { name: 'Days' }).click()
     await expect(page.getByTestId('history-total')).toHaveText('PKR 470')
   })
   console.log('animation frame timing (ms):', JSON.stringify({ dashboard, history }))
@@ -412,7 +412,7 @@ test('dashboard and history animations stay smooth', async () => {
   }
 })
 
-test('figures roll, bars grow, buttons ripple and dialogs spring — even with reduced motion on', async () => {
+test('figures roll, charts rise, buttons ripple and dialogs spring — even with reduced motion on', async () => {
   expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true)
   type Samples = { text: string[]; bar: string[] }
   const startSampling = () =>
@@ -423,24 +423,25 @@ test('figures roll, bars grow, buttons ripple and dialogs spring — even with r
       const tick = () => {
         const t = document.querySelector('[data-testid="today-total"]')?.textContent
         if (t) w.__samples.text.push(t)
-        const bar = document.querySelector('.recharts-bar-rectangle path, .recharts-bar-rectangles path')?.getAttribute('d')
+        // The hourly sales curve (or a bar chart's bars) — its path changes frame by frame as it rises.
+        const bar = document.querySelector('.recharts-area-curve, .recharts-bar-rectangle path, .recharts-bar-rectangles path')?.getAttribute('d')
         if (bar) w.__samples.bar.push(bar)
         if (performance.now() < until) requestAnimationFrame(tick)
       }
       requestAnimationFrame(tick)
     })
 
-  // The dashboard's Today's sales rolls up from PKR 0 to PKR 470; the hourly bars grow.
+  // The dashboard's Today's sales rolls up from PKR 0 to PKR 470; the hourly sales curve rises.
   await nav('History').click()
   await startSampling()
   await nav('Dashboard').click()
   await page.waitForTimeout(1600)
   const samples = await page.evaluate(() => (window as unknown as { __samples: Samples }).__samples)
   const amounts = [...new Set(samples.text)].map((t) => Number(t.replace(/[^\d]/g, '')))
-  console.log(`Today's sales rolled through ${amounts.length} values: ${amounts.slice(0, 8).join(', ')} … ${amounts.at(-1)}; bar path changed ${new Set(samples.bar).size} times`)
+  console.log(`Today's sales rolled through ${amounts.length} values: ${amounts.slice(0, 8).join(', ')} … ${amounts.at(-1)}; curve path changed ${new Set(samples.bar).size} times`)
   expect(amounts.at(-1)).toBe(470)
   expect(amounts.filter((a) => a > 0 && a < 470).length, `rolled through: ${amounts.join(', ')}`).toBeGreaterThan(5)
-  expect(new Set(samples.bar).size, 'bar heights while growing').toBeGreaterThan(5)
+  expect(new Set(samples.bar).size, 'curve shape while rising').toBeGreaterThan(5)
 
   // Press ripple: a matte disc grows from the pointer inside the button.
   const button = page.getByRole('button', { name: /Pre-bookings/ }).first() // the page header's button
@@ -856,9 +857,18 @@ test('hourly + special 30-minute pricing: priced by duration, extensions re-pric
   )
   expect(booked).toEqual({ seconds: 7200, amount: '1200.00', acked: false })
 
-  // Checkout charges the booked price; there is no per-minute custom rate for this table.
-  await card.getByRole('button', { name: 'End' }).click()
+  // Ending now would charge only the 90 minutes played (1500: ended early); the extra half hour is played out instead.
+  await expect(card.getByTestId('table-charge-note')).toHaveText('so far · PKR 1,200 booked')
+  await db(`update public.sessions set started_at = started_at - interval '30 minutes' where table_id = (select id from public.club_tables where name = 'PS5 Lounge') and status = 'running'`)
+  await page.reload()
+  await expect(page.getByTestId('time-up-PS5 Lounge')).toBeVisible({ timeout: 15_000 })
+  await page.getByTestId('time-up-PS5 Lounge').getByRole('button', { name: 'End session' }).click()
+  await expect(page.getByTestId('time-up-alert')).toHaveCount(0)
+
+  // Used in full, checkout charges the booked price; there is no per-minute custom rate for this table.
+  await card.getByRole('button', { name: /Checkout/ }).click()
   await expect(page.getByTestId('checkout-total')).toHaveText('PKR 1,200')
+  await expect(page.getByTestId('ended-early-note')).toHaveCount(0)
   await expect(page.getByTestId('custom-rate')).toHaveCount(0)
   await page.getByTestId('complete-checkout').click()
   const receipt = page.getByTestId('receipt')
@@ -1271,6 +1281,97 @@ test('an under-1-hour rate prices short play higher; a split payment records cas
   await page.goto(E2E.appUrl + '/history?tab=invoices')
   await expect(page.getByText(`Cash PKR 50 + Bank PKR ${base - 50}`)).toBeVisible()
   await p.context().close()
+})
+
+test('a booking ended early charges only the time played; every period draws the same flowing chart', async () => {
+  await db(
+    `insert into public.club_tables (name, category_id, floor_id, sort_order)
+     values ('Snooker 9', (select id from public.table_categories where name = 'Snooker'), $1, 11)`,
+    [club.ground]
+  )
+  const p = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })).newPage()
+  await p.goto(E2E.appUrl + '/')
+  await p.getByTestId('login-username').fill('ali')
+  await p.getByTestId('login-password').fill('ali-pass-123')
+  await p.getByRole('button', { name: 'Sign in' }).click()
+  await p.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Tables' }).click()
+
+  // PKR 1,000 prepaid at PKR 10/min buys 100 minutes.
+  const card = p.getByTestId('table-card-Snooker 9')
+  await card.getByRole('button', { name: 'Start' }).click()
+  await p.getByRole('button', { name: /Fixed amount/ }).click()
+  await p.getByLabel('Amount received').fill('1000')
+  await expect(p.getByText(/Ending early charges only the time played/)).toBeVisible()
+  await p.getByTestId('confirm-start').click()
+  await expect(card).toContainText('left of 1:40:00 booked')
+
+  // 15 minutes in: the card and the session show the time played and the charge so far, not PKR 1,000.
+  await db(`update public.sessions set started_at = started_at - interval '15 minutes' where table_id = (select id from public.club_tables where name = 'Snooker 9') and status = 'running'`)
+  await p.reload()
+  await expect(card.getByTestId('booking-status')).toContainText(/15:\d\d played/)
+  await expect(card.getByTestId('table-charge-note')).toHaveText('so far · PKR 1,000 booked')
+  await expect(card).toContainText(/PKR 1[56]0/)
+  await card.getByRole('heading').click()
+  await expect(p.getByTestId('early-end-note')).toContainText(/Ending now charges PKR 1[56]0 for the time played/)
+  await shotOf(p, '42-booking-in-play')
+  await p.keyboard.press('Escape')
+
+  await card.getByRole('button', { name: 'End' }).click()
+  const [ended] = await db<{ seconds: number; base: string }>(
+    `select billable_seconds seconds, base_amount::text base from public.sessions where table_id = (select id from public.club_tables where name = 'Snooker 9') and status = 'billing'`
+  )
+  const base = Number(ended!.base)
+  expect(base).toBe(Math.ceil(ended!.seconds / 60) * 10) // the minutes played at PKR 10/min
+  expect(base).toBeLessThan(1000)
+  await expect(p.getByTestId('checkout-total')).toHaveText(`PKR ${base}`)
+  await expect(p.getByTestId('ended-early-note')).toContainText('not the full PKR 1,000 booking')
+  await shotOf(p, '43-ended-early-checkout')
+  await p.getByTestId('complete-checkout').click()
+  await expect(p.getByTestId('receipt')).toContainText(String(base))
+  await p.getByRole('button', { name: 'Done' }).click()
+  const [sale] = await db<{ final: string }>(`select final_amount::text final from public.sales where table_name = 'Snooker 9'`)
+  expect(Number(sale!.final)).toBe(base)
+  await p.context().close()
+
+  // History and Reports: one day → a curve by hour; several days → a curve by day. Never a lone bar.
+  const lonelyBars = page.locator('main [aria-label="Bar chart"]')
+  await page.goto(E2E.appUrl + '/history')
+  const history = page.getByTestId('history-totals')
+  await expect(history).toBeVisible()
+  await expect(page.getByText('Sales by hour')).toBeVisible()
+  await expect(page.locator('[aria-label="Sales by hour"] .recharts-area-curve')).toHaveCount(1)
+  await expect(page.getByTestId('hourly-partial')).toHaveCount(0) // today's invoices cover the whole day
+  await expect(lonelyBars).toHaveCount(0)
+  await expect(page.getByTestId('history-scope')).toContainText('Reports')
+  await shot('44-history-today-by-hour')
+  for (const preset of ['Weekly', 'Monthly']) {
+    await page.getByTestId('history-range').getByRole('tab', { name: preset }).click()
+    await expect(page.getByText('Sales by day')).toBeVisible()
+    await expect(page.locator('[aria-label="Sales by day"] .recharts-area-curve')).toHaveCount(1)
+    await expect(lonelyBars).toHaveCount(0)
+  }
+
+  await page.goto(E2E.appUrl + '/reports')
+  await expect(page.getByTestId('report-scope')).toContainText('History')
+  for (const [preset, unit] of [['Today', 'hour'], ['Yesterday', 'hour'], ['Week', 'day'], ['Month', 'day']] as const) {
+    await page.getByRole('tab', { name: preset, exact: true }).click()
+    // (A period with no closed counters shows its summary only; the chart appears with the first closed shift.)
+    const empty = await page.getByText('No closed shifts in this period').isVisible()
+    if (!empty) {
+      await expect(page.getByText(`Final sales by ${unit}`)).toBeVisible()
+      await expect(lonelyBars).toHaveCount(0)
+    }
+  }
+  // Custom: one day by hour, two days by day.
+  const [{ today } = { today: '' }] = await db<{ today: string }>(`select public.get_current_business_date()::text as today`)
+  const [{ yesterday } = { yesterday: '' }] = await db<{ yesterday: string }>(`select (public.get_current_business_date() - 1)::text as yesterday`)
+  await page.getByRole('tab', { name: 'Custom', exact: true }).click()
+  await page.getByLabel('From', { exact: true }).fill(today)
+  await page.getByLabel('To', { exact: true }).fill(today)
+  if (!(await page.getByText('No closed shifts in this period').isVisible())) await expect(page.getByText('Final sales by hour')).toBeVisible()
+  await page.getByLabel('From', { exact: true }).fill(yesterday)
+  if (!(await page.getByText('No closed shifts in this period').isVisible())) await expect(page.getByText('Final sales by day')).toBeVisible()
+  await expect(lonelyBars).toHaveCount(0)
 })
 
 test('the app installs on a phone home screen as FUSION GAMES with the real logo', async () => {

@@ -10,8 +10,8 @@ import { statusMeta, timeUpMeta, useLive } from './session'
 /** The cushion rail along a card's top edge, in the table's state colour. */
 const RAIL: Record<keyof typeof statusMeta, string | null> = {
   available: null,
-  running: 'var(--color-forest-600)',
-  paused: 'var(--color-brass-300)',
+  running: 'var(--color-baize-500)',
+  paused: 'var(--color-brass-400)',
   billing: 'var(--color-brass-600)',
   completed: null,
   cancelled: null,
@@ -45,7 +45,8 @@ interface Props {
 
 /**
  * One table on the floor, set in type alone: the category and floor in small
- * capitals, the table's name in the display serif, and the live clock and
+ * monospaced capitals, the table's name in the display face, and the live
+ * clock — monospaced like a scoreboard, so its digits hold still — with the
  * charge as the largest figures. Tables in play are lifted off the page; free
  * tables sit lighter and quieter, so the floor reads at a glance. No artwork —
  * the same card serves snooker, pool, table tennis and consoles.
@@ -61,6 +62,8 @@ export const TableCard = memo(function TableCard({ table, onOpen, onStart, onChe
   const countdown = live?.remaining != null && live.extraSeconds === null && status !== 'billing'
   const bookedProgress =
     live && session?.booked_seconds ? Math.min(1, live.seconds / session.booked_seconds) : null
+  // A booking still in play is charged for the time played so far (ending early pays only that).
+  const bookingInPlay = countdown && !timeUp && session?.booked_amount != null
 
   return (
     <motion.article
@@ -79,7 +82,7 @@ export const TableCard = memo(function TableCard({ table, onOpen, onStart, onChe
     >
       <header>
         <div className="flex items-center justify-between gap-3">
-          <p className="min-w-0 truncate text-[11px] font-semibold tracking-[0.14em] text-fg-4 uppercase">
+          <p className="min-w-0 truncate font-mono text-[10.5px] font-medium tracking-[0.12em] text-fg-4 uppercase">
             {table.category_name}
             <span className="mx-1.5 text-fg-5">·</span>
             {table.floor_name}
@@ -94,13 +97,17 @@ export const TableCard = memo(function TableCard({ table, onOpen, onStart, onChe
         {session && live ? (
           <>
             <div className="flex items-end justify-between gap-3">
-              <span className={cn('figure text-[40px] leading-[0.9] sm:text-[44px]', meta.text)} data-testid="table-timer">
+              <span className={cn('timer text-[38px] leading-[0.9] sm:text-[42px]', meta.text)} data-testid="table-timer">
                 {countdown ? formatClock(live.remaining!) : formatClock(live.seconds)}
               </span>
               <span className="text-right">
                 <span className="block figure text-[19px] leading-tight text-forest-950">{formatMoney(live.total)}</span>
-                <span className="block text-[11px] font-medium text-fg-4">
-                  {live.itemsCount > 0 ? `incl. ${live.itemsCount} item${live.itemsCount > 1 ? 's' : ''}` : 'table charge'}
+                <span className="block text-[11px] font-medium text-fg-4" data-testid="table-charge-note">
+                  {live.itemsCount > 0
+                    ? `incl. ${live.itemsCount} item${live.itemsCount > 1 ? 's' : ''}`
+                    : bookingInPlay
+                      ? `so far · ${formatMoney(session.booked_amount!)} booked`
+                      : 'table charge'}
                 </span>
               </span>
             </div>
@@ -108,7 +115,7 @@ export const TableCard = memo(function TableCard({ table, onOpen, onStart, onChe
               <div className="mt-4">
                 <div className="h-[3px] overflow-hidden rounded-full bg-forest-950/[0.07]">
                   <div
-                    className={cn('h-full rounded-full transition-[width] duration-1000', timeUp ? 'bg-claret-500' : 'bg-forest-700')}
+                    className={cn('h-full rounded-full transition-[width] duration-1000', timeUp ? 'bg-claret-500' : status === 'paused' ? 'bg-brass-400' : status === 'billing' ? 'bg-brass-600' : 'bg-baize-500')}
                     style={{ width: `${bookedProgress * 100}%` }}
                   />
                 </div>
@@ -119,7 +126,7 @@ export const TableCard = memo(function TableCard({ table, onOpen, onStart, onChe
                       ? `Booking complete · +${formatClock(live.extraSeconds)} extra, billed per minute`
                       : status === 'billing'
                         ? 'Booking'
-                        : `left of ${formatClock(session.booked_seconds!)} booked`}
+                        : `left of ${formatClock(session.booked_seconds!)} booked · ${formatClock(live.seconds)} played`}
                 </p>
               </div>
             )}

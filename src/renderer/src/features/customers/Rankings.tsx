@@ -38,10 +38,11 @@ export function CustomerRankingsView() {
 
   return (
     <div className="space-y-5" data-testid="customer-rankings">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-5">
-        <SummaryTile icon={<Users className="size-5" />} label="Customer profiles" value={data.summary.customers} />
-        <SummaryTile icon={<Wallet className="size-5" />} label="Have visited" value={data.summary.with_visits} />
-        <SummaryTile icon={<Repeat className="size-5" />} label="Came back more than once" value={data.summary.repeat} />
+      {/* One ledger strip, three counts — divided by hairlines, not boxed separately. */}
+      <div className="card grid grid-cols-1 divide-line px-5 py-2 max-sm:divide-y sm:grid-cols-3 sm:divide-x sm:px-0 sm:py-6">
+        <SummaryTile icon={<Users className="size-3.5" />} label="Customer profiles" value={data.summary.customers} />
+        <SummaryTile icon={<Wallet className="size-3.5" />} label="Have visited" value={data.summary.with_visits} />
+        <SummaryTile icon={<Repeat className="size-3.5" />} label="Came back more than once" value={data.summary.repeat} />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -66,7 +67,7 @@ export function CustomerRankingsView() {
                 </div>
                 <p className="mt-4 truncate font-display-tight text-[24px] leading-tight text-forest-950">{r.name}</p>
                 <p className="text-sm text-fg-4 tabular">{r.phone ?? 'No phone'}</p>
-                <p className="mt-4 figure text-[28px] text-forest-950">{headline(metric, r)}</p>
+                <p className="mt-4 figure-display text-[30px] text-forest-950">{headline(metric, r)}</p>
                 <p className="mt-1 text-xs text-fg-4">
                   {r.visits} visits · {formatDuration(r.play_seconds)} played · {formatMoney(r.spent)} spent
                 </p>
@@ -118,12 +119,12 @@ export function CustomerRankingsView() {
 
 function SummaryTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
-    <div className="card flex items-center gap-4 p-5">
-      <span className="flex size-10 items-center justify-center rounded-xl bg-forest-50 text-forest-700">{icon}</span>
-      <span>
-        <span className="block figure text-[24px] leading-none text-forest-950">{value}</span>
-        <span className="mt-1 block text-xs font-semibold text-fg-3">{label}</span>
+    <div className="py-4 sm:px-7 sm:py-0">
+      <span className="label flex items-center gap-2">
+        <span className="text-lake-600">{icon}</span>
+        {label}
       </span>
+      <span className="mt-3 block figure-display text-[34px] leading-none text-forest-950">{value}</span>
     </div>
   )
 }

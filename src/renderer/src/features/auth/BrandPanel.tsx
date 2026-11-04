@@ -43,7 +43,7 @@ export function BrandPanel() {
           {now.toLocaleDateString('en-GB', { weekday: 'long' })}
         </p>
         <p className="mt-6 flex items-baseline gap-4 text-side-muted">
-          <span className="figure text-[40px] leading-none text-side-fg">{formatTime(now)}</span>
+          <span className="timer text-[40px] leading-none text-side-fg">{formatTime(now)}</span>
           <span className="text-[15px]">{now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
         </p>
       </motion.div>

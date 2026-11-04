@@ -162,7 +162,7 @@ function CurrentShift({ shift }: { shift: Shift }) {
           <AnimatedMoney
             value={shift.total}
             duration={0.9}
-            className="block figure text-[clamp(40px,12vw,50px)] leading-[0.92] text-cream sm:text-[clamp(50px,5.2vw,70px)]"
+            className="block figure-display text-[clamp(42px,12.5vw,52px)] leading-[0.92] text-cream sm:text-[clamp(50px,5.2vw,70px)]"
             data-testid="shift-total"
           />
           <p className="mt-4 text-sm text-side-muted">

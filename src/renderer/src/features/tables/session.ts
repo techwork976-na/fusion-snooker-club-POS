@@ -31,6 +31,10 @@ export function computeLive(session: ActiveSession, policy: BillingPolicy, nowMs
             tiered:
               session.pricing_mode === 'tiered_hourly' && session.hourly_rate != null && session.under_hour_rate != null
                 ? { hourlyRate: session.hourly_rate, underHourRate: session.under_hour_rate }
+                : null,
+            slot:
+              session.pricing_mode === 'hourly_special30' && session.hourly_rate != null && session.special_30_rate != null
+                ? { hourlyRate: session.hourly_rate, special30: session.special_30_rate }
                 : null
           },
           policy
@@ -65,9 +69,10 @@ export function useLive(session: ActiveSession | null): LiveFigures | null {
  */
 export const statusMeta: Record<SessionStatus | 'available', { label: string; dot: string; text: string; pill: string }> = {
   available: { label: 'Available', dot: 'bg-fg-5', text: 'text-fg-3', pill: 'bg-forest-950/[0.05] text-fg-3' },
-  running: { label: 'Running', dot: 'bg-forest-600', text: 'text-forest-950', pill: 'bg-sage-100 text-forest-800' },
-  paused: { label: 'Paused', dot: 'bg-brass-300', text: 'text-brass-700', pill: 'bg-brass-100 text-brass-800' },
-  billing: { label: 'Checkout', dot: 'bg-brass-600', text: 'text-brass-700', pill: 'bg-brass-600 text-surface' },
+  running: { label: 'Running', dot: 'bg-baize-500', text: 'text-baize-700', pill: 'bg-baize-50 text-baize-700' },
+  paused: { label: 'Paused', dot: 'bg-brass-400', text: 'text-brass-700', pill: 'bg-brass-100 text-brass-800' },
+  // Checkout wears the gold of its Checkout button (Button variant "brass": brass-600) on the badge, timer and rail.
+  billing: { label: 'Checkout', dot: 'bg-brass-600', text: 'text-brass-600', pill: 'bg-brass-600 text-surface' },
   completed: { label: 'Paid', dot: 'bg-fg-4', text: 'text-fg-3', pill: 'bg-sunken text-fg-3' },
   cancelled: { label: 'Cancelled', dot: 'bg-fg-5', text: 'text-fg-4', pill: 'bg-sunken text-fg-4' },
   voided: { label: 'Voided', dot: 'bg-claret-500', text: 'text-claret-700', pill: 'bg-claret-50 text-claret-700' }

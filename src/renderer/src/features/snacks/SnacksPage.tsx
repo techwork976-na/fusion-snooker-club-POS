@@ -63,11 +63,12 @@ export function SnacksPage() {
     <Page>
       <PageHeader title="Snacks" subtitle="Sell snacks and drinks to customers who are not playing — no table needed." />
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_380px]">
-        <section className="card p-4 sm:p-6" data-testid="snack-products">
+        {/* The menu sits straight on the page: a search line, then one tile per product. */}
+        <section data-testid="snack-products">
           <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-fg-4" />
+            <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-fg-4" />
             <input
-              className={cn(inputClass, 'h-12 pl-10 text-[15px]')}
+              className={cn(inputClass, 'h-12 rounded-full bg-surface pl-11 text-[15px] shadow-[var(--shadow-control)]')}
               placeholder="Search snacks & drinks…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -87,20 +88,26 @@ export function SnacksPage() {
               {(products.data ?? []).map((p) => {
                 const left = p.track_stock ? p.stock_quantity - cartQuantity(p.id) : null
                 const out = left !== null && left <= 0
+                const inCart = cartQuantity(p.id)
                 return (
                   <li key={p.id}>
                     <button
                       type="button"
                       onClick={() => add(p)}
                       disabled={!canSell || !counterOpen || out}
-                      className="flex h-full w-full flex-col rounded-2xl bg-sunken/60 px-4 py-3.5 text-left max-sm:px-3.5 max-sm:py-3 transition-[background-color,box-shadow] duration-150 enabled:hover:bg-surface enabled:hover:shadow-[var(--shadow-card)] disabled:cursor-default"
+                      className={cn(
+                        'relative flex h-full w-full flex-col rounded-2xl bg-surface px-4 pt-3.5 pb-3.5 text-left shadow-[0_0_0_1px_rgb(10_31_20/0.045),var(--shadow-card)] transition-[translate,box-shadow,opacity] duration-200 ease-[var(--ease-out-quint)] max-sm:px-3.5 max-sm:py-3 enabled:hover:-translate-y-0.5 enabled:hover:shadow-[0_0_0_1px_rgb(10_31_20/0.06),var(--shadow-raised)] enabled:active:translate-y-0 disabled:cursor-default',
+                        out && 'opacity-60 shadow-none',
+                        inCart > 0 && 'ring-2 ring-lake-500/70'
+                      )}
                       data-testid={`snack-${p.name}`}
                     >
-                      <span className="text-[15px] font-semibold text-fg max-sm:leading-snug">{p.name}</span>
-                      <span className="mt-0.5 text-xs text-fg-4">{p.category}</span>
-                      <span className="mt-3 flex items-end justify-between gap-2 max-sm:mt-auto max-sm:flex-wrap max-sm:gap-x-2 max-sm:gap-y-0.5 max-sm:pt-3">
-                        <span className="figure text-[17px] text-forest-950">{formatMoney(p.selling_price)}</span>
-                        <span className={cn('text-xs font-semibold tabular', out ? 'text-claret-700' : 'text-fg-4')}>
+                      <span className="font-mono text-[10px] font-medium tracking-[0.12em] text-lake-600 uppercase">{p.category}</span>
+                      <span className="mt-1 text-[15px] font-semibold text-fg max-sm:leading-snug">{p.name}</span>
+                      <span className="mt-4 flex items-end justify-between gap-2 max-sm:mt-auto max-sm:flex-wrap max-sm:gap-x-2 max-sm:gap-y-0.5 max-sm:pt-3">
+                        <span className="figure-display text-[20px] leading-none text-forest-950">{formatMoney(p.selling_price)}</span>
+                        <span className={cn('flex items-center gap-1.5 text-xs font-semibold tabular', out ? 'text-claret-700' : 'text-fg-4')}>
+                          {p.track_stock && <span className={cn('size-1.5 rounded-full', out ? 'bg-claret-500' : 'bg-baize-400')} />}
                           {p.track_stock ? (out ? 'Out of stock' : `${left} left`) : 'Always available'}
                         </span>
                       </span>
@@ -183,7 +190,7 @@ export function SnacksPage() {
                 <span className="text-sm text-fg-3">
                   {units} item{units === 1 ? '' : 's'}
                 </span>
-                <span className="figure text-[28px] text-forest-950" data-testid="cart-total">
+                <span className="figure-display text-[30px] text-forest-950" data-testid="cart-total">
                   {formatMoney(totalPaisa / 100)}
                 </span>
               </div>
@@ -242,7 +249,7 @@ function SnackSalesToday() {
       <div className="flex flex-wrap items-end justify-between gap-4 px-5 pt-6 pb-4 md:px-8 md:pt-7">
         <div>
           <span className="label">{all ? 'Snack sales today · all counters' : 'Your snack sales today'}</span>
-          <p className="mt-2.5 figure text-[30px] leading-none text-forest-950" data-testid="snack-sales-total">
+          <p className="mt-2.5 figure-display text-[32px] leading-none text-forest-950" data-testid="snack-sales-total">
             {formatMoney(data.totals.total)}
           </p>
         </div>

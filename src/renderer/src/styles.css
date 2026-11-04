@@ -1,7 +1,16 @@
 @import 'tailwindcss';
-/* Inter (variable weight + optical size), bundled with the app: no font CDN,
-   identical on every computer, crisp at small sizes on Windows. */
-@import '@fontsource-variable/inter/opsz.css';
+/*
+ * Type (bundled with the app — no font CDN, identical on every computer):
+ *  - Bricolage Grotesque (weight + optical size): titles and headline money —
+ *    a grotesk with character that tightens into a confident display face at
+ *    large sizes.
+ *  - Geist: the interface — crisp and even at small sizes on Windows.
+ *  - Geist Mono: small capital labels and live timers — a scoreboard voice
+ *    whose equal-width digits never jitter as a clock ticks.
+ */
+@import '@fontsource-variable/bricolage-grotesque/opsz.css';
+@import '@fontsource-variable/geist/index.css';
+@import '@fontsource-variable/geist-mono/index.css';
 
 /*
  * FUSION design tokens.
@@ -18,8 +27,9 @@
   --color-white: #ffffff;
   --color-black: #000000;
 
-  --font-sans: 'Inter Variable', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Inter Variable', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Geist Variable', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque Variable', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
   /* Brand */
   --color-forest-50: #eef3ee;
@@ -44,6 +54,26 @@
   --color-brass-600: #8f6c2f;
   --color-brass-700: #735727;
   --color-brass-800: #5a4420;
+
+  /* Baize: the live green of play — running tables, cash, gains */
+  --color-baize-50: #e9f4ed;
+  --color-baize-100: #d2e9da;
+  --color-baize-200: #a9d3b8;
+  --color-baize-300: #79b993;
+  --color-baize-400: #3f9a66;
+  --color-baize-500: #16804c;
+  --color-baize-600: #106a3e;
+  --color-baize-700: #0c5331;
+
+  /* Lake: a deep petrol blue for the third kind of money (snacks, products) and information */
+  --color-lake-50: #e8f1f6;
+  --color-lake-100: #d0e3ee;
+  --color-lake-200: #a2c6dc;
+  --color-lake-300: #6ea4c4;
+  --color-lake-400: #3a86b0;
+  --color-lake-500: #1371a0;
+  --color-lake-600: #0f5d84;
+  --color-lake-700: #0b4866;
 
   /* Accent: quiet sage, for calm and positive states */
   --color-sage-50: #f2f4ef;
@@ -180,26 +210,40 @@
 @utility tabular {
   font-variant-numeric: tabular-nums lining-nums;
 }
-/* Headings: Inter's display optical size (chosen automatically from the font
-   size), semibold and slightly tight. */
+/* Headings: Bricolage Grotesque, its optical size chosen from the font size
+   (tighter, more characterful at display sizes), semibold and slightly tight. */
 @utility font-display-tight {
   font-family: var(--font-display);
   font-optical-sizing: auto;
-  font-weight: 650;
-  letter-spacing: -0.022em;
+  font-weight: 640;
+  letter-spacing: -0.024em;
 }
 /* Deep forest surfaces carry a faint felt grain (static; no glow, no gradient). */
 @utility felt {
   background-image: var(--felt-grain);
   background-size: 180px 180px;
 }
-/* Money and timer figures: semibold tabular numerals that line up in columns. */
+/* Money and counts in lists and panels: semibold tabular numerals that line up in columns. */
 @utility figure {
   font-family: var(--font-sans);
-  font-optical-sizing: auto;
   font-weight: 600;
   font-variant-numeric: tabular-nums lining-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
+}
+/* Headline money: the display face, tight and confident. */
+@utility figure-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 620;
+  font-variant-numeric: lining-nums;
+  letter-spacing: -0.032em;
+}
+/* Live clocks: monospaced, so the digits hold still as they tick. */
+@utility timer {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.045em;
 }
 
 @layer components {
@@ -226,7 +270,7 @@
   }
   /* Small tracked capitals in brass, led by a short rule: the eyebrow above a title. */
   .eyebrow {
-    @apply inline-flex items-center gap-2.5 text-[11px] font-semibold tracking-[0.16em] text-brass-700 uppercase;
+    @apply inline-flex items-center gap-2.5 font-mono text-[11px] font-medium tracking-[0.14em] text-brass-700 uppercase;
   }
   .eyebrow::before {
     content: '';
@@ -236,16 +280,16 @@
     background: currentColor;
     opacity: 0.7;
   }
-  /* Small tracked capitals for section labels. */
+  /* Section labels: small monospaced capitals — the scoreboard voice. */
   .label {
-    @apply text-[11px] font-semibold tracking-[0.12em] text-fg-4 uppercase;
+    @apply font-mono text-[10.5px] font-medium tracking-[0.11em] text-fg-4 uppercase;
   }
-  /* Table headings: tracked capitals on a hairline, no filled band. */
+  /* Table headings: the same monospaced capitals on a hairline, no filled band. */
   .thead-row {
-    @apply border-b border-line text-left text-[11px] tracking-[0.08em] text-fg-4 uppercase;
+    @apply border-b border-line text-left font-mono text-[10.5px] tracking-[0.09em] text-fg-4 uppercase;
   }
   .thead-row > th {
-    font-weight: 600;
+    font-weight: 500;
   }
   /*
    * Data tables that become stacked cards on phones: each row a block, each
@@ -288,9 +332,10 @@
       content: attr(data-label);
       display: block;
       margin-bottom: 2px;
-      font-size: 10.5px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.09em;
       text-transform: uppercase;
       color: var(--color-fg-4);
     }
@@ -316,6 +361,31 @@
     box-shadow:
       0 0 0 1px rgb(10 31 20 / 0.05),
       var(--shadow-pop);
+  }
+
+  /* Chart axes speak in the same monospaced voice as the labels. */
+  .chart .recharts-cartesian-axis-tick-value {
+    font-family: var(--font-mono);
+    letter-spacing: 0.01em;
+  }
+  /* Data points settle in once their line has risen into place. */
+  .chart .chart-dot {
+    animation: dot-in 380ms var(--ease-out-quint) 860ms both;
+  }
+
+  /* A titled stretch of a page, set on the page itself rather than in a box:
+     a label and optional aside over a hairline. */
+  .section-head {
+    @apply flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-b border-line pb-3;
+  }
+}
+
+@keyframes dot-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 

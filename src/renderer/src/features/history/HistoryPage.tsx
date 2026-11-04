@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Archive, CalendarRange, Users } from 'lucide-react'
 import { addDays, formatBusinessDate, formatMoney, startOfMonth } from '@shared/format'
@@ -8,12 +8,13 @@ import { errorMessage } from '@/lib/errors'
 import type { HistoryDay, HistoryReport, Shift } from '@/lib/types'
 import { getHistory } from '@/data/api'
 import { keys, useBusinessDate, useSettings } from '@/data/hooks'
-import { BarChart, compactMoney, HorizontalBarChart, Legend, SERIES_COLORS } from '@/components/charts/BarChart'
+import { compactMoney, HorizontalBarChart, Legend, SERIES_COLORS } from '@/components/charts/BarChart'
 import { AnimatedMoney } from '@/components/motion/AnimatedNumber'
 import { inputClass } from '@/components/ui/Field'
 import { EmptyState, ErrorState, LoadingBlock, Page, PageHeader, Segmented } from '@/components/ui/Misc'
 import { TransactionsPanel } from '@/features/sales/TransactionsPanel'
 import { ShiftDetailDrawer, ShiftFigures, ShiftStatusPill, shiftTimes } from '@/features/shifts/ShiftParts'
+import { SalesTrend } from '@/features/reports/SalesTrend'
 import { CloseDayPanel } from './CloseDayPanel'
 
 type Tab = 'overview' | 'shifts' | 'invoices' | 'close'
@@ -49,15 +50,16 @@ export function HistoryPage() {
   return (
     <Page>
       <PageHeader
+        eyebrow="The club's record"
         title="History"
-        subtitle="Permanent business and staff accounting. Totals stay correct after old invoices are removed."
+        subtitle="What happened, day by day: every counter shift (open or closed), every invoice while it is kept, and closing the day. Totals come from the permanent ledger, so they stay correct after old invoices are removed."
         actions={
           <Segmented
             layoutId="history-tab"
             value={tab}
             onChange={(t) => setParams(t === 'overview' ? {} : { tab: t })}
             options={[
-              { value: 'overview', label: 'Overview' },
+              { value: 'overview', label: 'Days' },
               { value: 'shifts', label: 'Shifts' },
               { value: 'invoices', label: 'Invoices' },
               { value: 'close', label: 'Close day' }
@@ -74,7 +76,7 @@ export function HistoryPage() {
       ) : tab === 'invoices' ? (
         <TransactionsPanel range={{ preset: 'custom', from: range.from, to: range.to }} onRange={() => undefined} today={today} hideRange />
       ) : (
-        <HistoryBody range={range} tab={tab} />
+        <HistoryBody range={range} tab={tab} today={today} onShifts={() => setParams({ tab: 'shifts' })} />
       )}
     </Page>
   )
@@ -126,7 +128,7 @@ function RangePicker({ value, onChange, today }: { value: Range; onChange: (r: R
   )
 }
 
-function HistoryBody({ range, tab }: { range: Range; tab: 'overview' | 'shifts' }) {
+function HistoryBody({ range, tab, today, onShifts }: { range: Range; tab: 'overview' | 'shifts'; today: string; onShifts: () => void }) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: keys.history(range.from, range.to),
     queryFn: () => getHistory(range.from, range.to)
@@ -136,13 +138,13 @@ function HistoryBody({ range, tab }: { range: Range; tab: 'overview' | 'shifts' 
   if (isLoading || !data) return <LoadingBlock />
   return (
     <>
-      {tab === 'overview' ? <Overview data={data} range={range} onShift={setDetail} /> : <ShiftsTable shifts={data.shifts} onOpen={setDetail} />}
+      {tab === 'overview' ? <Overview data={data} range={range} today={today} onShifts={onShifts} /> : <ShiftsTable shifts={data.shifts} onOpen={setDetail} />}
       <ShiftDetailDrawer shiftId={detail} onClose={() => setDetail(null)} />
     </>
   )
 }
 
-function Overview({ data, range, onShift }: { data: HistoryReport; range: Range; onShift: (id: string) => void }) {
+function Overview({ data, range, today, onShifts }: { data: HistoryReport; range: Range; today: string; onShifts: () => void }) {
   const t = data.totals
   return (
     <div className="space-y-6">
@@ -153,7 +155,7 @@ function Overview({ data, range, onShift }: { data: HistoryReport; range: Range;
             <AnimatedMoney
               value={t.total}
               duration={0.9}
-              className="mt-5 block figure text-[clamp(38px,11vw,50px)] leading-[0.92] text-forest-950 sm:text-[clamp(50px,5.2vw,70px)]"
+              className="mt-5 block figure-display text-[clamp(42px,12vw,52px)] leading-[0.9] text-forest-950 sm:text-[clamp(52px,5.2vw,74px)]"
               data-testid="history-total"
             />
             <p className="mt-4 text-sm text-fg-3">
@@ -169,32 +171,36 @@ function Overview({ data, range, onShift }: { data: HistoryReport; range: Range;
             </p>
           )}
         </div>
-        <ShiftFigures figures={t} size="lg" className="mt-8 sm:mt-10" />
+        <ShiftFigures figures={t} size="lg" className="mt-8 sm:mt-10" netHint="after counter expenses" />
+        <p className="mt-6 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line pt-4 text-xs text-fg-4" data-testid="history-scope">
+          Every counter, open or closed. Expenses here are the petty cash paid from counters.
+          <Link to="/reports" className="font-semibold text-brass-700 underline-offset-4 hover:underline">
+            Final profit, with business expenses: Reports →
+          </Link>
+        </p>
       </section>
 
       <div className="grid grid-cols-12 gap-6">
         <section className="card col-span-12 p-5 sm:p-7 xl:col-span-7">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="label">Daily sales</span>
-            <Legend series={SERIES} />
-          </div>
-          <BarChart
-            className="mt-6"
-            height={260}
-            series={SERIES}
-            data={chartDays(range, data.days).map((d) => ({
-              key: d.date,
-              label: formatBusinessDate(d.date, { weekday: false, year: false }),
-              title: formatBusinessDate(d.date),
-              values: { cash: d.cash, bank: d.bank },
-              note: `${d.invoices} invoices · expenses ${formatMoney(d.expenses)} · net ${formatMoney(d.net)}`
+          <SalesTrend
+            from={range.from}
+            to={range.to}
+            today={today}
+            closedOnly={false}
+            dayTotal={t.total}
+            days={chartDays(range, data.days).map((d) => ({
+              date: d.date,
+              cash: d.cash,
+              bank: d.bank,
+              note: `${d.invoices} invoices · counter expenses ${formatMoney(d.expenses)} · net ${formatMoney(d.net)}`
             }))}
-            formatValue={(v) => formatMoney(v)}
-            formatAxis={compactMoney}
           />
         </section>
         <section className="card col-span-12 p-5 sm:p-7 xl:col-span-5">
-          <span className="label">Staff in this period</span>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="label">Staff in this period</span>
+            {data.by_staff.length > 0 && <Legend series={SERIES} />}
+          </div>
           {data.by_staff.length === 0 ? (
             <EmptyState className="py-8" icon={<Users className="size-5" />} title="No staff activity" />
           ) : (
@@ -212,23 +218,13 @@ function Overview({ data, range, onShift }: { data: HistoryReport; range: Range;
                 formatValue={(v) => formatMoney(v)}
                 formatAxis={compactMoney}
               />
-              <ul className="mt-5 divide-y divide-line" data-testid="history-staff">
+              <ul className="mt-5 divide-y divide-line border-t border-line" data-testid="history-staff">
                 {data.by_staff.map((s) => (
-                  <li key={s.user_id} className="py-3.5">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="truncate text-sm font-bold text-fg">{s.name}</span>
-                      <span className="figure text-[19px] text-forest-950">{formatMoney(s.total)}</span>
-                    </div>
-                    <p className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-fg-4 tabular">
-                      <span>Cash {formatMoney(s.cash)}</span>
-                      <span>Bank {formatMoney(s.bank)}</span>
-                      <span>Snacks {formatMoney(s.snack)}</span>
-                      <span>Expenses {formatMoney(s.expenses)}</span>
-                      <span className="font-semibold text-fg-2">Net {formatMoney(s.net)}</span>
-                      <span>
-                        {s.shifts} shift{s.shifts === 1 ? '' : 's'} · {s.invoices} invoice{s.invoices === 1 ? '' : 's'}
-                      </span>
-                    </p>
+                  <li key={s.user_id} className="flex items-baseline justify-between gap-3 py-3">
+                    <span className="min-w-0 truncate text-sm font-semibold text-fg">{s.name}</span>
+                    <span className="shrink-0 text-xs text-fg-4 tabular">
+                      {s.shifts} shift{s.shifts === 1 ? '' : 's'} · {s.invoices} invoice{s.invoices === 1 ? '' : 's'} · net {formatMoney(s.net)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -237,15 +233,18 @@ function Overview({ data, range, onShift }: { data: HistoryReport; range: Range;
         </section>
       </div>
 
-      <section className="card overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 pt-6 pb-4 sm:px-8 sm:pt-7">
-          <span className="label">Shifts in this period</span>
-          <span className="text-xs text-fg-4">Select a shift for its invoices and expenses</span>
+      <section className="card overflow-hidden pb-2" data-testid="history-days">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 pt-6 pb-3 sm:px-8 sm:pt-7">
+          <span className="label">Business days</span>
+          <span className="text-xs text-fg-4">
+            From the permanent ledger.{' '}
+            {data.shifts.length > 0 && (
+              <button type="button" onClick={onShifts} className="font-semibold text-brass-700 underline-offset-4 hover:underline">
+                {data.shifts.length} shift{data.shifts.length === 1 ? '' : 's'} in this period →
+              </button>
+            )}
+          </span>
         </div>
-        <ShiftRows shifts={data.shifts.slice(0, 8)} onOpen={onShift} compact />
-      </section>
-
-      <section className="card overflow-hidden pt-3 pb-2">
         <table className="table-stack w-full text-sm">
           <thead>
             <tr className="thead-row">

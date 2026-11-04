@@ -97,7 +97,7 @@ export function SessionPanel({
           <div className="space-y-6">
             <section>
               <p className="label">{timeUp ? "Time's up" : session.status === 'billing' ? 'Final time' : session.status === 'paused' ? 'Paused at' : 'Playing time'}</p>
-              <p className="mt-3 figure text-[52px] leading-none text-forest-950 sm:text-[64px]">{formatClock(live.seconds)}</p>
+              <p className="mt-3 timer text-[52px] leading-none text-forest-950 sm:text-[64px]">{formatClock(live.seconds)}</p>
               <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div>
                   <dt className="text-xs text-fg-4">Started</dt>
@@ -130,6 +130,12 @@ export function SessionPanel({
                   {hourly
                     ? 'End the session, or extend it — the whole time is then re-priced.'
                     : 'End the session, or continue playing — extra time is then billed per minute from that moment.'}
+                </p>
+              )}
+              {!timeUp && live.remaining !== null && live.extraSeconds === null && (session.status === 'running' || session.status === 'paused') && (
+                <p className="mt-5 rounded-xl bg-baize-50 px-3.5 py-3 text-sm text-baize-700" data-testid="early-end-note">
+                  Ending now charges {formatMoney(live.tableCharge)} for the time played. The full {formatMoney(session.booked_amount)} applies only once the
+                  booking is used up.
                 </p>
               )}
               {hourly && (session.status === 'running' || session.status === 'paused') && (
@@ -217,7 +223,7 @@ export function SessionPanel({
               </div>
               <div className="mt-4 flex items-end justify-between border-t border-forest-950/[0.07] pt-4">
                 <span className="label">Running total</span>
-                <span className="figure text-[30px] leading-none text-forest-950">{formatMoney(live.total)}</span>
+                <span className="figure-display text-[32px] leading-none text-forest-950">{formatMoney(live.total)}</span>
               </div>
             </section>
 

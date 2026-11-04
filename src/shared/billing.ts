@@ -147,23 +147,53 @@ export interface ChargeInput {
   bookedAmount?: number | string | null
   /** Under-1-hour pricing (tiered_hourly sessions): the two rates per hour. */
   tiered?: { hourlyRate: number | string; underHourRate: number | string } | null
+  /** Hourly + special 30-minute pricing (hourly_special30 sessions): the two prices. */
+  slot?: { hourlyRate: number | string; special30: number | string } | null
 }
 
-/** The table charge for a session (open-ended or booked + overtime). */
+/** The smaller of a booking's price and the price of the time played (both rupees). */
+function capAtBooking(bookedAmount: number | string, price: number): number {
+  return fromPaisa(Math.min(toPaisa(bookedAmount), toPaisa(price)))
+}
+
+/**
+ * The table charge for a session (fusion_session_charge / fusion_tiered_charge /
+ * fusion_slot_charge in SQL):
+ *  - open play: the billed minutes at the table's rate;
+ *  - a fixed-time or fixed-amount booking used in full (including "time's up",
+ *    which holds the clock at the booked time): the booking's price, plus any
+ *    time played after staff chose to continue;
+ *  - a booking ended EARLY (less time played than booked, paused time never
+ *    counts): only the time played, priced by the table's existing pricing
+ *    (the rate per minute, tierPrice or slotPrice, unchanged) — and never more
+ *    than the booking.
+ */
 export function sessionCharge(input: ChargeInput, policy: BillingPolicy): number {
-  const { billableSeconds, ratePerMinute, bookedSeconds, bookedAmount, tiered } = input
+  const { billableSeconds, ratePerMinute, bookedSeconds, bookedAmount, tiered, slot } = input
+  const booked = bookedSeconds != null && bookedAmount != null
+  const early = booked && billableSeconds < bookedSeconds
   if (tiered) {
-    // fusion_tiered_charge: the billed minutes priced by tier; a booking never bills less than it cost.
-    const booked = bookedSeconds != null && bookedAmount != null
-    const price = tierPrice(billedMinutes(billableSeconds, policy, !booked), tiered.hourlyRate, tiered.underHourRate)
-    return booked ? fromPaisa(Math.max(toPaisa(bookedAmount), price * 100)) : price
+    // fusion_tiered_charge: the billed minutes priced by tier; a completed booking never bills less than it cost.
+    const price = tierPrice(billedMinutes(billableSeconds, policy, !booked || early), tiered.hourlyRate, tiered.underHourRate)
+    if (!booked) return price
+    return early ? capAtBooking(bookedAmount, price) : fromPaisa(Math.max(toPaisa(bookedAmount), price * 100))
   }
-  if (bookedSeconds != null && bookedAmount != null) {
+  if (slot && early) {
+    // fusion_slot_charge: the minutes played at the category's existing prices (slotPrice).
+    return capAtBooking(bookedAmount, slotPrice(billedMinutes(billableSeconds, policy, true), slot.hourlyRate, slot.special30))
+  }
+  if (booked) {
+    if (early) return capAtBooking(bookedAmount, amountForMinutes(billedMinutes(billableSeconds, policy, true), ratePerMinute))
     const overtime = billableSeconds - bookedSeconds
     const extra = overtime > 0 ? amountForMinutes(billedMinutes(overtime, policy, false), ratePerMinute) : 0
     return fromPaisa(toPaisa(bookedAmount) + extra * 100)
   }
   return amountForMinutes(billedMinutes(billableSeconds, policy, true), ratePerMinute)
+}
+
+/** A booked session that ended (or would end now) before its booked time was used up. */
+export function endedEarly(billableSeconds: number, bookedSeconds: number | null | undefined): boolean {
+  return bookedSeconds != null && billableSeconds < bookedSeconds
 }
 
 /**

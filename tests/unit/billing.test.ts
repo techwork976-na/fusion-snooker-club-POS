@@ -9,6 +9,7 @@ import {
   isAllocationComplete,
   isValidRate,
   isValidSlotMinutes,
+  endedEarly,
   slotPrice,
   sameRate,
   secondsForAmount,
@@ -60,10 +61,10 @@ describe('amounts', () => {
     expect(amountForMinutes(100, 10)).toBe(1000)
   })
 
-  it('open sessions use elapsed time; bookings pay the booking plus overtime', () => {
+  it('open sessions use elapsed time; bookings pay the booking plus overtime, or only the time played if ended early', () => {
     expect(sessionCharge({ billableSeconds: 3600, ratePerMinute: 10 }, perMinuteUp)).toBe(600)
     const booked = { ratePerMinute: 10, bookedSeconds: 1800, bookedAmount: 300 }
-    expect(sessionCharge({ ...booked, billableSeconds: 600 }, perMinuteUp)).toBe(300)
+    expect(sessionCharge({ ...booked, billableSeconds: 600 }, perMinuteUp)).toBe(100) // ended early: 10 minutes
     expect(sessionCharge({ ...booked, billableSeconds: 1800 }, perMinuteUp)).toBe(300)
     expect(sessionCharge({ ...booked, billableSeconds: 1801 }, perMinuteUp)).toBe(310)
     expect(sessionCharge({ ...booked, billableSeconds: 1800 + 310 }, perMinuteUp)).toBe(360)
@@ -98,11 +99,13 @@ describe('custom rate per minute at checkout', () => {
     expect(chargeAtRate({ billableSeconds: 31 * 60 }, 8, quarter)).toBe(360) // 45 min
   })
 
-  it('re-prices booked time pro rata and overtime as usual', () => {
+  it('re-prices booked time pro rata, overtime as usual, and an early end by the time played', () => {
     // 60 booked minutes + 5 over, at 9/min instead of 10/min.
     expect(chargeAtRate({ billableSeconds: 65 * 60, bookedSeconds: 3600 }, 9, perMinuteUp)).toBe(585)
-    // A prepaid PKR 500 at 10/min bought 3000 s; at 8/min that time costs 400.
-    expect(chargeAtRate({ billableSeconds: 2000, bookedSeconds: 3000 }, 8, perMinuteUp)).toBe(400)
+    // A prepaid PKR 500 at 10/min bought 3000 s; at 8/min that time costs 400…
+    expect(chargeAtRate({ billableSeconds: 3000, bookedSeconds: 3000 }, 8, perMinuteUp)).toBe(400)
+    // …and ended early after 2000 s (34 started minutes) it costs 272.
+    expect(chargeAtRate({ billableSeconds: 2000, bookedSeconds: 3000 }, 8, perMinuteUp)).toBe(272)
     expect(amountForSeconds(90, 10)).toBe(15)
   })
 
@@ -195,17 +198,56 @@ describe('under-1-hour rate (PS5: PKR 800/hour under 1 hour, PKR 600/hour from 1
   it('prices the whole time by tier', () => {
     expect([15, 30, 45, 59, 60, 90, 120].map((m) => tierPrice(m, 600, 800))).toEqual([200, 400, 600, 787, 600, 900, 1200])
   })
+  it("keeps the owner's price list: 30 min 400, 45 min 600, 1 h 600, 1 h 15 750, 1 h 30 900, 1 h 45 1,050, 2 h 1,200, 2 h 20 1,400", () => {
+    expect([30, 45, 60, 75, 90, 105, 120, 140].map((m) => tierPrice(m, 600, 800))).toEqual([400, 600, 600, 750, 900, 1050, 1200, 1400])
+  })
   it('switches to the hourly rate as the 60th minute is billed', () => {
     const charge = (seconds: number) => sessionCharge({ billableSeconds: seconds, ratePerMinute: 10, tiered }, policy)
     expect([charge(15 * 60), charge(59 * 60), charge(59 * 60 + 1), charge(3600), charge(90 * 60)]).toEqual([200, 787, 600, 600, 900])
   })
-  it('a booking is never billed below its price', () => {
+  it('a booking used in full is never billed below its price; ended early it bills the time played', () => {
     const booked = (seconds: number) =>
       sessionCharge({ billableSeconds: seconds, ratePerMinute: 10, bookedSeconds: 55 * 60, bookedAmount: tierPrice(55, 600, 800), tiered }, policy)
-    expect([booked(10 * 60), booked(55 * 60), booked(60 * 60), booked(80 * 60)]).toEqual([733, 733, 733, 800])
+    expect([booked(10 * 60), booked(55 * 60), booked(60 * 60), booked(80 * 60)]).toEqual([133, 733, 733, 800])
   })
   it('a prepaid amount buys time at the hourly rate once it covers an hour', () => {
     expect([tierSecondsForAmount(400, 600, 800), tierSecondsForAmount(600, 600, 800), tierSecondsForAmount(700, 600, 800)]).toEqual([1800, 3600, 4200])
+  })
+})
+
+describe('a booking ended early pays only the time played (1500)', () => {
+  const policy = { incrementMinutes: 1, rounding: 'up' as const, minimumMinutes: 0 }
+  it('per minute: billed minutes at the rate, never more than the booking', () => {
+    const hour = { ratePerMinute: 10, bookedSeconds: 3600, bookedAmount: 600 }
+    expect([0, 10, 60, 15 * 60, 59 * 60, 59 * 60 + 30, 3600].map((s) => sessionCharge({ ...hour, billableSeconds: s }, policy))).toEqual([
+      0, 10, 10, 150, 590, 600, 600
+    ])
+    // PKR 1,000 at 7.5/min buys 8,000 s; 7,990 s rounds up to 134 minutes (1,005) and is capped at the booking.
+    expect(sessionCharge({ ratePerMinute: 7.5, bookedSeconds: 8000, bookedAmount: 1000, billableSeconds: 7990 }, policy)).toBe(1000)
+  })
+  it("under-1-hour tables: the time played at the table's existing prices (the same as open play)", () => {
+    const tiered = { hourlyRate: 600, underHourRate: 800 }
+    // A 2-hour booking (PKR 1,200) ended early at each length on the owner's price list.
+    const twoHours = (minutes: number) =>
+      sessionCharge({ billableSeconds: minutes * 60, ratePerMinute: 10, bookedSeconds: 7200, bookedAmount: 1200, tiered }, policy)
+    const openPlay = (minutes: number) => sessionCharge({ billableSeconds: minutes * 60, ratePerMinute: 10, tiered }, policy)
+    for (const [m, price] of [[30, 400], [45, 600], [60, 600], [75, 750], [90, 900], [105, 1050]] as const) {
+      expect(twoHours(m), `${m} min`).toBe(price)
+      expect(twoHours(m)).toBe(openPlay(m))
+    }
+    // A 1-hour booking (PKR 600) ended at 50 minutes: 667 at the under-1-hour rate, never more than the booking.
+    expect(sessionCharge({ billableSeconds: 50 * 60, ratePerMinute: 10, bookedSeconds: 3600, bookedAmount: 600, tiered }, policy)).toBe(600)
+  })
+  it('hourly + 30-minute tables: the minutes played at the existing slot prices (no new minimum)', () => {
+    const slot = { hourlyRate: 600, special30: 400 }
+    const charge = (played: number, bookedMinutes: number) =>
+      sessionCharge({ billableSeconds: played, ratePerMinute: 10, bookedSeconds: bookedMinutes * 60, bookedAmount: slotPrice(bookedMinutes, 600, 400), slot }, policy)
+    expect([charge(15 * 60, 60), charge(30 * 60, 60), charge(45 * 60, 60), charge(60 * 60, 60), charge(10 * 60, 30), charge(30 * 60, 30)]).toEqual([
+      150, 400, 450, 600, 100, 400
+    ])
+  })
+  it('tells an early end from a booking used in full', () => {
+    expect([endedEarly(899, 900), endedEarly(900, 900), endedEarly(1200, 900), endedEarly(10, null)]).toEqual([true, false, false, false])
   })
 })
 

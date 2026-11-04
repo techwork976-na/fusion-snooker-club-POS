@@ -4,8 +4,6 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   AlertTriangle,
-  ArrowDownRight,
-  ArrowUpRight,
   Archive,
   Boxes,
   CalendarClock,
@@ -24,11 +22,12 @@ import { errorMessage } from '@/lib/errors'
 import type { Dashboard, DayTotals, Shift, StaffDayRow, TableOverview } from '@/lib/types'
 import * as api from '@/data/api'
 import { accountingKeys, keys, useAction, useBusinessDate, useDashboard, useSettings, useTablesOverview } from '@/data/hooks'
-import { BarChart, compactMoney, SERIES_COLORS } from '@/components/charts/BarChart'
+import { compactMoney, SERIES_ON_DARK } from '@/components/charts/BarChart'
+import { TrendChart } from '@/components/charts/TrendChart'
 import { AnimatedMoney } from '@/components/motion/AnimatedNumber'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/Modal'
-import { EmptyState, ErrorState, Page, PageHeader, Skeleton } from '@/components/ui/Misc'
+import { Delta, EmptyState, ErrorState, Page, PageHeader, Skeleton } from '@/components/ui/Misc'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { CheckoutDialog } from '@/features/pos/CheckoutDialog'
 import { ShiftFigures, ShiftStatusPill } from '@/features/shifts/ShiftParts'
@@ -41,8 +40,10 @@ const rise = (i: number) => ({
   transition: { duration: 0.4, delay: 0.05 * i, ease: [0.22, 1, 0.36, 1] as const }
 })
 
-/** Cash and bank on the deep forest hero: the series hues, lightened to read on the dark. */
-const ON_DARK = { cash: '#aebb9f', bank: '#d4bb84' }
+/** Cash and bank on the deep forest hero: the series hues, stepped for the dark surface. */
+const ON_DARK = SERIES_ON_DARK
+/** The day's sales curve on the felt: the baize of the cash series, lifted to read on the dark. */
+const SALES_ON_DARK = '#2f9a63'
 
 function PanelHeading({ children, aside, dark }: { children: ReactNode; aside?: ReactNode; dark?: boolean }) {
   return (
@@ -114,34 +115,57 @@ export function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-12 gap-4 sm:gap-6">
-          <motion.section {...rise(0)} className="col-span-12 xl:col-span-8">
-            {isAdmin && data.today ? <TodayHero data={data} /> : <MyCounterCard shift={data.my_counter ?? null} />}
-          </motion.section>
-
-          <div className="col-span-12 flex flex-col gap-4 sm:gap-6 xl:col-span-4">
-            <motion.section {...rise(1)}>
-              <FloorStatus data={data} lifetime={isAdmin ? data.lifetime_total : undefined} />
-            </motion.section>
-            {isAdmin && (
-              <motion.section {...rise(2)} className="flex-1">
+          {isAdmin && data.today ? (
+            <>
+              {/* The day's money and its hourly curve, across the page. */}
+              <motion.section {...rise(0)} className="col-span-12">
+                <TodayHero data={data} />
+              </motion.section>
+              {/* The floor: who is playing now, and the room at a glance. */}
+              <motion.section {...rise(1)} className="col-span-12 xl:col-span-8">
+                <LiveSessions />
+              </motion.section>
+              <motion.section {...rise(2)} className="col-span-12 xl:col-span-4">
+                <FloorStatus data={data} lifetime={data.lifetime_total} />
+              </motion.section>
+              {data.staff && (
+                <motion.section {...rise(3)} className="col-span-12">
+                  <StaffLive rows={data.staff} today={data.today} />
+                </motion.section>
+              )}
+              <motion.section {...rise(4)} className="col-span-12 lg:col-span-6 xl:col-span-7">
                 <TopLists data={data} />
               </motion.section>
-            )}
-          </div>
-
-          {isAdmin && data.staff && (
-            <motion.section {...rise(3)} className="col-span-12">
-              <StaffLive rows={data.staff} today={data.today!} />
-            </motion.section>
+              <motion.section {...rise(5)} className="col-span-12 lg:col-span-6 xl:col-span-5">
+                <QuickActions data={data} onCounterSale={() => setCounterOpen(true)} canCounter={canCounter} />
+              </motion.section>
+            </>
+          ) : (
+            <>
+              <motion.section {...rise(0)} className="col-span-12 xl:col-span-8">
+                <MyCounterCard shift={data.my_counter ?? null} />
+              </motion.section>
+              <motion.section {...rise(1)} className="col-span-12 xl:col-span-4">
+                <FloorStatus data={data} lifetime={isAdmin ? data.lifetime_total : undefined} />
+              </motion.section>
+              {isAdmin && data.staff && data.today && (
+                <motion.section {...rise(2)} className="col-span-12">
+                  <StaffLive rows={data.staff} today={data.today} />
+                </motion.section>
+              )}
+              {isAdmin && (
+                <motion.section {...rise(2)} className="col-span-12">
+                  <TopLists data={data} />
+                </motion.section>
+              )}
+              <motion.section {...rise(2)} className="col-span-12 xl:col-span-8">
+                <LiveSessions />
+              </motion.section>
+              <motion.section {...rise(3)} className="col-span-12 xl:col-span-4">
+                <QuickActions data={data} onCounterSale={() => setCounterOpen(true)} canCounter={canCounter} />
+              </motion.section>
+            </>
           )}
-
-          <motion.section {...rise(4)} className="col-span-12 xl:col-span-8">
-            <LiveSessions />
-          </motion.section>
-
-          <motion.section {...rise(5)} className="col-span-12 xl:col-span-4">
-            <QuickActions data={data} onCounterSale={() => setCounterOpen(true)} canCounter={canCounter} />
-          </motion.section>
         </div>
       )}
       <CheckoutDialog open={counterOpen} onOpenChange={setCounterOpen} tableId={null} />
@@ -175,8 +199,8 @@ function TodayHero({ data }: { data: Dashboard }) {
   const cashShare = today.total > 0 ? today.cash / today.total : 0
   const delta = data.yesterday_total && data.yesterday_total > 0 ? (today.total - data.yesterday_total) / data.yesterday_total : null
   return (
-    <div className="card flex h-full flex-col overflow-hidden" data-testid="today-sales">
-      <div className="felt rail relative bg-forest-950 px-5 pt-6 pb-7 [--rail:var(--color-brass-300)] sm:px-8 sm:pt-8 sm:pb-8">
+    <div className="card felt rail grid overflow-hidden bg-forest-950 [--rail:var(--color-brass-300)] xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]" data-testid="today-sales">
+      <div className="relative px-5 pt-6 pb-7 sm:px-8 sm:pt-8 sm:pb-8">
         <PanelHeading
           dark
           aside={
@@ -192,23 +216,18 @@ function TodayHero({ data }: { data: Dashboard }) {
         <AnimatedMoney
           value={today.total}
           duration={0.9}
-          className="mt-5 block figure text-[clamp(40px,12vw,54px)] leading-[0.92] text-cream sm:text-[clamp(54px,5.6vw,78px)]"
+          className="mt-5 block figure-display text-[clamp(42px,12.5vw,56px)] leading-[0.9] text-cream sm:text-[clamp(56px,5.4vw,80px)]"
           data-testid="today-total"
         />
-        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-side-muted">
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-side-muted">
+          {delta !== null && <Delta tone="dark" change={delta} against="vs yesterday" />}
           <span>
             {today.count} sale{today.count === 1 ? '' : 's'}
           </span>
           {today.discounts > 0 && <span>{formatMoney(today.discounts)} in discounts</span>}
-          {delta !== null && (
-            <span className={cn('flex items-center gap-1 font-semibold', delta >= 0 ? 'text-sage-300' : 'text-claret-300')}>
-              {delta >= 0 ? <ArrowUpRight className="size-4" /> : <ArrowDownRight className="size-4" />}
-              {Math.abs(Math.round(delta * 100))}% vs yesterday
-            </span>
-          )}
         </div>
 
-        <div className="mt-9 flex h-1.5 gap-[2px] overflow-hidden rounded-full bg-cream/10">
+        <div className="mt-8 flex h-1.5 gap-[2px] overflow-hidden rounded-full bg-cream/10">
           {today.total > 0 && (
             <>
               {cashShare > 0 && (
@@ -232,13 +251,13 @@ function TodayHero({ data }: { data: Dashboard }) {
             </>
           )}
         </div>
-        <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4 sm:gap-6">
+        <div className="mt-6 grid grid-cols-2 gap-y-5 sm:grid-cols-4 xl:grid-cols-2">
           <SplitFigure color={ON_DARK.cash} label="Cash" value={today.cash} />
           <SplitFigure color={ON_DARK.bank} label="Bank transfer" value={today.bank} />
           <SplitFigure label="Expenses" value={today.expenses} />
           <SplitFigure label="Net" value={today.net} strong />
         </div>
-        <p className="mt-5 text-xs text-side-muted">
+        <p className="mt-6 text-xs leading-relaxed text-side-muted">
           Snack sales {formatMoney(today.snack)} — already included in Cash and Bank.
           <SnackOnlyNote />
         </p>
@@ -395,7 +414,7 @@ function MyCounterCard({ shift }: { shift: Shift | null }) {
       <PanelHeading dark aside={<PanelLink dark onClick={() => navigate('/counter')}>My counter</PanelLink>}>
         My counter · open
       </PanelHeading>
-      <AnimatedMoney value={shift.total} duration={0.9} className="mt-5 block figure text-[clamp(40px,12vw,50px)] leading-[0.92] text-cream sm:text-[clamp(50px,5.2vw,68px)]" />
+      <AnimatedMoney value={shift.total} duration={0.9} className="mt-5 block figure-display text-[clamp(42px,12.5vw,52px)] leading-[0.9] text-cream sm:text-[clamp(52px,5.2vw,72px)]" />
       <p className="mt-4 text-sm text-side-muted">
         {shift.invoices} invoice{shift.invoices === 1 ? '' : 's'} on this shift
       </p>
@@ -407,12 +426,12 @@ function MyCounterCard({ shift }: { shift: Shift | null }) {
 /** A figure on the hero panel. */
 function SplitFigure({ color, label, value, strong }: { color?: string; label: string; value: number; strong?: boolean }) {
   return (
-    <div>
-      <p className="flex items-center gap-2 text-xs font-semibold text-side-muted">
-        {color && <span className="size-2 rounded-full" style={{ background: color }} />}
+    <div className="border-l border-cream/[0.09] pl-4 sm:pl-5">
+      <p className="flex items-center gap-2 font-mono text-[10.5px] font-medium tracking-[0.1em] text-side-muted uppercase">
+        {color && <span className="h-[3px] w-3 rounded-full" style={{ background: color }} />}
         {label}
       </p>
-      <AnimatedMoney value={value} className={cn('mt-2 block figure text-[21px] leading-none sm:text-[25px]', strong ? 'text-brass-200' : 'text-side-fg')} />
+      <AnimatedMoney value={value} className={cn('mt-2.5 block figure-display text-[23px] leading-none sm:text-[27px]', strong ? 'text-brass-200' : 'text-side-fg')} />
     </div>
   )
 }
@@ -429,8 +448,8 @@ function FloorStatus({ data, lifetime }: { data: Dashboard; lifetime?: number })
   return (
     <div className="card flex h-full flex-col p-5 sm:p-7">
       <PanelHeading>Floor right now</PanelHeading>
-      <p className="mt-4 flex items-baseline gap-2">
-        <span className="figure text-[44px] leading-none text-forest-950">{occupied}</span>
+      <p className="mt-4 flex items-baseline gap-2.5">
+        <span className="figure-display text-[52px] leading-none text-forest-950">{occupied}</span>
         <span className="text-sm font-medium text-fg-3 tabular">of {t.total} tables in play</span>
       </p>
       <div className="mt-5 flex h-1.5 gap-[2px] overflow-hidden rounded-full bg-forest-950/[0.06]">
@@ -459,8 +478,8 @@ function FloorStatus({ data, lifetime }: { data: Dashboard; lifetime?: number })
         ))}
       </ul>
       {lifetime !== undefined && (
-        <div className="mt-6 flex items-center justify-between rounded-2xl bg-sunken/70 px-4 py-3.5">
-          <span className="text-xs font-semibold text-fg-3">Lifetime sales</span>
+        <div className="mt-auto flex items-baseline justify-between border-t border-line pt-4 max-xl:mt-6">
+          <span className="label">Lifetime sales</span>
           <span className="figure text-[15px] text-forest-950">{formatMoney(lifetime)}</span>
         </div>
       )}
@@ -481,7 +500,7 @@ function LiveRow({ table, onClick }: { table: TableOverview; onClick: () => void
         </p>
       </div>
       <StatusPill status={table.session.status} />
-      <span className={cn('w-20 text-right figure text-lg max-sm:order-1 max-sm:w-auto max-sm:text-left', statusMeta[table.session.status].text)}>{formatClock(live.seconds)}</span>
+      <span className={cn('w-24 text-right timer text-[19px] max-sm:order-1 max-sm:w-auto max-sm:text-left', statusMeta[table.session.status].text)}>{formatClock(live.seconds)}</span>
       <span className="w-24 text-right figure text-[15px] text-forest-950 max-sm:order-2 max-sm:ml-auto">{formatMoney(live.total)}</span>
     </button>
   )
@@ -517,8 +536,8 @@ function QuickAction({ icon, label, hint, onClick, tone = 'default' }: { icon: R
     >
       <span
         className={cn(
-          'flex size-10 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 ease-out group-hover:-translate-y-px',
-          tone === 'warn' ? 'bg-brass-100 text-brass-700' : 'bg-sunken text-forest-800'
+          'flex size-10 shrink-0 items-center justify-center rounded-full transition-[translate,background-color,color] duration-200 ease-out group-hover:-translate-y-px',
+          tone === 'warn' ? 'bg-brass-100 text-brass-700' : 'bg-forest-950/[0.05] text-forest-800 group-hover:bg-forest-950 group-hover:text-cream'
         )}
       >
         {icon}
@@ -540,7 +559,7 @@ function QuickActions({ data, onCounterSale, canCounter }: { data: Dashboard; on
       <div className="px-3 pt-3 pb-2">
         <PanelHeading>Quick actions</PanelHeading>
       </div>
-      <div className="space-y-0.5">
+      <div className="space-y-0.5 sm:grid sm:grid-cols-2 sm:gap-x-2 sm:space-y-0 lg:block lg:space-y-0.5">
         <QuickAction icon={<LayoutGrid className="size-[18px]" />} label="Tables" hint={`${data.tables.available} available now`} onClick={() => navigate('/tables')} />
         {!isAdmin && (
           <QuickAction
@@ -578,17 +597,21 @@ function QuickActions({ data, onCounterSale, canCounter }: { data: Dashboard; on
   )
 }
 
-/** Hours of the business day in order (e.g. 06…23, 00…05 when the day starts at 06:00). */
-function businessHours(data: Dashboard, startHour: number, timeZone: string | undefined): number[] {
+/**
+ * Hours of the business day in order (e.g. 06…23, 00…05 when the day starts at 06:00), at least six:
+ * early in the day the next hours are added as empty slots still to come (never as zero sales).
+ */
+function businessHours(data: Dashboard, startHour: number, timeZone: string | undefined): { hour: number; future: boolean }[] {
   const pos = (h: number) => (h - startHour + 24) % 24
   const clubHour = Number(
     new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone }).format(new Date(data.server_time))
   )
   const positions = (data.hourly ?? []).map((h) => pos(h.hour))
   const now = pos(clubHour)
-  const first = positions.length ? Math.min(...positions, now) : Math.max(0, now - 5)
-  const last = Math.max(...positions, now)
-  return Array.from({ length: last - first + 1 }, (_, i) => (first + i + startHour) % 24)
+  // At least the last six hours of the business day, so the curve has a course to run.
+  const first = Math.min(...positions, now, Math.max(0, now - 5))
+  const last = Math.min(23, Math.max(...positions, now, first + 5))
+  return Array.from({ length: last - first + 1 }, (_, i) => ({ hour: (first + i + startHour) % 24, future: first + i > Math.max(now, ...positions) }))
 }
 
 /** Sales by hour, set into the foot of the Today panel; it fills the height the panel has left. */
@@ -597,14 +620,19 @@ function HourlyChart({ data }: { data: Dashboard }) {
   const byHour = new Map((data.hourly ?? []).map((h) => [h.hour, h.total]))
   const range = businessHours(data, settings?.day_start_hour ?? 0, settings?.business_timezone)
   return (
-    <div className="flex min-h-[240px] flex-1 flex-col px-5 pt-8 pb-5 sm:min-h-[260px] sm:px-8 sm:pt-9 sm:pb-6">
-      <PanelHeading aside={<span className="text-xs text-fg-4">Today, club time</span>}>Sales by hour</PanelHeading>
-      <BarChart
-        className="mt-4 min-h-[200px] flex-1"
+    <div className="relative flex min-h-[260px] flex-col border-t border-cream/[0.07] px-4 pt-6 pb-5 sm:min-h-[300px] sm:px-7 sm:pt-8 sm:pb-6 xl:border-t-0 xl:border-l">
+      <PanelHeading dark aside={<span className="text-xs text-side-muted">Today, club time</span>}>
+        Sales by hour
+      </PanelHeading>
+      <TrendChart
+        tone="dark"
+        label="Sales by hour"
+        className="mt-5 min-h-[220px] flex-1"
         height="auto"
-        series={[{ key: 'total', label: 'Sales', color: SERIES_COLORS.total }]}
-        data={range.map((h) => ({
+        series={[{ key: 'total', label: 'Sales', color: SALES_ON_DARK }]}
+        data={range.map(({ hour: h, future }) => ({
           key: String(h),
+          future,
           label: formatHour(h),
           title: `${formatHour(h, true)} – ${formatHour(h + 1, true)}`,
           values: { total: byHour.get(h) ?? 0 }
@@ -620,27 +648,40 @@ function HourlyChart({ data }: { data: Dashboard }) {
 function TopLists({ data }: { data: Dashboard }) {
   const navigate = useNavigate()
   return (
-    <div className="card h-full p-5 sm:p-7">
+    <div className={cn('card grid h-full gap-x-10 gap-y-7 p-5 sm:p-7', data.low_stock?.length && 'md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]')}>
       <section>
         <PanelHeading>Best sellers today</PanelHeading>
         {data.top_products?.length ? (
-          <ul className="mt-4 space-y-3">
-            {data.top_products.map((p, i) => (
-              <li key={p.name} className="flex items-center gap-3 text-sm">
-                <span className="w-4 shrink-0 text-xs font-bold text-fg-5 tabular">{i + 1}</span>
-                <span className="min-w-0 flex-1 truncate font-semibold text-fg">{p.name}</span>
-                <span className="shrink-0 text-xs text-fg-4 tabular">{p.quantity} sold</span>
-                <span className="w-20 shrink-0 text-right figure text-[14px] text-forest-950">{formatMoney(p.revenue)}</span>
-              </li>
-            ))}
+          <ul className="mt-4 space-y-3.5">
+            {data.top_products.map((p, i) => {
+              const lead = Math.max(1, ...data.top_products!.map((q) => q.revenue))
+              return (
+                <li key={p.name} className="text-sm">
+                  <div className="flex items-center gap-3">
+                    <span className="w-5 shrink-0 font-mono text-[11px] text-fg-5">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="min-w-0 flex-1 truncate font-semibold text-fg">{p.name}</span>
+                    <span className="shrink-0 text-xs text-fg-4 tabular">{p.quantity} sold</span>
+                    <span className="w-20 shrink-0 text-right figure text-[14px] text-forest-950">{formatMoney(p.revenue)}</span>
+                  </div>
+                  <div className="mt-1.5 ml-8 h-[3px] overflow-hidden rounded-full bg-forest-950/[0.04]">
+                    <motion.div
+                      className="h-full rounded-full bg-lake-500"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(p.revenue / lead) * 100}%` }}
+                      transition={{ duration: 0.7, delay: 0.2 + i * 0.05, ease: [0.22, 1, 0.36, 1] }}
+                    />
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         ) : (
           <p className="mt-4 text-sm text-fg-4">No products sold yet today.</p>
         )}
       </section>
       {Boolean(data.low_stock?.length) && (
-        <section className="mt-7">
-          <button onClick={() => navigate('/inventory')} className="-mx-3 w-[calc(100%+24px)] rounded-2xl bg-brass-50 px-3 py-3 text-left transition-colors hover:bg-brass-100">
+        <section>
+          <button onClick={() => navigate('/inventory')} className="-mx-3 -my-1 w-[calc(100%+24px)] rounded-2xl bg-brass-50 px-3 py-3 text-left transition-colors hover:bg-brass-100">
             <span className="flex items-center gap-2">
               <AlertTriangle className="size-4 text-brass-600" />
               <span className="label !text-brass-700">Low stock</span>

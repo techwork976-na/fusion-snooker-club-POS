@@ -273,6 +273,18 @@ export interface SwitchTarget {
 
 export type RetentionDays = 1 | 7 | 30
 
+/** One business day's invoices hour by hour (get_sales_by_hour); hours in business-day order, club time. */
+export interface SalesByHour {
+  date: string
+  closed_only: boolean
+  hours: { hour: number; cash: number; bank: number; total: number; invoices: number }[]
+  day_start_hour: number
+  timezone: string
+  /** Sum of the hours — compare with the day's permanent total (old invoices are removed by retention). */
+  covered_total: number
+  retention_days: RetentionDays
+}
+
 /** A counter shift; totals are live while open and final once closed. */
 export interface Shift {
   id: string

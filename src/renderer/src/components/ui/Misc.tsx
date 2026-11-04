@@ -1,7 +1,50 @@
 import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { Loader2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
+
+/**
+ * Change against a real earlier figure (never invented): a small pill with an
+ * arrow — baize green going up, claret going down — and an optional quiet
+ * "vs …" after it.
+ */
+export function Delta({
+  change,
+  against,
+  tone = 'light',
+  className
+}: {
+  /** Fractional change, e.g. 0.124 for +12.4%. */
+  change: number
+  against?: ReactNode
+  tone?: 'light' | 'dark'
+  className?: string
+}) {
+  const up = change >= 0
+  const pct = Math.abs(change * 100)
+  const shown = pct >= 100 ? Math.round(pct).toLocaleString('en-GB') : pct >= 10 ? Math.round(pct) : Math.round(pct * 10) / 10
+  const dark = tone === 'dark'
+  return (
+    <span className={cn('inline-flex items-center gap-2', className)} data-testid="delta">
+      <span
+        className={cn(
+          'inline-flex items-center gap-[3px] rounded-full py-[3px] pr-2 pl-1.5 text-[12px] leading-none font-semibold tabular',
+          up
+            ? dark
+              ? 'bg-baize-400/[0.16] text-baize-200'
+              : 'bg-baize-50 text-baize-700'
+            : dark
+              ? 'bg-claret-400/[0.18] text-claret-200'
+              : 'bg-claret-50 text-claret-700'
+        )}
+      >
+        {up ? <ArrowUp className="size-3" strokeWidth={2.75} /> : <ArrowDown className="size-3" strokeWidth={2.75} />}
+        {shown}%
+      </span>
+      {against && <span className={cn('text-[12.5px]', dark ? 'text-side-muted' : 'text-fg-4')}>{against}</span>}
+    </span>
+  )
+}
 
 export function Spinner({ className }: { className?: string }) {
   return <Loader2 className={cn('size-5 animate-spin text-fg-3', className)} />
@@ -39,7 +82,7 @@ export function EmptyState({
           {icon}
         </div>
       )}
-      <p className="font-display-tight text-[19px] text-forest-950">{title}</p>
+      <p className="font-display-tight text-[20px] text-forest-950">{title}</p>
       {description && <p className="mt-1.5 max-w-sm text-sm text-fg-3">{description}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
@@ -73,12 +116,12 @@ export function PageHeader({
   children?: ReactNode
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-4 md:mb-9 md:gap-6">
+    <div className="mb-6 flex flex-col gap-4 md:mb-10 md:gap-7">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          {eyebrow && <p className="eyebrow mb-3 md:mb-3.5">{eyebrow}</p>}
-          <h1 className="font-display-tight text-[30px] leading-[1.05] text-forest-950 md:text-[38px] md:leading-[1.02]">{title}</h1>
-          {subtitle && <p className="mt-2.5 max-w-2xl text-[14px] leading-relaxed text-fg-3 md:mt-3">{subtitle}</p>}
+          {eyebrow && <p className="eyebrow mb-3 md:mb-4">{eyebrow}</p>}
+          <h1 className="font-display-tight text-[32px] leading-[1.02] text-forest-950 md:text-[44px] md:leading-[0.98]">{title}</h1>
+          {subtitle && <p className="mt-2.5 max-w-2xl text-[14px] leading-relaxed text-fg-3 md:mt-3.5">{subtitle}</p>}
         </div>
         {actions && <div className="flex max-w-full min-w-0 flex-wrap items-center gap-2.5">{actions}</div>}
       </div>
@@ -101,7 +144,7 @@ export function Segmented<V extends string>({
   layoutId: string
 }) {
   return (
-    <div role="tablist" className="inline-flex max-w-full rounded-xl bg-forest-950/[0.05] p-1 ring-1 ring-forest-950/[0.035] ring-inset max-md:overflow-x-auto max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden">
+    <div role="tablist" className="inline-flex max-w-full rounded-full bg-forest-950/[0.05] p-1 max-md:overflow-x-auto max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden">
       {options.map((o) => {
         const active = o.value === value
         return (
@@ -111,15 +154,15 @@ export function Segmented<V extends string>({
             aria-selected={active}
             onClick={() => onChange(o.value)}
             className={cn(
-              'relative flex shrink-0 items-center gap-2 rounded-lg font-semibold whitespace-nowrap transition-colors',
-              size === 'sm' ? 'h-7 px-3 text-xs max-md:h-8' : 'h-8 px-3.5 text-[13px] max-md:h-9',
-              active ? 'text-forest-950' : 'text-fg-3 hover:text-fg'
+              'relative flex shrink-0 items-center gap-2 rounded-full font-semibold whitespace-nowrap transition-colors duration-200',
+              size === 'sm' ? 'h-7 px-3 text-xs max-md:h-8' : 'h-8 px-4 text-[13px] max-md:h-9',
+              active ? 'text-cream' : 'text-fg-3 hover:text-fg'
             )}
           >
             {active && (
               <motion.span
                 layoutId={layoutId}
-                className="absolute inset-0 z-0 rounded-lg bg-surface shadow-[var(--shadow-control)] ring-1 ring-forest-950/[0.06]"
+                className="absolute inset-0 z-0 rounded-full bg-forest-950 shadow-[var(--shadow-control)]"
                 transition={{ type: 'spring', stiffness: 520, damping: 40 }}
               />
             )}
@@ -128,7 +171,7 @@ export function Segmented<V extends string>({
               <span
                 className={cn(
                   'relative z-[1] min-w-5 rounded-full px-1.5 text-center tabular text-[11px] leading-[18px]',
-                  active ? 'bg-forest-950 text-cream' : 'bg-forest-950/[0.07] text-fg-3'
+                  active ? 'bg-cream/[0.16] text-cream' : 'bg-forest-950/[0.07] text-fg-3'
                 )}
               >
                 {o.count}
@@ -160,7 +203,7 @@ export function Stat({
         {accent && <span className={cn('size-2 rounded-full', accent)} />}
         <span className="label">{label}</span>
       </div>
-      <div className="mt-3.5 figure text-[24px] leading-none text-forest-950 md:text-[28px]">{value}</div>
+      <div className="mt-3.5 figure-display text-[26px] leading-none text-forest-950 md:text-[30px]">{value}</div>
       {hint && <div className="mt-2 text-xs text-fg-3">{hint}</div>}
     </div>
   )

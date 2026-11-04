@@ -7,7 +7,7 @@ import { errorMessage } from '@/lib/errors'
 import type { Shift } from '@/lib/types'
 import { getShiftDetail } from '@/data/api'
 import { keys, useSettings } from '@/data/hooks'
-import { SERIES_COLORS } from '@/components/charts/BarChart'
+import { SERIES_COLORS, SERIES_ON_DARK as ON_DARK } from '@/components/charts/BarChart'
 import { AnimatedNumber } from '@/components/motion/AnimatedNumber'
 import { Drawer } from '@/components/ui/Drawer'
 import { ErrorState, LoadingBlock } from '@/components/ui/Misc'
@@ -17,10 +17,10 @@ export function ShiftStatusPill({ status }: { status: Shift['status'] }) {
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold',
-        status === 'open' ? 'bg-sage-100 text-forest-800' : 'bg-forest-950/[0.05] text-fg-3'
+        status === 'open' ? 'bg-baize-50 text-baize-700' : 'bg-forest-950/[0.05] text-fg-3'
       )}
     >
-      <span className={cn('size-1.5 rounded-full', status === 'open' ? 'bg-forest-600' : 'bg-fg-5')} />
+      <span className={cn('size-1.5 rounded-full', status === 'open' ? 'bg-baize-500' : 'bg-fg-5')} />
       {status === 'open' ? 'Open' : 'Closed'}
     </span>
   )
@@ -38,20 +38,20 @@ export function shiftTimes(shift: Pick<Shift, 'opened_at' | 'closed_at'>, tz?: s
 
 type Figures = Pick<Shift, 'cash' | 'bank' | 'total' | 'snack' | 'expenses' | 'net'>
 
-/** Cash and bank on a deep forest panel: the same hues, lightened to read on the dark. */
-const ON_DARK = { cash: '#aebb9f', bank: '#d4bb84' }
-
 /** The six accounting figures, in the same order everywhere (`tone="dark"` on a forest hero panel). */
 export function ShiftFigures({
   figures,
   size = 'md',
   className,
-  tone = 'light'
+  tone = 'light',
+  netHint = 'after expenses'
 }: {
   figures: Figures
   size?: 'md' | 'lg'
   className?: string
   tone?: 'light' | 'dark'
+  /** What Net has been reduced by (History: counter expenses only). */
+  netHint?: string
 }) {
   const dark = tone === 'dark'
   const items: { label: string; value: number; color?: string; hint?: string; strong?: boolean; negative?: boolean }[] = [
@@ -60,21 +60,21 @@ export function ShiftFigures({
     { label: 'Total sales', value: figures.total, strong: true },
     { label: 'Snack sales', value: figures.snack, hint: 'included above' },
     { label: 'Expenses', value: figures.expenses, negative: true },
-    { label: 'Net', value: figures.net, strong: true, hint: 'after expenses' }
+    { label: 'Net', value: figures.net, strong: true, hint: netHint }
   ]
   return (
     <div className={cn('grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-5 xl:grid-cols-6', className)}>
       {items.map((f) => (
         <div key={f.label} className="min-w-0">
-          <p className={cn('flex items-center gap-1.5 text-xs font-semibold', dark ? 'text-side-muted' : 'text-fg-3')}>
-            {f.color && <span className="size-2 rounded-full" style={{ background: f.color }} />}
+          <p className={cn('flex items-center gap-1.5 font-mono text-[10.5px] font-medium tracking-[0.09em] uppercase', dark ? 'text-side-muted' : 'text-fg-4')}>
+            {f.color && <span className="h-[3px] w-3 rounded-full" style={{ background: f.color }} />}
             {f.label}
           </p>
           <AnimatedNumber
             value={f.value}
             format={(n) => `${f.negative && n > 0 ? '−' : ''}${formatMoney(n)}`}
             className={cn(
-              'mt-2 block figure leading-none sm:whitespace-nowrap',
+              'mt-2.5 block figure-display leading-none sm:whitespace-nowrap',
               size === 'lg' ? 'text-[clamp(19px,6.2vw,24px)] sm:text-[28px]' : 'text-[clamp(17px,5.4vw,19px)] sm:text-[21px]',
               dark
                 ? f.strong

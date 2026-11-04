@@ -186,8 +186,8 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
               {mode === 'open'
                 ? describePolicy(policy)
                 : tiered
-                  ? 'Leaving early still pays the booking; if play continues, the whole time is re-priced (the hourly rate from 1 hour).'
-                  : 'Leaving early still pays the booking; extra time is billed at the per-minute rate.'}
+                  ? 'Ending early charges only the time played (never more than this). If play continues, the whole time is re-priced (the hourly rate from 1 hour).'
+                  : 'Ending early charges only the time played (never more than this). Extra time is billed at the per-minute rate.'}
             </p>
           )}
         </div>

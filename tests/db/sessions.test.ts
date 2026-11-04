@@ -178,10 +178,10 @@ describe('billing rules', () => {
     })
     expect(s.booked_seconds).toBe(2700)
     expect(Number(s.booked_amount)).toBe(450)
-    // Leaving early still pays the booking.
+    // Ended early (1500): only the 20 minutes played are charged, never more than the booking.
     await db.ageSession(s.id, 20 * 60)
     const ended = await db.rpc<Session>(staff.id, 'end_session', { p_session_id: s.id })
-    expect(Number(ended.base_amount)).toBe(450)
+    expect(Number(ended.base_amount)).toBe(200)
   })
 
   it('charges overtime beyond the booking at the normal rate once staff continue it', async () => {
