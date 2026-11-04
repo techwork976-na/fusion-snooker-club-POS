@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArchiveRestore, Boxes, PackagePlus, Pencil, PackageMinus, Search, Trash2 } from 'lucide-react'
-import { formatMoney } from '@shared/format'
+import { formatDateTime, formatMoney } from '@shared/format'
 import { toPaisa } from '@shared/billing'
 import { cn } from '@/lib/cn'
 import { errorMessage } from '@/lib/errors'
 import type { Product, ProductSearchResult } from '@/lib/types'
-import { adjustStock, deleteProduct, listProducts, saveProduct, searchProducts, setProductActive, type ProductInput } from '@/data/api'
-import { keys, useAction, useDebounced } from '@/data/hooks'
+import { adjustStock, deleteProduct, getStockAdjustments, listProducts, saveProduct, searchProducts, setProductActive, type ProductInput } from '@/data/api'
+import { keys, useAction, useDebounced, useSettings } from '@/data/hooks'
 import { Button, IconButton } from '@/components/ui/Button'
 import { inputClass, parseAmount, parseIntStrict, Switch, TextField } from '@/components/ui/Field'
 import { ConfirmDialog, Modal } from '@/components/ui/Modal'
@@ -390,7 +390,44 @@ function RestockDialog({ product, onClose }: { product: ProductSearchResult | nu
         <TextField label="Quantity" inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} autoFocus hint={after !== null ? `Stock after: ${after}` : undefined} />
         <button type="submit" hidden />
       </form>
+      {product && <StockLog productId={product.id} />}
     </Modal>
+  )
+}
+
+/** Administrators: who changed this product's stock, by how much, and when (the database's stock log). */
+function StockLog({ productId }: { productId: string }) {
+  const { isAdmin } = useAuth()
+  const { data: settings } = useSettings()
+  const { data } = useQuery({ queryKey: keys.stockLog(productId), queryFn: () => getStockAdjustments(productId), enabled: isAdmin })
+  if (!isAdmin || !data) return null
+  return (
+    <section className="mt-5 border-t border-line pt-4" data-testid="stock-log">
+      <p className="label">Recent stock changes</p>
+      {data.length === 0 ? (
+        <p className="mt-2 text-xs text-fg-4">No manual changes yet. Sales and voids are recorded with each invoice.</p>
+      ) : (
+        <ul className="mt-2 divide-y divide-line text-[13px]">
+          {data.map((a) => (
+            <li key={a.id} className="flex items-center justify-between gap-3 py-2">
+              <span className="min-w-0">
+                <span className="block truncate font-semibold text-fg">
+                  {a.source === 'opening' ? 'Opening stock' : a.delta > 0 ? 'Received' : 'Corrected'} · {a.user_name ?? 'Former user'}
+                </span>
+                <span className="block text-xs text-fg-4 tabular">{formatDateTime(a.created_at, settings?.business_timezone)}</span>
+              </span>
+              <span className="shrink-0 text-right tabular">
+                <span className={cn('block font-bold', a.delta > 0 ? 'text-sage-700' : 'text-claret-700')}>
+                  {a.delta > 0 ? '+' : '−'}
+                  {Math.abs(a.delta)}
+                </span>
+                <span className="block text-xs text-fg-4">{a.stock_after} after</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 

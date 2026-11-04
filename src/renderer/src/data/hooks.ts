@@ -15,6 +15,7 @@ export const keys = {
   dashboard: ['dashboard'] as const,
   products: (inactive: boolean) => ['products', inactive] as const,
   productSearch: (q: string) => ['product-search', q] as const,
+  stockLog: (productId: string) => ['products', 'stock-log', productId] as const,
   customers: (q: string) => ['customers', q] as const,
   sales: (f: api.SalesFilter) => ['sales', f] as const,
   report: (from: string, to: string, cashier: string | null) => ['report', from, to, cashier] as const,

@@ -9,7 +9,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { validateServerConfig } from './src/shared/serverConfig'
@@ -34,6 +34,21 @@ function productionHeaders(supabaseUrl: string | undefined): Record<string, stri
     out[key] = v
   }
   return out
+}
+
+/**
+ * Production builds only: load public/runtime-guard.js before the app, so React
+ * DevTools cannot attach and the browser console stays silent.
+ */
+function productionHardening(): Plugin {
+  return {
+    name: 'fusion-production-hardening',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler: () => [{ tag: 'script', attrs: { src: '/runtime-guard.js' }, injectTo: 'head-prepend' }]
+    }
+  }
 }
 
 export default defineConfig(({ command, mode }) => {
@@ -61,14 +76,17 @@ export default defineConfig(({ command, mode }) => {
       }
     },
     define: { __APP_VERSION__: JSON.stringify(pkg.version) },
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), productionHardening()],
     build: {
       outDir: resolve(__dirname, mode === 'e2e' ? 'dist/e2e' : 'dist/web'),
       emptyOutDir: true,
+      // No source maps: the original source is never published.
       sourcemap: false,
       chunkSizeWarningLimit: 1500,
       rolldownOptions: {
         output: {
+          // Minified, without console output or debugger statements.
+          minify: { compress: { dropConsole: true, dropDebugger: true }, mangle: true },
           // Libraries change rarely: keep them in their own long-cached file so
           // an app update downloads only FUSION's own code. (The PDF libraries
           // stay separate and load only on export.)

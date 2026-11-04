@@ -639,6 +639,17 @@ export interface ProductSalesReport {
   cost_tracking_since: string | null
 }
 
+/** One entry of a product's stock log (migration 1400). */
+export interface StockAdjustment {
+  id: number
+  delta: number
+  stock_after: number
+  /** opening = a new product's first stock; adjust = restock or correction. */
+  source: 'opening' | 'adjust'
+  user_name: string | null
+  created_at: string
+}
+
 // --- Snack sales and table sales (migration 1000) ---------------------------
 export interface SnackSale {
   id: string

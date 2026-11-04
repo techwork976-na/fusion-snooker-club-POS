@@ -1288,3 +1288,67 @@ test('the app installs on a phone home screen as FUSION GAMES with the real logo
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.json')
   await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute('content', 'FUSION GAMES')
 })
+
+test('the production build: developer tools cannot attach, the console stays silent, stock changes are logged', async () => {
+  // A browser with the React DevTools extension: its hook exists before the page loads.
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })
+  await ctx.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown>
+    w.__devtoolsSaw = 0
+    w.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
+      isDisabled: false,
+      supportsFiber: true,
+      renderers: new Map(),
+      inject: () => {
+        ;(w.__devtoolsSaw as number)++
+        return 1
+      },
+      onCommitFiberRoot: () => {
+        ;(w.__devtoolsSaw as number)++
+      },
+      onCommitFiberUnmount: () => undefined,
+      onPostCommitFiberRoot: () => undefined,
+      checkDCE: () => undefined
+    }
+  })
+  const p = await ctx.newPage()
+  const messages: string[] = []
+  // Messages from the page's own scripts. The browser itself still reports failed network requests (a wrong
+  // password's 400; this test server has no realtime socket) — those are not written by the app.
+  p.on('console', (m) => {
+    if (!/^(Failed to load resource|WebSocket connection to)/.test(m.text())) messages.push(`${m.type()}: ${m.text()}`)
+  })
+  await p.goto(E2E.appUrl + '/')
+  // The guard is the first script, before the app's own code.
+  await expect(p.locator('head script').first()).toHaveAttribute('src', '/runtime-guard.js')
+  await p.getByTestId('login-username').fill('owner')
+  await p.getByTestId('login-password').fill('not-the-password') // a failed sign-in logs nothing either
+  await p.getByRole('button', { name: 'Sign in' }).click()
+  await expect(p.getByText('Incorrect username or password.')).toBeVisible()
+  await p.getByTestId('login-password').fill('owner-pass-123')
+  await p.getByRole('button', { name: 'Sign in' }).click()
+  await p.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Reports' }).click()
+  await expect(p.getByTestId('report-total')).toBeVisible()
+  expect(await p.evaluate(() => (window as unknown as { __devtoolsSaw: number }).__devtoolsSaw)).toBe(0)
+  expect(messages).toEqual([])
+
+  // Stock: a restock is logged with who made it; the log shows in the stock dialog.
+  await p.goto(E2E.appUrl + '/inventory')
+  const before = (await db<{ n: number }>(`select stock_quantity n from public.inventory_products where id = $1`, [club.cola]))[0]!.n
+  await p.getByRole('row', { name: /Cola 345ml/ }).getByRole('button', { name: 'Restock / correct stock' }).click()
+  const dialog = p.getByRole('dialog')
+  await dialog.getByLabel('Quantity').fill('6')
+  await dialog.getByRole('button', { name: 'Add stock' }).click()
+  await expect(dialog).toHaveCount(0)
+  await p.getByRole('row', { name: /Cola 345ml/ }).getByRole('button', { name: 'Restock / correct stock' }).click()
+  const log = p.getByTestId('stock-log')
+  await expect(log).toContainText('Received · admin owner')
+  await expect(log).toContainText(`${before + 6} after`)
+  const [entry] = await db<{ delta: number; stock_after: number; source: string }>(
+    `select delta, stock_after, source from public.stock_adjustments where product_id = $1 order by id desc limit 1`,
+    [club.cola]
+  )
+  expect(entry).toEqual({ delta: 6, stock_after: before + 6, source: 'adjust' })
+  expect(messages).toEqual([])
+  await ctx.close()
+})

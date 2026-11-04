@@ -32,10 +32,15 @@
 | Daily summaries, reports, lifetime totals | yes | no |
 | Settings, rates, staff | yes | no |
 | Reset business data, business-data backup export | yes — and only with the administrator's own password (checked by the database) | no |
+| Stock changes (restock / correction) | yes, and reads the stock log | with *Restock products*; every change is logged (who, how much, stock after) |
 
 Permissions: apply_discount (discounts and custom rates per minute at checkout), delete_sales (today, own floor), cancel_session, counter_sale, manage_customers, adjust_stock, view_own_sales.
 
-`tests/db/security.test.ts` verifies: anon can read nothing; staff cannot read cost prices, summaries or other users; floor isolation; no client can write any table directly; internal helper functions are not callable; every admin function refuses staff; staff cannot promote themselves; the last admin cannot be removed; deactivation is immediate.
+**Stock log.** Every manual stock change — Restock / Correct, and a new product's opening stock — is written to `stock_adjustments` by the database function that makes the change, in the same transaction. The API roles have no privileges on that table (it cannot be read or written directly); administrators read it through `get_stock_adjustments` (Inventory → stock dialog). Stock that moves with sales, voids and cancelled tabs is recorded on the invoices and sessions themselves.
+
+**Secure by default.** Supabase grants the API roles full access to any new table, sequence or function in `public`. Migration 1400 revokes those default privileges, so an object a future migration creates is closed until that migration grants exactly what it needs (as every FUSION migration does).
+
+`tests/db/security.test.ts` and `tests/db/security-hardening.test.ts` verify: anon can read nothing; staff cannot read cost prices, summaries or other users; floor isolation; no client can write any table directly; internal helper functions are not callable; every admin function refuses staff; staff cannot promote themselves; the last admin cannot be removed; deactivation is immediate.
 
 ## Web hardening (Vercel)
 
@@ -46,6 +51,7 @@ Set in `vercel.json` and tested end-to-end (`npm run preview` sends the same hea
 - Fonts are bundled with the app (no font CDN); the page is marked `noindex`.
 - Receipts print from a sandboxed frame without scripts; receipt HTML is escaped data.
 - The production build fails if the Supabase settings are missing or contain a secret key.
+- **No source, no debug output:** no source maps are built or published; the bundle is minified with every `console.*` call and `debugger` statement removed. `/runtime-guard.js` loads before the app in production builds: it silences the browser console (third-party libraries included) and disables the React DevTools hook, and the charts' Redux DevTools connection is turned off — so a browser extension cannot attach to the live app's components or state. (Code that runs in a browser can always be downloaded; the security boundary is the database.)
 
 ## Optional desktop build (Electron) hardening
 
@@ -63,12 +69,13 @@ Set in `vercel.json` and tested end-to-end (`npm run preview` sends the same hea
 - [ ] Settings → Data retention shows *Automatic cleanup runs every hour* (pg_cron).
 - [ ] First admin created; `.env.admin` deleted.
 - [ ] Vercel has only `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`; no secret in GitHub (see DEPLOYMENT.md §2).
-- [ ] The GitHub repository is private; your Supabase, Vercel and GitHub accounts use two-factor authentication.
+- [ ] The GitHub repository is private (it holds no secrets, but the whole source and database rules are readable while it is public); your Supabase, Vercel and GitHub accounts use two-factor authentication.
+- [ ] Supabase → Authentication → Policies: minimum password length 8 (FUSION requires 8–72 characters when an administrator creates or resets an account; the project setting also covers a user changing their own password).
 - [ ] Backups in place (DEPLOYMENT.md §14).
 
 ## Known limitations
 
 - Sale deletion and session cancellation are permission-gated. A void removes the invoice but is recorded on its counter shift (count and amount voided), and table sessions stay, marked *voided* / *cancelled*. A closed shift can never be changed. Grant these permissions only to trusted staff.
 - Detailed invoices older than the retention period are deleted by design; their totals, the shift summaries and customer statistics are permanent.
-- Staff names (not floors or permissions) are visible to any signed-in user, for the portal-switch list.
+- Staff see the names and usernames of the active administrator accounts (for *Switch to Admin portal*); administrators see everyone. Staff never receive other staff members' accounts.
 - The service-role key is necessarily present in Supabase's Edge Function environment; protect your Supabase dashboard account with 2FA.

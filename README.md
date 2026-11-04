@@ -95,6 +95,8 @@ The `…0700` migration attaches every existing sale to an *imported* closed shi
 
 The `…0800` migration switches every rate to **per minute**: stored hourly rates (categories, table overrides and the snapshots on past sessions and invoices) are divided by 60 and kept to four decimals, so prices bill exactly as before (PKR 600/hour → 10/min; 400/hour → 6.6667/min — set a round figure in Settings if you prefer). No stored amount is recalculated and nothing is deleted.
 
+The `…1400` migration is the security hardening from the audit (docs/SECURITY.md): a stock log for every manual stock change, staff no longer receive other staff accounts in the switch list, internal helpers are no longer callable from the API, and new database objects start closed. One small table is added; nothing is deleted.
+
 The `…1300` migration adds split payments (`sales.split_cash_amount`), the "hourly + under-1-hour rate" pricing mode (`under_hour_rate` on `table_categories` and `sessions`) and fixes Reset business data, which the live API's *safeupdate* guard refused (an update without a WHERE clause). Three nullable columns, no new tables; nothing is deleted or rewritten.
 
 The `…1200` migration adds Reset business data (two columns on `settings` recording the last reset, and admin-only functions). Nothing runs automatically; nothing is deleted by the migration.

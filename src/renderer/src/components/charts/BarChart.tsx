@@ -3,6 +3,7 @@ import {
   Bar,
   BarChart as RBarChart,
   CartesianGrid,
+  Global,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -11,6 +12,10 @@ import {
   type TooltipContentProps
 } from 'recharts'
 import { cn } from '@/lib/cn'
+
+// Recharts connects each chart to the Redux DevTools extension by default; the
+// live app never exposes its state to developer tools.
+Global.devToolsEnabled = import.meta.env.DEV
 
 /**
  * Chart series colours from the house palette — forest for cash, brass for

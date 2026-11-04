@@ -42,6 +42,7 @@ import type {
   Settings,
   Shift,
   ShiftDetail,
+  StockAdjustment,
   SwitchTarget,
   TableSalesReport,
   TablesOverview
@@ -150,6 +151,9 @@ export const setProductActive = (id: string, active: boolean) =>
   rpc<Product>('admin_set_product_active', { p_id: id, p_active: active })
 /** Permanent delete; the database refuses (hint in_use) once a product has history. */
 export const deleteProduct = (id: string) => rpc('admin_delete_product', { p_id: id })
+/** Administrators: a product's recent stock changes, newest first. */
+export const getStockAdjustments = (productId: string, limit = 5) =>
+  rpc<StockAdjustment[]>('get_stock_adjustments', { p_product_id: productId, p_limit: limit })
 export const adjustStock = (productId: string, delta: number) =>
   rpc<{ id: string; name: string; stock_quantity: number }[]>('adjust_stock', { p_product_id: productId, p_delta: delta })
 
