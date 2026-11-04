@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Banknote, Landmark, Minus, Plus, ShieldAlert, ShoppingBag, Trash2, Wallet } from 'lucide-react'
+import { Banknote, Landmark, Minus, Plus, ShieldAlert, ShoppingBag, Split, Trash2, Wallet } from 'lucide-react'
 import { chargeAtRate, sameRate, toPaisa } from '@shared/billing'
 import type { PaymentMethod } from '@shared/constants'
 import type { Receipt } from '@shared/receipt'
@@ -35,6 +35,15 @@ export interface CartLine {
 }
 
 type DiscountMode = 'flat' | 'percent'
+
+/** A split payment: the field the cashier typed in; the other part is the rest of the total. */
+interface SplitEntry {
+  field: 'cash' | 'bank'
+  text: string
+}
+const NO_SPLIT: SplitEntry = { field: 'cash', text: '' }
+/** 30000 paisa → "300", 30050 → "300.50" (an amount as typed into a field). */
+const paisaText = (paisa: number) => (paisa % 100 === 0 ? String(paisa / 100) : (paisa / 100).toFixed(2))
 
 /** "12.5" → 12.5 for a percentage discount (0–100, up to two decimals). */
 function parsePercent(text: string): number | null {
@@ -85,6 +94,7 @@ export function CheckoutDialog({
   const [discountMode, setDiscountMode] = useState<DiscountMode>('flat')
   const [rateText, setRateText] = useState('')
   const [payment, setPayment] = useState<PaymentMethod>('cash')
+  const [split, setSplit] = useState<SplitEntry>(NO_SPLIT)
   const [counterCart, setCounterCart] = useState<CartLine[]>([])
   const [receipt, setReceipt] = useState<Receipt | null>(null)
   const [autoPrinted, setAutoPrinted] = useState(false)
@@ -107,6 +117,7 @@ export function CheckoutDialog({
       setDiscountMode('flat')
       setRateText('')
       setPayment('cash')
+      setSplit(NO_SPLIT)
       setCounterCart([])
       setReceipt(null)
       setAutoPrinted(false)
@@ -142,8 +153,8 @@ export function CheckoutDialog({
   )
 
   const canDiscount = can('apply_discount')
-  // Tables priced by the hour are not re-priced per minute (a discount still applies).
-  const perMinuteTable = session?.pricing_mode !== 'hourly_special30'
+  // Tables priced by the hour (either hourly mode) are not re-priced per minute (a discount still applies).
+  const perMinuteTable = (session?.pricing_mode ?? 'per_minute') === 'per_minute'
   const billing = session?.status === 'billing'
   const standardBasePaisa = billing ? toPaisa(session.base_amount ?? 0) : 0
 
@@ -172,6 +183,24 @@ export function CheckoutDialog({
         ? 'Discount cannot be more than the bill.'
         : null
   const totalPaisa = Math.max(0, subtotalPaisa - discountPaisa)
+
+  // Split payment: the cashier types either part; the other is the rest of the total.
+  const splitEntered = split.text.trim() === '' ? null : parseAmount(split.text)
+  const splitCashPaisa =
+    splitEntered === null ? null : split.field === 'cash' ? toPaisa(splitEntered) : totalPaisa - toPaisa(splitEntered)
+  const splitBankPaisa = splitCashPaisa === null ? null : totalPaisa - splitCashPaisa
+  const splitError =
+    payment !== 'split'
+      ? null
+      : split.text.trim() === ''
+        ? 'Enter the cash or the bank part.'
+        : splitEntered === null
+          ? 'Enter a valid amount.'
+          : splitCashPaisa! <= 0 || splitBankPaisa! <= 0
+            ? `Both parts must be above zero and add up to ${formatMoney(totalPaisa / 100)}.`
+            : null
+  const splitText = (field: 'cash' | 'bank') =>
+    split.field === field ? split.text : splitEntered === null ? '' : paisaText(field === 'cash' ? splitCashPaisa! : splitBankPaisa!)
 
   const notReady = !isCounter && (!session || session.status !== 'billing')
   const emptyCounter = isCounter && lines.length === 0
@@ -212,7 +241,7 @@ export function CheckoutDialog({
   }
 
   const submit = async () => {
-    if (notReady || emptyCounter || discountError || rateError || submitting || counterBlock) return
+    if (notReady || emptyCounter || discountError || rateError || splitError || submitting || counterBlock) return
     if (discountPaisa > 0 && !canDiscount) return
     setSubmitting(true)
     setError(null)
@@ -226,7 +255,8 @@ export function CheckoutDialog({
         customerId: customer.id,
         customerName: customer.id ? null : customer.name.trim() || null,
         customerPhone: customer.id ? null : customer.phone.trim() || null,
-        customRatePerMinute: rateApplied ? customRate : null
+        customRatePerMinute: rateApplied ? customRate : null,
+        splitCash: payment === 'split' ? splitCashPaisa! / 100 : null
       })
       setReceipt(result)
       onCompleted?.()
@@ -415,11 +445,12 @@ export function CheckoutDialog({
             )}
             <div>
               <p className="mb-1.5 text-[13px] font-semibold text-fg-2">Payment</p>
-              <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="Payment method">
+              <div className="grid grid-cols-3 gap-2.5" role="radiogroup" aria-label="Payment method">
                 {(
                   [
                     ['cash', 'Cash', Banknote],
-                    ['bank_transfer', 'Bank Transfer', Landmark]
+                    ['bank_transfer', 'Bank Transfer', Landmark],
+                    ['split', 'Split', Split]
                   ] as const
                 ).map(([value, label, Icon]) => (
                   <button
@@ -428,17 +459,45 @@ export function CheckoutDialog({
                     role="radio"
                     aria-checked={payment === value}
                     onClick={() => setPayment(value)}
+                    data-testid={`payment-${value}`}
                     className={cn(
-                      'flex h-14 items-center justify-center gap-2.5 rounded-xl text-sm font-bold transition-[background-color,color,box-shadow]',
+                      'flex h-14 items-center justify-center gap-2 rounded-xl px-2 text-center text-sm leading-tight font-bold transition-[background-color,color,box-shadow] max-sm:flex-col max-sm:gap-1 max-sm:text-[13px]',
                       payment === value
                         ? 'bg-forest-950 text-cream shadow-[var(--shadow-control)]'
                         : 'bg-surface text-fg-2 shadow-[var(--shadow-control)] hover:text-fg'
                     )}
                   >
-                    <Icon className="size-[18px]" /> {label}
+                    <Icon className="size-[18px] shrink-0" /> {label}
                   </button>
                 ))}
               </div>
+              {payment === 'split' && (
+                <div className="mt-3 rounded-xl bg-sunken/70 p-3.5" data-testid="split-payment">
+                  <div className="grid grid-cols-2 gap-3">
+                    <TextField
+                      label="Cash"
+                      prefix="PKR"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={splitText('cash')}
+                      onChange={(e) => setSplit({ field: 'cash', text: e.target.value })}
+                      data-testid="split-cash"
+                    />
+                    <TextField
+                      label="Bank Transfer"
+                      prefix="PKR"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={splitText('bank')}
+                      onChange={(e) => setSplit({ field: 'bank', text: e.target.value })}
+                      data-testid="split-bank"
+                    />
+                  </div>
+                  <p className={cn('mt-2 text-xs', splitError && split.text.trim() ? 'font-medium text-claret-700' : 'text-fg-4')}>
+                    {splitError && split.text.trim() ? splitError : `Type either part; the other is the rest of ${formatMoney(totalPaisa / 100)}.`}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="mt-auto rounded-2xl bg-sunken/70 p-4 sm:p-5">
@@ -460,6 +519,14 @@ export function CheckoutDialog({
                   <div className="flex justify-between text-fg-3">
                     <span>Discount</span>
                     <span className="tabular text-brass-700">−{formatMoney(discountPaisa / 100)}</span>
+                  </div>
+                )}
+                {payment === 'split' && !splitError && (
+                  <div className="flex justify-between text-fg-3" data-testid="split-summary">
+                    <span>Paid</span>
+                    <span className="tabular text-fg">
+                      Cash {formatMoney(splitCashPaisa! / 100)} + Bank {formatMoney(splitBankPaisa! / 100)}
+                    </span>
                   </div>
                 )}
               </div>
@@ -490,7 +557,7 @@ export function CheckoutDialog({
                 size="lg"
                 className="mt-5 w-full"
                 loading={submitting}
-                disabled={notReady || emptyCounter || Boolean(discountError) || Boolean(rateError) || tabBusy || Boolean(counterBlock)}
+                disabled={notReady || emptyCounter || Boolean(discountError) || Boolean(rateError) || Boolean(splitError) || tabBusy || Boolean(counterBlock)}
                 data-testid="complete-checkout"
               >
                 Complete · {formatMoney(totalPaisa / 100)}

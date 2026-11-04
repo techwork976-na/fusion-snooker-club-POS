@@ -1170,3 +1170,121 @@ test('Every page fits a 320 px phone and both tablet orientations; the desktop k
   await expect(page.getByTestId('mobile-nav')).toBeHidden()
   await expect(page.getByTestId('mobile-topbar')).toBeHidden()
 })
+
+test('an under-1-hour rate prices short play higher; a split payment records cash and bank', async () => {
+  // The owner prices a category: PKR 600/hour from 1 hour, PKR 800/hour under 1 hour.
+  await page.goto(E2E.appUrl + '/settings')
+  await page.getByRole('button', { name: 'Categories & rates' }).click()
+  await page.getByRole('button', { name: 'Add category' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByLabel('Name').fill('PS5 Pro')
+  await dialog.getByRole('tab', { name: 'Hourly + under-1-hour rate' }).click()
+  await dialog.getByTestId('category-hourly').fill('600')
+  await dialog.getByTestId('category-under-hour').fill('500')
+  await expect(dialog.getByText('Must be higher than the hourly rate.')).toBeVisible()
+  await expect(dialog.getByTestId('save-category')).toBeDisabled()
+  await dialog.getByTestId('category-under-hour').fill('800')
+  const prices = dialog.getByTestId('category-price-table')
+  for (const [length, price] of [['15 min', 'PKR 200'], ['45 min', 'PKR 600'], ['1 h', 'PKR 600'], ['1.5 h', 'PKR 900']]) {
+    await expect(prices.locator('div').filter({ hasText: length! }).first()).toContainText(price!)
+  }
+  await shot('39-under-hour-category')
+  await dialog.getByTestId('save-category').click()
+  await expect(page.getByTestId('category-price-PS5 Pro')).toHaveText('PKR 600/hour · under 1 h PKR 800/hour')
+  await db(
+    `insert into public.club_tables (name, category_id, floor_id, sort_order)
+     values ('PS5 Pro 1', (select id from public.table_categories where name = 'PS5 Pro'), $1, 10)`,
+    [club.ground]
+  )
+
+  // Staff (their counter is still open): the start dialog prices by the new rule.
+  const p = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })).newPage()
+  await p.goto(E2E.appUrl + '/')
+  await p.getByTestId('login-username').fill('ali')
+  await p.getByTestId('login-password').fill('ali-pass-123')
+  await p.getByRole('button', { name: 'Sign in' }).click()
+  await p.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Tables' }).click()
+  const card = p.getByTestId('table-card-PS5 Pro 1')
+  await expect(card).toContainText('PKR 600/hour · under 1 h PKR 800/hour')
+  await card.getByRole('button', { name: 'Start' }).click()
+  const start = p.getByRole('dialog', { name: 'Start PS5 Pro 1' })
+  await start.getByRole('button', { name: /Fixed time/ }).click()
+  await start.getByLabel('Minutes').fill('30')
+  await expect(start).toContainText('30 min for PKR 400')
+  await start.getByLabel('Minutes').fill('90')
+  await expect(start).toContainText('1 h 30 min for PKR 900')
+  await start.getByRole('button', { name: /Fixed amount/ }).click()
+  await start.getByLabel('Amount received').fill('400')
+  await expect(start).toContainText('PKR 400 buys 30 min of play')
+  await start.getByRole('button', { name: /Open play/ }).click()
+  await p.getByTestId('confirm-start').click()
+  await expect(card).toContainText('Running')
+
+  // 15 minutes of play: billed at PKR 800/hour.
+  await db(`update public.sessions set started_at = started_at - interval '15 minutes' where table_id = (select id from public.club_tables where name = 'PS5 Pro 1') and status = 'running'`)
+  await card.getByRole('button', { name: 'End' }).click()
+  const [ended] = await db<{ seconds: number; base: string }>(
+    `select billable_seconds seconds, base_amount::text base from public.sessions where table_id = (select id from public.club_tables where name = 'PS5 Pro 1') and status = 'billing'`
+  )
+  const base = Number(ended!.base)
+  expect(base).toBe(Math.round((Math.ceil(ended!.seconds / 60) * 800) / 60)) // under an hour: 800/hour
+  await expect(p.getByTestId('checkout-total')).toHaveText(`PKR ${base}`)
+  await expect(p.getByTestId('custom-rate')).toHaveCount(0) // no per-minute custom rate for this pricing
+
+  // Split: PKR 50 in cash, the rest by bank transfer.
+  await p.getByTestId('payment-split').click()
+  await expect(p.getByTestId('complete-checkout')).toBeDisabled()
+  await p.getByTestId('split-bank').fill(String(base - 50))
+  await expect(p.getByTestId('split-cash')).toHaveValue('50')
+  await p.getByTestId('split-cash').fill(String(base))
+  await expect(p.getByTestId('split-payment')).toContainText('Both parts must be above zero')
+  await expect(p.getByTestId('complete-checkout')).toBeDisabled()
+  await p.getByTestId('split-cash').fill('50')
+  await expect(p.getByTestId('split-bank')).toHaveValue(String(base - 50))
+  await expect(p.getByTestId('split-summary')).toContainText(`Cash PKR 50 + Bank PKR ${base - 50}`)
+  await shotOf(p, '40-split-payment')
+  await p.getByTestId('complete-checkout').click()
+  const receipt = p.getByTestId('receipt')
+  await expect(receipt).toContainText('Cash + Bank')
+  await expect(receipt).toContainText('PKR 600/hour · under 1 h PKR 800/hour')
+  await expect(p.getByText(`Cash PKR 50 + Bank PKR ${base - 50}`)).toBeVisible()
+  await shotOf(p, '41-split-receipt')
+  await p.getByRole('button', { name: 'Done' }).click()
+
+  const [sale] = await db<{ method: string; cash: string; final: string }>(
+    `select payment_method method, split_cash_amount::text cash, final_amount::text final from public.sales where table_name = 'PS5 Pro 1'`
+  )
+  expect(sale).toEqual({ method: 'split', cash: '50.00', final: base.toFixed(2) })
+  // The counter's cash and bank include each part.
+  const [shift] = await db<{ cash: string; bank: string }>(
+    `select cash_sales::text cash, bank_sales::text bank from public.counter_shifts where user_id = $1 and status = 'open'`,
+    [ali.id]
+  )
+  const [parts] = await db<{ cash: string; bank: string }>(
+    `select sum(public.fusion_cash_part(s))::text cash, sum(public.fusion_bank_part(s))::text bank from public.sales s
+     where s.shift_id = (select id from public.counter_shifts where user_id = $1 and status = 'open')`,
+    [ali.id]
+  )
+  expect(shift).toEqual(parts)
+
+  // The admin's invoice list shows both parts.
+  await page.goto(E2E.appUrl + '/history?tab=invoices')
+  await expect(page.getByText(`Cash PKR 50 + Bank PKR ${base - 50}`)).toBeVisible()
+  await p.context().close()
+})
+
+test('the app installs on a phone home screen as FUSION GAMES with the real logo', async () => {
+  const res = await page.request.get(E2E.appUrl + '/manifest.json')
+  expect(res.ok()).toBe(true)
+  const manifest = (await res.json()) as { short_name: string; name: string; display: string; icons: { src: string; sizes: string; purpose: string }[] }
+  expect(manifest).toMatchObject({ short_name: 'FUSION GAMES', name: 'FUSION Gaming Lounge', display: 'standalone' })
+  expect(manifest.icons.map((i) => `${i.sizes} ${i.purpose}`)).toEqual(['192x192 any', '512x512 any', '512x512 maskable'])
+  for (const icon of [...manifest.icons.map((i) => i.src), '/apple-touch-icon.png']) {
+    const r = await page.request.get(E2E.appUrl + icon)
+    expect(r.headers()['content-type'], icon).toContain('image/png')
+    expect((await r.body()).length, icon).toBeGreaterThan(20_000) // the logo, not a placeholder
+  }
+  await page.goto(E2E.appUrl + '/')
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.json')
+  await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute('content', 'FUSION GAMES')
+})

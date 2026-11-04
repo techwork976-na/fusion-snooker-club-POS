@@ -24,16 +24,26 @@ export function formatHourlyPricing(hourlyRate: number | string, special30: numb
   return `${formatMoney(hourlyRate)}/hour · 30 min ${formatMoney(special30)}`
 }
 
-/** How a category, table or session is priced: "PKR 10/min", or "PKR 600/hour · 30 min PKR 400". */
+/** Hourly pricing with a higher rate for play under 1 hour: "PKR 600/hour · under 1 h PKR 800/hour". */
+export function formatTieredPricing(hourlyRate: number | string, underHourRate: number | string): string {
+  return `${formatMoney(hourlyRate)}/hour · under 1 h ${formatMoney(underHourRate)}/hour`
+}
+
+/** How a category, table or session is priced: "PKR 10/min", "PKR 600/hour · 30 min PKR 400" or "PKR 600/hour · under 1 h PKR 800/hour". */
 export function formatPricing(p: {
   pricing_mode?: string | null
   rate_per_minute: number | string
   hourly_rate?: number | string | null
   special_30_rate?: number | string | null
+  under_hour_rate?: number | string | null
 }): string {
-  return p.pricing_mode === 'hourly_special30' && p.hourly_rate != null && p.special_30_rate != null
-    ? formatHourlyPricing(p.hourly_rate, p.special_30_rate)
-    : formatRate(p.rate_per_minute)
+  if (p.pricing_mode === 'hourly_special30' && p.hourly_rate != null && p.special_30_rate != null) {
+    return formatHourlyPricing(p.hourly_rate, p.special_30_rate)
+  }
+  if (p.pricing_mode === 'tiered_hourly' && p.hourly_rate != null && p.under_hour_rate != null) {
+    return formatTieredPricing(p.hourly_rate, p.under_hour_rate)
+  }
+  return formatRate(p.rate_per_minute)
 }
 
 /** 3725 → "1:02:05", 125 → "2:05". */
@@ -57,7 +67,13 @@ export function formatDuration(totalSeconds: number): string {
 }
 
 export function paymentLabel(method: string): string {
-  return method === 'bank_transfer' ? 'Bank Transfer' : method === 'cash' ? 'Cash' : method
+  return method === 'bank_transfer' ? 'Bank Transfer' : method === 'cash' ? 'Cash' : method === 'split' ? 'Cash + Bank' : method
+}
+
+/** "Cash PKR 300 + Bank PKR 700" for a split payment (the bank part is the rest of the total). */
+export function splitLabel(finalAmount: number | string, splitCash: number | string): string {
+  const bank = (Math.round(Number(finalAmount) * 100) - Math.round(Number(splitCash) * 100)) / 100
+  return `Cash ${formatMoney(splitCash)} + Bank ${formatMoney(bank)}`
 }
 
 /**

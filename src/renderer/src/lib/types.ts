@@ -35,16 +35,21 @@ export interface Floor {
   sort_order: number
 }
 
-/** Per minute, or hourly with a special 30-minute price (sold in 30-minute steps). */
-export type PricingMode = 'per_minute' | 'hourly_special30'
+/**
+ * Per minute; hourly with a special 30-minute price (sold in 30-minute
+ * steps); or hourly with a higher rate for play under 1 hour.
+ */
+export type PricingMode = 'per_minute' | 'hourly_special30' | 'tiered_hourly'
 
 /** The prices of an hourly-priced category or session. */
 export interface HourlyPricing {
   pricing_mode: PricingMode
-  /** Rupees per hour (hourly_special30 only). */
+  /** Rupees per hour (hourly_special30 and tiered_hourly). */
   hourly_rate: number | null
   /** Price of exactly 30 minutes (hourly_special30 only). */
   special_30_rate: number | null
+  /** Rupees per hour for play under 1 hour (tiered_hourly only). */
+  under_hour_rate?: number | null
 }
 
 export interface Category extends HourlyPricing {
@@ -153,6 +158,8 @@ export interface Sale {
   cashier_id: string
   cashier_name: string
   payment_method: PaymentMethod
+  /** Split payments: the cash part; the rest was paid by bank transfer. */
+  split_cash_amount: number | null
   session_seconds: number | null
   rate_per_minute: number | null
   /** Set when a custom rate replaced the table's standard rate. */
@@ -322,6 +329,7 @@ export interface ShiftInvoice {
   customer_name: string | null
   customer_phone: string | null
   payment_method: PaymentMethod
+  split_cash_amount?: number | null
   session_seconds: number | null
   rate_per_minute: number | null
   standard_rate_per_minute: number | null
@@ -638,7 +646,8 @@ export interface SnackSale {
   created_at: string
   business_date: string
   cashier_name: string
-  payment_method: 'cash' | 'bank_transfer'
+  payment_method: PaymentMethod
+  split_cash_amount?: number | null
   discount: number
   final_amount: number
   items: { name: string; quantity: number }[]

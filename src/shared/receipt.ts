@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { formatDateTime, formatDuration, formatMoney, formatRate, paymentLabel } from './format'
+import { formatDateTime, formatDuration, formatMoney, formatRate, formatTieredPricing, paymentLabel } from './format'
 
 /** Receipt as returned by complete_checkout / get_receipt. */
 export const receiptSchema = z.object({
@@ -18,7 +18,9 @@ export const receiptSchema = z.object({
   customer_name: z.string().max(120).nullable(),
   customer_phone: z.string().max(40).nullable(),
   cashier_name: z.string().max(120),
-  payment_method: z.enum(['cash', 'bank_transfer']),
+  payment_method: z.enum(['cash', 'bank_transfer', 'split']),
+  /** Split payments: the cash part (the rest was paid by bank transfer). */
+  split_cash_amount: z.number().positive().nullable().optional(),
   session: z
     .object({
       started_at: z.string().max(64).nullable(),
@@ -31,9 +33,11 @@ export const receiptSchema = z.object({
       booked_seconds: z.number().int().nullable(),
       booked_amount: z.number().nullable(),
       /** Hourly pricing with a special 30-minute price (absent on older receipts = per minute). */
-      pricing_mode: z.enum(['per_minute', 'hourly_special30']).optional(),
+      pricing_mode: z.enum(['per_minute', 'hourly_special30', 'tiered_hourly']).optional(),
       hourly_rate: z.number().positive().nullable().optional(),
-      special_30_rate: z.number().positive().nullable().optional()
+      special_30_rate: z.number().positive().nullable().optional(),
+      /** Under-1-hour pricing: the rate per hour for play under 1 hour. */
+      under_hour_rate: z.number().positive().nullable().optional()
     })
     .nullable(),
   base_amount: z.number().nonnegative(),
@@ -62,10 +66,23 @@ export function rateRows(session: NonNullable<Receipt['session']>): [string, str
       ? [['Rate', `30-minute price ${formatMoney(session.special_30_rate)}`]]
       : [['Rate', `${formatMoney(session.hourly_rate)}/hour`]]
   }
+  if (session.pricing_mode === 'tiered_hourly' && session.hourly_rate != null && session.under_hour_rate != null) {
+    return [['Rate', formatTieredPricing(session.hourly_rate, session.under_hour_rate)]]
+  }
   if (session.standard_rate_per_minute == null) return [['Rate', formatRate(session.rate_per_minute)]]
   return [
     ['Rate', `${formatRate(session.rate_per_minute)} (custom)`],
     ['Standard rate', formatRate(session.standard_rate_per_minute)]
+  ]
+}
+
+/** A split payment's two parts, shown under "Paid by". */
+export function paymentRows(r: Pick<Receipt, 'payment_method' | 'split_cash_amount' | 'final_amount'>): [string, string][] {
+  if (r.payment_method !== 'split' || r.split_cash_amount == null) return []
+  const bank = (Math.round(r.final_amount * 100) - Math.round(r.split_cash_amount * 100)) / 100
+  return [
+    ['Cash', formatMoney(r.split_cash_amount, false)],
+    ['Bank Transfer', formatMoney(bank, false)]
   ]
 }
 
@@ -165,6 +182,7 @@ export function renderReceiptHtml(r: Receipt, opts: { paper: PrintOptions['paper
   <table>
     ${row('TOTAL (PKR)', formatMoney(r.final_amount, false), true)}
     ${row('Paid by', paymentLabel(r.payment_method))}
+    ${paymentRows(r).map(([label, value]) => row(label, value)).join('')}
   </table>
   <hr>
   ${r.club.footer ? `<div class="center">${esc(r.club.footer)}</div>` : ''}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Clock3, Coins, Infinity as InfinityIcon } from 'lucide-react'
-import { amountForBookedMinutes, describePolicy, secondsForAmount } from '@shared/billing'
-import { formatDuration, formatHourlyPricing, formatMoney, formatRate } from '@shared/format'
+import { amountForBookedMinutes, describePolicy, secondsForAmount, tierPrice, tierSecondsForAmount } from '@shared/billing'
+import { formatDuration, formatHourlyPricing, formatMoney, formatRate, formatTieredPricing } from '@shared/format'
 import { cn } from '@/lib/cn'
 import type { TableOverview } from '@/lib/types'
 import { useBillingPolicy } from '@/data/hooks'
@@ -27,6 +27,10 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
   // Tables priced by the hour sell time in 30-minute steps (no open play).
   const hourly = table?.pricing_mode === 'hourly_special30' && table.hourly_rate != null && table.special_30_rate != null
   const [slotMinutes, setSlotMinutes] = useState(60)
+  // Hourly with a higher rate under 1 hour: every booking type, priced by the time played.
+  const tiered = table?.pricing_mode === 'tiered_hourly' && table.hourly_rate != null && table.under_hour_rate != null
+    ? { hourly: Number(table.hourly_rate), underHour: Number(table.under_hour_rate) }
+    : null
 
   useEffect(() => {
     if (table) {
@@ -42,13 +46,13 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
   const minutes = parseIntStrict(minutesText)
   const amount = parseAmount(amountText)
   const minutesValid = minutes !== null && minutes >= 1 && minutes <= 1440
-  const amountSeconds = amount ? secondsForAmount(amount, rate) : 0
+  const amountSeconds = amount ? (tiered ? tierSecondsForAmount(amount, tiered.hourly, tiered.underHour) : secondsForAmount(amount, rate)) : 0
   const amountValid = amount !== null && amount > 0 && amountSeconds >= 60
 
   const preview =
     mode === 'minutes'
       ? minutesValid
-        ? `${formatDuration(minutes! * 60)} for ${formatMoney(amountForBookedMinutes(minutes!, rate))}`
+        ? `${formatDuration(minutes! * 60)} for ${formatMoney(tiered ? tierPrice(minutes!, tiered.hourly, tiered.underHour) : amountForBookedMinutes(minutes!, rate))}`
         : 'Enter 1–1440 minutes'
       : mode === 'amount'
         ? amountValid
@@ -56,7 +60,9 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
           : amount
             ? 'Amount is less than one minute of play'
             : 'Enter the amount received'
-        : `Billed as played at ${formatRate(rate)}`
+        : tiered
+          ? `Billed as played: under 1 hour at ${formatMoney(tiered.underHour)}/hour, from 1 hour at ${formatMoney(tiered.hourly)}/hour`
+          : `Billed as played at ${formatRate(rate)}`
 
   const canSubmit = hourly || mode === 'open' || (mode === 'minutes' ? minutesValid : amountValid)
 
@@ -89,7 +95,9 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
       open={table !== null}
       onOpenChange={(o) => !o && !start.isPending && onClose()}
       title={`Start ${table?.name ?? ''}`}
-      description={`${table?.category_name} · ${table?.floor_name} · ${hourly ? formatHourlyPricing(table!.hourly_rate!, table!.special_30_rate!) : formatRate(rate)}`}
+      description={`${table?.category_name} · ${table?.floor_name} · ${
+        hourly ? formatHourlyPricing(table!.hourly_rate!, table!.special_30_rate!) : tiered ? formatTieredPricing(tiered.hourly, tiered.underHour) : formatRate(rate)
+      }`}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={start.isPending}>
@@ -175,7 +183,11 @@ export function StartSessionDialog({ table, onClose }: { table: TableOverview | 
           <p className="text-sm font-bold text-fg">{preview}</p>
           {policy && (
             <p className="mt-1 text-xs text-fg-4">
-              {mode === 'open' ? describePolicy(policy) : 'Leaving early still pays the booking; extra time is billed at the per-minute rate.'}
+              {mode === 'open'
+                ? describePolicy(policy)
+                : tiered
+                  ? 'Leaving early still pays the booking; if play continues, the whole time is re-priced (the hourly rate from 1 hour).'
+                  : 'Leaving early still pays the booking; extra time is billed at the per-minute rate.'}
             </p>
           )}
         </div>

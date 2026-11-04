@@ -13,8 +13,12 @@ import {
   sameRate,
   secondsForAmount,
   sessionCharge,
+  tierPrice,
+  tierSecondsForAmount,
   type BillingPolicy
 } from '@shared/billing'
+import { paymentLabel, splitLabel } from '@shared/format'
+import { paymentRows } from '@shared/receipt'
 
 const perMinuteUp: BillingPolicy = { incrementMinutes: 1, rounding: 'up', minimumMinutes: 0 }
 
@@ -182,5 +186,38 @@ describe('hourly + special 30-minute pricing', () => {
     expect(slotPrice(30, 600, 399.5)).toBe(399.5)
     expect([30, 60, 1440].every(isValidSlotMinutes)).toBe(true)
     expect([0, 15, 45, 61, 1470, 30.5].some(isValidSlotMinutes)).toBe(false)
+  })
+})
+
+describe('under-1-hour rate (PS5: PKR 800/hour under 1 hour, PKR 600/hour from 1 hour)', () => {
+  const policy = { incrementMinutes: 1, rounding: 'up' as const, minimumMinutes: 0 }
+  const tiered = { hourlyRate: 600, underHourRate: 800 }
+  it('prices the whole time by tier', () => {
+    expect([15, 30, 45, 59, 60, 90, 120].map((m) => tierPrice(m, 600, 800))).toEqual([200, 400, 600, 787, 600, 900, 1200])
+  })
+  it('switches to the hourly rate as the 60th minute is billed', () => {
+    const charge = (seconds: number) => sessionCharge({ billableSeconds: seconds, ratePerMinute: 10, tiered }, policy)
+    expect([charge(15 * 60), charge(59 * 60), charge(59 * 60 + 1), charge(3600), charge(90 * 60)]).toEqual([200, 787, 600, 600, 900])
+  })
+  it('a booking is never billed below its price', () => {
+    const booked = (seconds: number) =>
+      sessionCharge({ billableSeconds: seconds, ratePerMinute: 10, bookedSeconds: 55 * 60, bookedAmount: tierPrice(55, 600, 800), tiered }, policy)
+    expect([booked(10 * 60), booked(55 * 60), booked(60 * 60), booked(80 * 60)]).toEqual([733, 733, 733, 800])
+  })
+  it('a prepaid amount buys time at the hourly rate once it covers an hour', () => {
+    expect([tierSecondsForAmount(400, 600, 800), tierSecondsForAmount(600, 600, 800), tierSecondsForAmount(700, 600, 800)]).toEqual([1800, 3600, 4200])
+  })
+})
+
+describe('split payment labels', () => {
+  it('names both parts; the bank part is the rest of the total', () => {
+    expect(paymentLabel('split')).toBe('Cash + Bank')
+    expect(splitLabel(1000, 300)).toBe('Cash PKR 300 + Bank PKR 700')
+    expect(splitLabel(250.5, 100.25)).toBe('Cash PKR 100.25 + Bank PKR 150.25')
+    expect(paymentRows({ payment_method: 'split', split_cash_amount: 300, final_amount: 1000 })).toEqual([
+      ['Cash', '300'],
+      ['Bank Transfer', '700']
+    ])
+    expect(paymentRows({ payment_method: 'cash', split_cash_amount: null, final_amount: 1000 })).toEqual([])
   })
 })

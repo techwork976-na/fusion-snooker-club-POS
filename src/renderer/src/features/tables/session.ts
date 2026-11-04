@@ -27,7 +27,11 @@ export function computeLive(session: ActiveSession, policy: BillingPolicy, nowMs
             billableSeconds: seconds,
             ratePerMinute: session.rate_per_minute,
             bookedSeconds: session.booked_seconds,
-            bookedAmount: session.booked_amount
+            bookedAmount: session.booked_amount,
+            tiered:
+              session.pricing_mode === 'tiered_hourly' && session.hourly_rate != null && session.under_hour_rate != null
+                ? { hourlyRate: session.hourly_rate, underHourRate: session.under_hour_rate }
+                : null
           },
           policy
         )

@@ -170,6 +170,8 @@ export interface CheckoutInput {
   customerPhone: string | null
   /** Table checkouts only: re-price the time at this rate (null = the table's rate). */
   customRatePerMinute?: number | null
+  /** Split payments: the part paid in cash (the rest is paid by bank transfer). */
+  splitCash?: number | null
 }
 export const completeCheckout = (c: CheckoutInput) =>
   rpc<Receipt>('complete_checkout', {
@@ -181,7 +183,8 @@ export const completeCheckout = (c: CheckoutInput) =>
     p_customer_id: c.customerId,
     p_customer_name: c.customerName,
     p_customer_phone: c.customerPhone,
-    p_custom_rate_per_minute: c.customRatePerMinute ?? null
+    p_custom_rate_per_minute: c.customRatePerMinute ?? null,
+    p_split_cash: c.paymentMethod === 'split' ? (c.splitCash ?? null) : null
   })
 export const getReceipt = (saleId: string) => rpc<Receipt>('get_receipt', { p_sale_id: saleId })
 export const deleteSale = (saleId: string) => rpc('delete_sale', { p_sale_id: saleId })
@@ -197,7 +200,7 @@ export function listSales(f: SalesFilter) {
   let q = supabase()
     .from('sales')
     .select(
-      'id,receipt_no,session_id,shift_id,table_name,floor_id,customer_name,customer_phone,cashier_id,cashier_name,payment_method,session_seconds,rate_per_minute,standard_rate_per_minute,standard_base_amount,base_amount,products_subtotal,discount,final_amount,business_date,created_at'
+      'id,receipt_no,session_id,shift_id,table_name,floor_id,customer_name,customer_phone,cashier_id,cashier_name,payment_method,split_cash_amount,session_seconds,rate_per_minute,standard_rate_per_minute,standard_base_amount,base_amount,products_subtotal,discount,final_amount,business_date,created_at'
     )
     .gte('business_date', f.from)
     .lte('business_date', f.to)
@@ -301,6 +304,7 @@ export const saveCategory = (c: {
   rate_per_minute: number | null
   hourly_rate: number | null
   special_30_rate: number | null
+  under_hour_rate: number | null
   sort_order: number
   is_active: boolean
 }) =>
@@ -312,7 +316,8 @@ export const saveCategory = (c: {
     p_is_active: c.is_active,
     p_pricing_mode: c.pricing_mode,
     p_hourly_rate: c.hourly_rate,
-    p_special_30_rate: c.special_30_rate
+    p_special_30_rate: c.special_30_rate,
+    p_under_hour_rate: c.under_hour_rate
   })
 export const saveTable = (t: {
   id: string | null

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Building2, CalendarClock, Clock3, Database, DatabaseZap, Layers, LayoutGrid, Monitor, Pencil, Plus, ShieldCheck, Tags, Trash2, ArchiveRestore, PackageMinus } from 'lucide-react'
-import { describePolicy, sessionCharge, slotPrice, type RoundingMode } from '@shared/billing'
+import { describePolicy, sessionCharge, slotPrice, tierPrice, type RoundingMode } from '@shared/billing'
 import { formatHour, formatMoney, formatPricing, formatRate } from '@shared/format'
 import { RetentionSection } from './RetentionSection'
 import { DataManagementSection } from './DataManagementSection'
@@ -420,7 +420,7 @@ function RatesSection() {
   return (
     <Panel
       title="Categories & rates"
-      description="Price per game type: per minute (e.g. Snooker, Pool), or hourly with a special 30-minute price (e.g. PS5, Table Tennis)."
+      description="Price per game type: per minute (e.g. Snooker, Pool), hourly with a special 30-minute price, or hourly with a higher rate under 1 hour (e.g. PS5, Table Tennis)."
       footer={
         <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setEditing('new')}>
           Add category
@@ -473,6 +473,7 @@ function CategoryDialog({ category, count, onClose }: { category: Category | 'ne
   const [rate, setRate] = useState('')
   const [hourly, setHourly] = useState('')
   const [special, setSpecial] = useState('')
+  const [underHour, setUnderHour] = useState('')
   const [active, setActive] = useState(true)
   const save = useAction(api.saveCategory, { invalidate: [keys.categories, keys.tables], success: 'Category saved.' })
   useEffect(() => {
@@ -482,6 +483,7 @@ function CategoryDialog({ category, count, onClose }: { category: Category | 'ne
       setRate('')
       setHourly('')
       setSpecial('')
+      setUnderHour('')
       setActive(true)
     } else if (category) {
       setName(category.name)
@@ -489,6 +491,7 @@ function CategoryDialog({ category, count, onClose }: { category: Category | 'ne
       setRate(category.pricing_mode === 'per_minute' ? String(Number(category.rate_per_minute)) : '')
       setHourly(category.hourly_rate != null ? String(Number(category.hourly_rate)) : '')
       setSpecial(category.special_30_rate != null ? String(Number(category.special_30_rate)) : '')
+      setUnderHour(category.under_hour_rate != null ? String(Number(category.under_hour_rate)) : '')
       setActive(category.is_active)
     }
   }, [category])
@@ -497,7 +500,12 @@ function CategoryDialog({ category, count, onClose }: { category: Category | 'ne
   const specialN = parseAmount(special)
   const hourlyOk = hourlyN !== null && hourlyN > 0
   const specialOk = specialN !== null && specialN > 0
-  const valid = Boolean(name.trim()) && (mode === 'per_minute' ? rateN !== null : hourlyOk && specialOk)
+  const underHourN = parseAmount(underHour)
+  // The rate for play under 1 hour is the higher one.
+  const underHourOk = underHourN !== null && hourlyN !== null && underHourN > hourlyN
+  const valid =
+    Boolean(name.trim()) &&
+    (mode === 'per_minute' ? rateN !== null : mode === 'hourly_special30' ? hourlyOk && specialOk : hourlyOk && underHourOk)
   const submit = () =>
     valid &&
     category &&
@@ -507,8 +515,9 @@ function CategoryDialog({ category, count, onClose }: { category: Category | 'ne
         name: name.trim(),
         pricing_mode: mode,
         rate_per_minute: mode === 'per_minute' ? rateN : null,
-        hourly_rate: mode === 'hourly_special30' ? hourlyN : null,
+        hourly_rate: mode !== 'per_minute' ? hourlyN : null,
         special_30_rate: mode === 'hourly_special30' ? specialN : null,
+        under_hour_rate: mode === 'tiered_hourly' ? underHourN : null,
         sort_order: category === 'new' ? count + 1 : category.sort_order,
         is_active: active
       },
@@ -518,7 +527,7 @@ function CategoryDialog({ category, count, onClose }: { category: Category | 'ne
     <Modal
       open={category !== null}
       onOpenChange={(o) => !o && onClose()}
-      size="md"
+      size="lg"
       title={category === 'new' ? 'Add category' : 'Edit category'}
       footer={
         <>
@@ -547,7 +556,8 @@ function CategoryDialog({ category, count, onClose }: { category: Category | 'ne
             onChange={setMode}
             options={[
               { value: 'per_minute', label: 'Per minute' },
-              { value: 'hourly_special30', label: 'Hourly + special 30-minute rate' }
+              { value: 'hourly_special30', label: 'Hourly + special 30-minute rate' },
+              { value: 'tiered_hourly', label: 'Hourly + under-1-hour rate' }
             ]}
           />
         </div>
@@ -564,6 +574,50 @@ function CategoryDialog({ category, count, onClose }: { category: Category | 'ne
             hint="Open play, fixed time and fixed amount are billed at this rate. Running sessions keep the rate they started with."
             data-testid="category-rate"
           />
+        ) : mode === 'tiered_hourly' ? (
+          <>
+            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
+              <TextField
+                label="Hourly rate (1 hour or more)"
+                prefix="PKR"
+                suffix="/hour"
+                inputMode="decimal"
+                placeholder="600"
+                value={hourly}
+                onChange={(e) => setHourly(e.target.value)}
+                error={hourly.trim() && !hourlyOk ? 'Enter an amount above zero.' : null}
+                data-testid="category-hourly"
+              />
+              <TextField
+                label="Under 1 hour rate"
+                prefix="PKR"
+                suffix="/hour"
+                inputMode="decimal"
+                placeholder="800"
+                value={underHour}
+                onChange={(e) => setUnderHour(e.target.value)}
+                error={underHour.trim() && hourlyOk && !underHourOk ? 'Must be higher than the hourly rate.' : null}
+                data-testid="category-under-hour"
+              />
+            </div>
+            {hourlyOk && underHourOk && (
+              <div className="rounded-xl bg-sunken/70 px-4 py-3" data-testid="category-price-table">
+                <p className="text-xs font-semibold text-fg-3">Customers pay</p>
+                <dl className="mt-2 grid grid-cols-3 gap-x-4 gap-y-1.5 text-sm">
+                  {[15, 30, 45, 60, 90, 120].map((m) => (
+                    <div key={m} className="flex justify-between gap-2">
+                      <dt className="text-fg-3">{m < 60 ? `${m} min` : `${m / 60} h`}</dt>
+                      <dd className="font-semibold text-fg tabular">{formatMoney(tierPrice(m, hourlyN!, underHourN!))}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
+            <p className="text-xs leading-relaxed text-fg-4">
+              Under 1 hour, all of the time is charged at the under-1-hour rate (15 minutes at PKR 800/hour = PKR 200); from 1 hour, all of it at the
+              hourly rate. Open play, fixed time and fixed amount work as usual. Running sessions keep the prices they started with.
+            </p>
+          </>
         ) : (
           <>
             <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
@@ -770,6 +824,8 @@ function TableDialog({ table, floors, categories, onClose }: { table: ClubTable 
         <Select label="Category" value={category} onChange={setCategory} options={categories.map((c) => ({ value: String(c.id), label: c.name, hint: formatPricing(c) }))} />
         {categories.find((c) => String(c.id) === category)?.pricing_mode === 'hourly_special30' ? (
           <p className="rounded-xl bg-sunken/70 px-4 py-3 text-sm text-fg-3 sm:col-span-2">This table uses its category's hourly and 30-minute prices.</p>
+        ) : categories.find((c) => String(c.id) === category)?.pricing_mode === 'tiered_hourly' ? (
+          <p className="rounded-xl bg-sunken/70 px-4 py-3 text-sm text-fg-3 sm:col-span-2">This table uses its category's hourly and under-1-hour rates.</p>
         ) : (
           <TextField containerClassName="sm:col-span-2" label="Custom rate per minute" prefix="PKR" suffix="/min" inputMode="decimal" placeholder="Use category rate" value={rate} onChange={(e) => setRate(e.target.value)} error={rateInvalid ? 'Enter a rate above zero or leave empty.' : null} />
         )}

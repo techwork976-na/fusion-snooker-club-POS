@@ -7,6 +7,8 @@ import {
   isValidRate,
   secondsForAmount,
   sessionCharge,
+  tierPrice,
+  tierSecondsForAmount,
   type RoundingMode
 } from '@shared/billing'
 import { TestDb } from './harness'
@@ -114,6 +116,60 @@ describe('TypeScript billing matches the database exactly', () => {
         Number(row.charge)
       )
       expect(amountForSeconds(c.seconds, c.rate), JSON.stringify(c)).toBe(Number(row.prorata))
+    }
+    expect(rows).toHaveLength(2000)
+  })
+
+  it('under-1-hour rate: the live timer equals fusion_tiered_charge for 2,000 sessions', async () => {
+    const rand = rng(1300)
+    const modes: RoundingMode[] = ['up', 'nearest', 'down']
+    const rates = [
+      [600, 800],
+      [400, 500],
+      [350.5, 420.25],
+      [1000, 1500],
+      [90, 120]
+    ] as const
+    const cases = Array.from({ length: 2000 }, () => {
+      const [hourly, under] = rates[Math.floor(rand() * rates.length)]!
+      const booked = rand() < 0.4
+      const bookedMinutes = 1 + Math.floor(rand() * 150)
+      return {
+        // Many sessions around the one-hour mark, where the rate changes.
+        seconds: rand() < 0.5 ? 3300 + Math.floor(rand() * 600) : Math.floor(rand() * 4 * 3600),
+        hourly,
+        under,
+        increment: [1, 1, 5, 10, 15, 30][Math.floor(rand() * 6)]!,
+        rounding: modes[Math.floor(rand() * 3)]!,
+        minimum: [0, 0, 10, 30][Math.floor(rand() * 4)]!,
+        bookedSeconds: booked ? bookedMinutes * 60 : null,
+        bookedAmount: booked ? tierPrice(bookedMinutes, hourly, under) : null,
+        amount: [100, 250.5, 400, 590, 599.99, 600, 700, 1234.56][Math.floor(rand() * 8)]!
+      }
+    })
+    const rows = await db.sql<{ i: number; charge: string; price: string; seconds: number }>(
+      `select (c->>'i')::int as i,
+              public.fusion_tiered_charge((c->>'seconds')::int, (c->>'hourly')::numeric, (c->>'under')::numeric,
+                (c->>'bookedSeconds')::int, (c->>'bookedAmount')::numeric, (c->>'increment')::int, c->>'rounding',
+                (c->>'minimum')::int)::text as charge,
+              public.fusion_tier_price(((c->>'seconds')::int / 60), (c->>'hourly')::numeric, (c->>'under')::numeric)::text as price,
+              public.fusion_tier_seconds((c->>'amount')::numeric, (c->>'hourly')::numeric, (c->>'under')::numeric) as seconds
+       from jsonb_array_elements($1::jsonb) c order by 1`,
+      [JSON.stringify(cases.map((c, i) => ({ ...c, i })))]
+    )
+    for (const row of rows) {
+      const c = cases[row.i]!
+      const policy = { incrementMinutes: c.increment, rounding: c.rounding, minimumMinutes: c.minimum }
+      const input = {
+        billableSeconds: c.seconds,
+        ratePerMinute: c.hourly / 60,
+        bookedSeconds: c.bookedSeconds,
+        bookedAmount: c.bookedAmount,
+        tiered: { hourlyRate: c.hourly, underHourRate: c.under }
+      }
+      expect(sessionCharge(input, policy), JSON.stringify(c)).toBe(Number(row.charge))
+      expect(tierPrice(Math.floor(c.seconds / 60), c.hourly, c.under), JSON.stringify(c)).toBe(Number(row.price))
+      expect(tierSecondsForAmount(c.amount, c.hourly, c.under), JSON.stringify(c)).toBe(row.seconds)
     }
     expect(rows).toHaveLength(2000)
   })

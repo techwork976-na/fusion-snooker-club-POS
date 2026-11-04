@@ -27,7 +27,8 @@ export type Permission = (typeof PERMISSIONS)[number]['key']
 
 export const PAYMENT_METHODS = [
   { key: 'cash', label: 'Cash' },
-  { key: 'bank_transfer', label: 'Bank Transfer' }
+  { key: 'bank_transfer', label: 'Bank Transfer' },
+  { key: 'split', label: 'Cash + Bank' }
 ] as const
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number]['key']

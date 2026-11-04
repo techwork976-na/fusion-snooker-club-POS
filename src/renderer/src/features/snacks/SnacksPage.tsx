@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Minus, PackageSearch, Plus, Search, ShoppingBag, Trash2 } from 'lucide-react'
-import { formatMoney, formatTime } from '@shared/format'
+import { formatMoney, formatTime, paymentLabel, splitLabel } from '@shared/format'
 import { toPaisa } from '@shared/billing'
 import { cn } from '@/lib/cn'
 import { errorMessage } from '@/lib/errors'
@@ -273,7 +273,7 @@ function SnackSalesToday() {
                   <td className="px-4 py-3 text-fg-3 tabular" data-label="Time">{formatTime(s.created_at, settings?.business_timezone)}</td>
                   <td className="px-4 py-3 text-fg-2" data-label="Items" data-stack="full">{s.items.map((i) => `${i.name} × ${i.quantity}`).join(', ')}</td>
                   {all && <td className="px-4 py-3 text-fg-3" data-label="Staff">{s.cashier_name}</td>}
-                  <td className="px-4 py-3 text-fg-3" data-label="Payment">{s.payment_method === 'cash' ? 'Cash' : 'Bank transfer'}</td>
+                  <td className="px-4 py-3 text-fg-3" data-label="Payment">{s.payment_method === 'split' && s.split_cash_amount != null ? splitLabel(s.final_amount, s.split_cash_amount) : paymentLabel(s.payment_method)}</td>
                   <td className="px-8 py-3 text-right font-semibold text-fg tabular" data-stack="top end">{formatMoney(s.final_amount)}</td>
                 </tr>
               ))}

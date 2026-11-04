@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { CheckCircle2, Printer } from 'lucide-react'
-import { rateRows, type Receipt } from '@shared/receipt'
-import { formatDateTime, formatDuration, formatMoney, paymentLabel } from '@shared/format'
+import { paymentRows, rateRows, type Receipt } from '@shared/receipt'
+import { formatDateTime, formatDuration, formatMoney, paymentLabel, splitLabel } from '@shared/format'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { useSettings } from '@/data/hooks'
@@ -64,6 +64,9 @@ export function ReceiptPaper({ receipt: r }: { receipt: Receipt }) {
       <div className="my-3 border-t border-dashed border-[#9a9d9b]" />
       <Row label="TOTAL (PKR)" value={formatMoney(r.final_amount, false)} strong />
       <Row label="Paid by" value={paymentLabel(r.payment_method)} />
+      {paymentRows(r).map(([label, value]) => (
+        <Row key={label} label={`  ${label}`} value={value} />
+      ))}
       {r.club.footer && <p className="mt-4 text-center text-[11px] text-[#55595a]">{r.club.footer}</p>}
     </div>
   )
@@ -89,7 +92,10 @@ export function ReceiptPanel({ receipt, onDone, autoPrinted }: { receipt: Receip
         <p className="mt-5 label md:mt-6">Payment received</p>
         <p className="mt-2 figure text-[42px] leading-none text-forest-950 md:text-[52px]">{formatMoney(receipt.final_amount)}</p>
         <p className="mt-3 text-sm text-fg-3">
-          {paymentLabel(receipt.payment_method)} · Receipt #{receipt.receipt_no}
+          {receipt.payment_method === 'split' && receipt.split_cash_amount != null
+            ? splitLabel(receipt.final_amount, receipt.split_cash_amount)
+            : paymentLabel(receipt.payment_method)}{' '}
+          · Receipt #{receipt.receipt_no}
           {autoPrinted ? ' · printed' : ''}
         </p>
         <div className="mt-8 flex gap-3 md:mt-10">

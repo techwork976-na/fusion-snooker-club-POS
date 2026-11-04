@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, Clock3, FileX2, ReceiptText } from 'lucide-react'
-import { formatBusinessDate, formatDateTime, formatDuration, formatMoney, formatRate, formatTime, paymentLabel } from '@shared/format'
+import { formatBusinessDate, formatDateTime, formatDuration, formatMoney, formatRate, formatTime, paymentLabel, splitLabel } from '@shared/format'
 import { cn } from '@/lib/cn'
 import { errorMessage } from '@/lib/errors'
 import type { Shift } from '@/lib/types'
@@ -194,7 +194,10 @@ function InvoiceRow({ invoice, tz }: { invoice: import('@/lib/types').ShiftInvoi
             #{invoice.receipt_no} · {invoice.table_name ?? 'Counter sale'}
           </span>
           <span className="block truncate text-xs text-fg-4">
-            {formatTime(invoice.created_at, tz)} · {paymentLabel(invoice.payment_method)}
+            {formatTime(invoice.created_at, tz)} ·{' '}
+            {invoice.payment_method === 'split' && invoice.split_cash_amount != null
+              ? splitLabel(invoice.final_amount, invoice.split_cash_amount)
+              : paymentLabel(invoice.payment_method)}
             {invoice.customer_name ? ` · ${invoice.customer_name}` : ''}
           </span>
         </span>

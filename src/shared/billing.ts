@@ -1,6 +1,7 @@
 /**
  * FUSION billing rules — the TypeScript twin of the SQL functions
- * fusion_billed_minutes / fusion_amount_for_minutes / fusion_session_charge.
+ * fusion_billed_minutes / fusion_amount_for_minutes / fusion_session_charge
+ * (and fusion_tier_price / fusion_tiered_charge / fusion_tier_seconds).
  *
  * The database is authoritative (it computes the bill when a session ends);
  * this module powers the live timer and the checkout preview, and a parity
@@ -89,8 +90,12 @@ export function amountForSeconds(seconds: number, ratePerMinute: number | string
   return Math.floor((2 * num + den) / (2 * den))
 }
 
-/** Category pricing: per minute (e.g. Snooker, Pool) or hourly with a special 30-minute price (e.g. PS5, table tennis). */
-export type PricingMode = 'per_minute' | 'hourly_special30'
+/**
+ * Category pricing: per minute (e.g. Snooker, Pool), hourly with a special
+ * 30-minute price (e.g. PS5, table tennis), or hourly with a higher rate for
+ * play under 1 hour.
+ */
+export type PricingMode = 'per_minute' | 'hourly_special30' | 'tiered_hourly'
 
 /** Hourly-priced categories sell time in steps of this many minutes. */
 export const SLOT_STEP_MINUTES = 30
@@ -114,16 +119,45 @@ export function slotPrice(minutes: number, hourlyRate: number | string, special3
   return Math.floor((2 * num + den) / (2 * den))
 }
 
+/** Under-1-hour pricing: billed minutes below this use the under-1-hour rate. */
+export const TIER_MINUTES = 60
+
+/**
+ * The price of billed minutes on an under-1-hour-rate category
+ * (fusion_tier_price in SQL): under 60 minutes the whole time at the
+ * under-1-hour rate, from 60 minutes at the hourly rate, pro rata, rounded
+ * half-up to a rupee (15 min at 800/hour = 200; 60 min at 600/hour = 600).
+ */
+export function tierPrice(minutes: number, hourlyRate: number | string, underHourRate: number | string): number {
+  const num = toPaisa(minutes < TIER_MINUTES ? underHourRate : hourlyRate) * minutes
+  const den = 60 * 100
+  return Math.floor((2 * num + den) / (2 * den))
+}
+
+/** Playing time a prepaid amount buys on such a category: at the hourly rate once it covers an hour. */
+export function tierSecondsForAmount(amount: number | string, hourlyRate: number | string, underHourRate: number | string): number {
+  const rate = toPaisa(toPaisa(amount) >= toPaisa(hourlyRate) ? hourlyRate : underHourRate)
+  return rate > 0 ? Math.floor((toPaisa(amount) * 3600) / rate) : 0
+}
+
 export interface ChargeInput {
   billableSeconds: number
   ratePerMinute: number | string
   bookedSeconds?: number | null
   bookedAmount?: number | string | null
+  /** Under-1-hour pricing (tiered_hourly sessions): the two rates per hour. */
+  tiered?: { hourlyRate: number | string; underHourRate: number | string } | null
 }
 
 /** The table charge for a session (open-ended or booked + overtime). */
 export function sessionCharge(input: ChargeInput, policy: BillingPolicy): number {
-  const { billableSeconds, ratePerMinute, bookedSeconds, bookedAmount } = input
+  const { billableSeconds, ratePerMinute, bookedSeconds, bookedAmount, tiered } = input
+  if (tiered) {
+    // fusion_tiered_charge: the billed minutes priced by tier; a booking never bills less than it cost.
+    const booked = bookedSeconds != null && bookedAmount != null
+    const price = tierPrice(billedMinutes(billableSeconds, policy, !booked), tiered.hourlyRate, tiered.underHourRate)
+    return booked ? fromPaisa(Math.max(toPaisa(bookedAmount), price * 100)) : price
+  }
   if (bookedSeconds != null && bookedAmount != null) {
     const overtime = billableSeconds - bookedSeconds
     const extra = overtime > 0 ? amountForMinutes(billedMinutes(overtime, policy, false), ratePerMinute) : 0

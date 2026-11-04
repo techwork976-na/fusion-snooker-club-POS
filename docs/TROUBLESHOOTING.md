@@ -26,6 +26,10 @@
 | "… is priced by the hour: choose a duration" | Categories with hourly + special 30-minute pricing have no open play or prepaid amount: choose a duration in 30-minute steps. |
 | "Extend in steps of 30 minutes." / "This session was just changed on another terminal." | Extensions are 30, 60, 90 … minutes. If another computer extended it a moment ago, check the new time and extend again only if needed. |
 | "Custom rates per minute do not apply to tables priced by the hour." | Use a discount for regulars on hourly-priced tables. |
+| Reset business data says "The server could not complete that request." | The database is older than migration `…1300` (the live API's *safeupdate* guard refused the reset's product update, so nothing was deleted). Apply the migrations (`npx supabase db push`) and try again. |
+| Checkout: "Both parts must be above zero…" on a split payment | Type the cash or the bank part only; the other is filled in. Each part must be more than zero — for a single method choose Cash or Bank Transfer. |
+| Settings: "The under-1-hour rate must be higher than the hourly rate." | The under-1-hour rate is the higher price for short play (e.g. 800/hour against 600/hour). |
+| The home-screen icon shows a letter instead of the logo | Remove the shortcut, reload the site once, then add it to the home screen again (phones keep the icon from the moment it was added). |
 | Reset business data says "The password is incorrect." | Enter the password of the administrator who is signed in (not another account's). |
 | "A reset is already running." | Another administrator started a reset a moment ago. Wait, then check Settings → Data management. |
 | A backup file didn't download | Allow downloads for the FUSION site in the browser, then use **Export backup** again — nothing is deleted until the final button. |

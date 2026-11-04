@@ -183,6 +183,29 @@ describe('the reset', () => {
   })
 })
 
+describe('the live API guard', () => {
+  // Supabase loads pg-safeupdate for API requests: an UPDATE or DELETE
+  // without WHERE is refused and rolls the whole call back. That broke the
+  // first live reset (its products update had no WHERE); PGlite has no such
+  // guard, so every function's statements are checked here instead.
+  it('no database function updates or deletes without a WHERE clause', async () => {
+    const fns = await db.sql<{ name: string; src: string }>(
+      `select p.proname as name, p.prosrc as src from pg_proc p
+       where p.pronamespace = 'public'::regnamespace and p.prolang in (select oid from pg_language where lanname in ('plpgsql', 'sql'))`
+    )
+    const offenders: string[] = []
+    for (const f of fns) {
+      for (const statement of f.src.replace(/--[^\n]*/g, '').split(';')) {
+        if (/\b(update|delete\s+from)\s+public\.\w+/i.test(statement) && !/\bwhere\b/i.test(statement)) {
+          offenders.push(`${f.name}: ${statement.replace(/\s+/g, ' ').trim().slice(0, 80)}`)
+        }
+      }
+    }
+    expect(fns.length).toBeGreaterThan(80)
+    expect(offenders).toEqual([])
+  })
+})
+
 describe('the optional backup', () => {
   it('needs the password and contains every record a reset would remove', async () => {
     await trade()

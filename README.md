@@ -27,8 +27,8 @@ FUSION runs FUSION Gaming Lounge: tables (snooker, pool, table tennis, PS5…), 
 | Start / pause / resume / end a table (open play, fixed minutes, or prepaid amount; hourly-priced categories: a duration in 30-minute steps) | Staff, Admin | **Tables** |
 | Extend an hourly-priced session (re-priced from the total time) | Staff, Admin | **Tables** → the session, or the time's-up alert |
 | Add snacks to a running table's tab | Staff, Admin | Click the table card → *Tab* |
-| Checkout (table charge + tab, custom rate per minute, discount in PKR or %, Cash or Bank Transfer, receipt) | Staff with an open counter | *End* → Checkout |
-| Sell snacks and drinks without a table (cart, quantities, Cash or Bank Transfer) | Staff with *Counter sales* (admins see stock and every snack sale) | **Snacks** (or *Counter sale* on Tables / Dashboard) |
+| Checkout (table charge + tab, custom rate per minute, discount in PKR or %, Cash, Bank Transfer or **Split** — part cash, part bank — receipt) | Staff with an open counter | *End* → Checkout |
+| Sell snacks and drinks without a table (cart, quantities, Cash, Bank Transfer or Split) | Staff with *Counter sales* (admins see stock and every snack sale) | **Snacks** (or *Counter sale* on Tables / Dashboard) |
 | A fixed-time or fixed-amount booking runs out: popup + alarm; silence it, then end or continue the session | Staff, Admin | Any page (alert) · **Tables** |
 | Sales per table for a period (Today / Yesterday / Weekly / Monthly / Custom) | Admin | **Tables → Table Sales Report** |
 | Watch every staff member's figures live; close a forgotten counter | Admin | **Dashboard → Staff today** |
@@ -50,6 +50,7 @@ Configured in **Settings → Billing rules** and applied identically by the time
 
 - Each category has a **pricing mode** (Settings → Categories & rates):
   - **Per minute** (e.g. Snooker, Pool): rupees per minute (tables may override), up to four decimals; open play, fixed time or fixed amount.
+  - **Hourly + under-1-hour rate** (e.g. PS5 PKR 600/hour, PKR 800/hour under 1 hour): while fewer than 60 minutes are billed, all of the time is charged at the under-1-hour rate (15 min = PKR 200, 45 min = PKR 600); from 60 billed minutes all of it at the hourly rate (1 h = PKR 600, 1.5 h = PKR 900). Open play, fixed time and fixed amount work as on per-minute tables (a prepaid amount buys time at the hourly rate once it covers an hour: PKR 400 = 30 min, PKR 700 = 70 min); a booking never bills less than its price; *Continue* re-prices the whole time. The under-1-hour rate must be higher than the hourly rate. No per-minute custom rate (a discount still applies); a table's own per-minute rate does not apply.
   - **Hourly + special 30-minute rate** (e.g. PS5 PKR 600/hour with 30 minutes at PKR 400): time is sold in 30-minute steps. Exactly 30 minutes costs the special price; an hour or more costs the hourly rate × hours (1.5 h = PKR 900 — the special price is never added on top). Staff pick the duration and see the price before starting. **Extending** (Tables → the session, or the time's-up alert) adds 30-minute steps and re-prices the whole time (1 h + 30 min = 1.5 h = PKR 900, not 600 + 400). No open play, prepaid amount, per-minute "continue" or per-minute custom rate for these categories; a discount still applies.
 - A session **keeps the prices it started with**, so changing a category's prices never changes a running session, its extensions or any invoice.
 - Played time = elapsed time − paused time. Time is billed in blocks (default 1 minute), rounded **up** (default), **to nearest**, or **down**, with an optional minimum charge.
@@ -58,6 +59,7 @@ Configured in **Settings → Billing rules** and applied identically by the time
 - **Time's up:** when a booking is used up, its clock stops at 0:00 and billing **holds at the booked amount** — however long staff take to react. A popup and an alarm appear on every computer showing that table, each table on its own. *Silence alarm* stops the sound everywhere (also after a refresh) and changes nothing else. Staff then **End** the session (the booked amount is charged) or **Continue**: play goes on and extra time is billed per minute from that moment (without the minimum); the minutes the session was held are never charged.
 - **Custom rate per minute (regulars):** at checkout a cashier with the *Discounts & custom rates* permission can enter another rate. It re-prices all of the played time with the same rules (a booking's time pro rata), e.g. 100 min at 10/min = 1,000 → at 9/min = 900. The discount (PKR or %) then applies to that bill: 900 − 30 = 870. The invoice and receipt show the custom rate and the standard rate it replaced; the counter, ledger, History and customer statistics record the amount actually paid, and only the discount counts as a discount.
 - *End* freezes the bill; *Reopen* resumes the clock without charging the time spent at checkout.
+- **Split payment:** at checkout choose **Split** and type the cash part or the bank part — the other is filled in as the rest of the total (both must be above zero). The invoice keeps the cash part; the counter, Dashboard, History, Reports, Close day, snack and table sales count each part as cash or bank. The receipt shows *Paid by Cash + Bank* with both amounts.
 
 ### Counters, accounting and history
 - A staff member opens **their own counter** before taking payments or recording expenses. Every payment, void and expense is posted — in the same database transaction — to that counter shift and to a permanent per-day ledger. **Total sales = Cash + Bank Transfer**; **Snack sales** are shown separately but are already inside Cash/Bank; **Net = Total − Expenses**.
@@ -74,6 +76,8 @@ Finalises a business day's Cash, Bank, Total, Expenses and Net in `daily_summari
 - **Gross profit** (Inventory → Sales & profit) = product sales after their share of invoice discounts − the cost price recorded at each sale. Table time is never product revenue, and business expenses are not deducted. Products sold before cost tracking (migration 0900) show sales but no profit; FUSION does not guess past costs.
 
 ### Phones and tablets
+**Install it like an app:** in Chrome on Android choose *Add to Home screen* / *Install app*; in Safari on iPhone, *Share → Add to Home Screen*. It appears as **FUSION GAMES** with the FUSION logo and opens full screen.
+
 The same app, with the same accounts and permissions, works in a phone or tablet browser (Chrome, Safari, Edge). On a **phone** a tab bar at the foot of the screen holds the role's main pages — staff: Dashboard, Tables, Snacks, (My) Counter; admin: Dashboard, Tables, Reports, History — and **More** opens every other page plus the account (switch portal, change password, sign out). Dialogs and the table panel open as sheets from the bottom, tables of figures become cards, and the Snacks cart keeps its total and **Checkout** at the foot of the screen. **Tablets** keep the sidebar rail used on narrow desktop windows; wide tables scroll sideways inside their card. Desktop screens are unchanged. Receipts print through the phone's own print dialog (or save as PDF).
 
 ### Snacks and table sales
@@ -90,6 +94,8 @@ Detailed invoices (sales + sale items) older than the chosen period — **Monthl
 The `…0700` migration attaches every existing sale to an *imported* closed shift (one per cashier per day), builds the ledger and customer statistics from them, and keeps totals saved by the old "Close Day & Archive" as legacy amounts. Nothing is deleted. Redeploy the Edge Function.
 
 The `…0800` migration switches every rate to **per minute**: stored hourly rates (categories, table overrides and the snapshots on past sessions and invoices) are divided by 60 and kept to four decimals, so prices bill exactly as before (PKR 600/hour → 10/min; 400/hour → 6.6667/min — set a round figure in Settings if you prefer). No stored amount is recalculated and nothing is deleted.
+
+The `…1300` migration adds split payments (`sales.split_cash_amount`), the "hourly + under-1-hour rate" pricing mode (`under_hour_rate` on `table_categories` and `sessions`) and fixes Reset business data, which the live API's *safeupdate* guard refused (an update without a WHERE clause). Three nullable columns, no new tables; nothing is deleted or rewritten.
 
 The `…1200` migration adds Reset business data (two columns on `settings` recording the last reset, and admin-only functions). Nothing runs automatically; nothing is deleted by the migration.
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Eye, Printer, ReceiptText, Trash2 } from 'lucide-react'
 import type { PaymentMethod } from '@shared/constants'
-import { formatDateTime, formatMoney, formatRate, paymentLabel } from '@shared/format'
+import { formatDateTime, formatMoney, formatRate, paymentLabel, splitLabel } from '@shared/format'
 import type { Receipt } from '@shared/receipt'
 import { errorMessage } from '@/lib/errors'
 import type { Sale } from '@/lib/types'
@@ -90,7 +90,8 @@ export function TransactionsPanel({
             options={[
               { value: 'all', label: 'All payments' },
               { value: 'cash', label: 'Cash' },
-              { value: 'bank_transfer', label: 'Bank Transfer' }
+              { value: 'bank_transfer', label: 'Bank Transfer' },
+              { value: 'split', label: 'Cash + Bank (split)' }
             ]}
           />
         </div>
@@ -141,6 +142,9 @@ export function TransactionsPanel({
                   <td className="px-5 py-3 text-fg-3" data-label="Cashier">{s.cashier_name}</td>
                   <td className="px-5 py-3" data-label="Payment">
                     <span className={s.payment_method === 'cash' ? 'text-forest-600' : 'text-brass-700'}>{paymentLabel(s.payment_method)}</span>
+                    {s.payment_method === 'split' && s.split_cash_amount != null && (
+                      <span className="block text-[11px] text-fg-4 tabular">{splitLabel(s.final_amount, s.split_cash_amount)}</span>
+                    )}
                   </td>
                   <td className="px-5 py-3 text-right text-fg-3 tabular" data-label="Discount">{Number(s.discount) > 0 ? formatMoney(s.discount) : '—'}</td>
                   <td className="px-5 py-3 text-right font-bold text-fg tabular max-md:text-[15px]" data-stack="top end">{formatMoney(s.final_amount)}</td>
