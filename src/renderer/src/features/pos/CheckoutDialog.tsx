@@ -7,6 +7,7 @@ import type { PaymentMethod } from '@shared/constants'
 import type { Receipt } from '@shared/receipt'
 import { formatDuration, formatMoney, formatPricing, formatRate } from '@shared/format'
 import { cn } from '@/lib/cn'
+import { ProductImage } from '@/components/ui/ProductImage'
 import { errorMessage } from '@/lib/errors'
 import { useIsPhone } from '@/lib/useMedia'
 import type { ProductSearchResult } from '@/lib/types'
@@ -338,9 +339,12 @@ export function CheckoutDialog({
                         exit={{ opacity: 0, height: 0 }}
                         className="flex items-center gap-3 px-4 py-3 max-sm:flex-wrap max-sm:gap-y-2"
                       >
-                        <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-7rem)]">
-                          <p className="truncate text-sm font-semibold text-fg">{l.name}</p>
-                          <p className="text-xs text-fg-4 tabular">{formatMoney(l.unitPrice)} each</p>
+                        <div className="flex min-w-0 flex-1 items-center gap-3 max-sm:basis-[calc(100%-7rem)]">
+                          <ProductImage productId={l.productId} name={l.name} size={40} />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-fg">{l.name}</p>
+                            <p className="text-xs text-fg-4 tabular">{formatMoney(l.unitPrice)} each</p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-1 rounded-xl bg-surface p-1 shadow-[var(--shadow-control)] max-sm:order-2">
                           <IconButton size="sm" label="Decrease" tooltip={false} onClick={() => setQuantity(l, l.quantity - 1)} disabled={tabBusy}>

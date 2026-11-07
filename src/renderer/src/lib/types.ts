@@ -134,12 +134,21 @@ export interface ProductSearchResult {
 }
 
 export interface Product extends ProductSearchResult {
+  /** Image in the "product-images" bucket; null shows the name only. */
+  image_path?: string | null
   cost_price: number
   low_stock_threshold: number
   units_sold: number
   is_active: boolean
   created_at: string
   updated_at: string
+}
+
+/** A product with an image (get_product_images): found by id, or by name for invoices that keep only the name. */
+export interface ProductImageRef {
+  id: string
+  name: string
+  image_path: string
 }
 
 export interface Customer {

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { useSettings } from '@/data/hooks'
 import { printReceipt } from './printing'
+import { ProductImage } from '@/components/ui/ProductImage'
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
@@ -52,9 +53,12 @@ export function ReceiptPaper({ receipt: r }: { receipt: Receipt }) {
       <div className="my-3 border-t border-dashed border-[#9a9d9b]" />
       <Row label="Table charge" value={formatMoney(r.base_amount, false)} />
       {r.items.map((i, idx) => (
-        <div key={idx} className="flex justify-between py-0.5">
-          <span>
-            {i.name} <span className="text-[#6b6f6d]">× {i.quantity}</span>
+        <div key={idx} className="flex items-center justify-between gap-2 py-0.5">
+          <span className="flex min-w-0 items-center gap-2">
+            <ProductImage name={i.name} size={22} />
+            <span>
+              {i.name} <span className="text-[#6b6f6d]">× {i.quantity}</span>
+            </span>
           </span>
           <span className="tabular">{formatMoney(i.line_total, false)}</span>
         </div>

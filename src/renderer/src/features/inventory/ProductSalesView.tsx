@@ -12,6 +12,7 @@ import { TrendChart } from '@/components/charts/TrendChart'
 import { AnimatedMoney } from '@/components/motion/AnimatedNumber'
 import { EmptyState, ErrorState, LoadingBlock, Page, PageHeader } from '@/components/ui/Misc'
 import { PeriodPicker, periodError, periodFor, type Period } from '@/features/reports/PeriodPicker'
+import { ProductImage } from '@/components/ui/ProductImage'
 
 // Profit is part of net sales, so the chart shows net sales alone and names
 // the day's profit in the tooltip (stacking them would overstate the day).
@@ -161,8 +162,13 @@ function SalesBody({ data }: { data: ProductSalesReport }) {
               {data.products.map((p) => (
                 <tr key={p.product_key} data-testid={`product-row-${p.name}`}>
                   <td className="px-8 py-3.5" data-stack="title">
-                    <span className="font-semibold text-fg">{p.name}</span>
-                    {p.category && <span className="ml-2 text-xs text-fg-4">{p.category}</span>}
+                    <span className="flex items-center gap-3">
+                      <ProductImage productId={p.product_key} name={p.name} size={32} />
+                      <span>
+                        <span className="font-semibold text-fg">{p.name}</span>
+                        {p.category && <span className="ml-2 text-xs text-fg-4">{p.category}</span>}
+                      </span>
+                    </span>
                   </td>
                   <td className="px-4 py-3.5 text-right text-fg tabular" data-label="Sold">{p.quantity}</td>
                   <td className="px-4 py-3.5 text-right text-fg-3 tabular" data-label="Avg. selling price">{formatMoney(p.avg_price)}</td>

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { ArchiveRestore, Boxes, PackagePlus, Pencil, PackageMinus, Search, Trash2 } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArchiveRestore, Boxes, ImagePlus, PackagePlus, Pencil, PackageMinus, Search, Trash2 } from 'lucide-react'
 import { formatDateTime, formatMoney } from '@shared/format'
 import { toPaisa } from '@shared/billing'
 import { cn } from '@/lib/cn'
@@ -12,11 +12,21 @@ import { keys, useAction, useDebounced, useSettings } from '@/data/hooks'
 import { Button, IconButton } from '@/components/ui/Button'
 import { inputClass, parseAmount, parseIntStrict, Switch, TextField } from '@/components/ui/Field'
 import { ConfirmDialog, Modal } from '@/components/ui/Modal'
+import { ProductImage } from '@/components/ui/ProductImage'
+import { useToast } from '@/components/ui/Toast'
+import {
+  MAX_PRODUCT_ORIGINAL_BYTES,
+  deleteProductImageFile,
+  prepareProductImage,
+  productImageUrl,
+  removeProductImage,
+  setProductImage
+} from '@/data/productImages'
 import { EmptyState, ErrorState, LoadingBlock, Page, PageHeader, Segmented } from '@/components/ui/Misc'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { ProductSalesView } from './ProductSalesView'
 
-const productKeys = [['products'], ['product-search'], keys.dashboard]
+const productKeys = [['products'], ['product-search'], keys.dashboard, keys.productImages]
 
 export function InventoryPage() {
   const { isAdmin } = useAuth()
@@ -133,11 +143,16 @@ function AdminInventory({ tabs }: { tabs: ReactNode }) {
                 return (
                   <tr key={p.id} className={cn('transition-colors hover:bg-forest-950/[0.02]', !p.is_active && 'opacity-55')}>
                     <td className="px-5 py-3" data-stack="title">
-                      <p className="font-semibold text-fg">{p.name}</p>
-                      <p className="text-xs text-fg-4">
-                        {p.category || 'Uncategorised'}
-                        {!p.is_active && ' · removed'}
-                      </p>
+                      <div className="flex items-center gap-3">
+                        <ProductImage path={p.image_path ?? null} size={40} />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-fg">{p.name}</p>
+                          <p className="text-xs text-fg-4">
+                            {p.category || 'Uncategorised'}
+                            {!p.is_active && ' · removed'}
+                          </p>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-5 py-3 text-right text-fg-3 tabular" data-label="Cost">{formatMoney(p.cost_price)}</td>
                     <td className="px-5 py-3 text-right font-semibold text-fg tabular" data-label="Price">{formatMoney(p.selling_price)}</td>
@@ -202,7 +217,10 @@ function AdminInventory({ tabs }: { tabs: ReactNode }) {
         confirmLabel="Delete product"
         description="Only a product that has never been sold can be deleted. Products with sales history can only be removed from sale, so past invoices keep their name and price."
         onConfirm={async () => {
-          if (deleting) await remove.mutateAsync(deleting.id)
+          if (deleting) {
+            await remove.mutateAsync(deleting.id)
+            await deleteProductImageFile(deleting.image_path).catch(() => undefined)
+          }
         }}
       />
     </Page>
@@ -220,10 +238,28 @@ function ProductDialog({ product, onClose }: { product: Product | 'new' | null; 
   const [initial, setInitial] = useState('0')
   const [submitted, setSubmitted] = useState(false)
   const save = useAction(saveProduct, { invalidate: productKeys, success: (p) => `${p.name} saved.` })
+  const qc = useQueryClient()
+  const toast = useToast()
+  const fileInput = useRef<HTMLInputElement>(null)
+  // A newly chosen image (prepared, uploaded after the product is saved), or the current one removed.
+  const [image, setImage] = useState<{ blob: Blob; extension: 'webp' | 'png'; preview: string } | null>(null)
+  const [removeImage, setRemoveImage] = useState(false)
+  const [preparing, setPreparing] = useState(false)
+  const [savingImage, setSavingImage] = useState(false)
+  const [imageError, setImageError] = useState<string | null>(null)
+  const currentPath = product && product !== 'new' ? (product.image_path ?? null) : null
+  const preview = image?.preview ?? (!removeImage ? productImageUrl(currentPath) : null)
+
+  useEffect(() => () => {
+    if (image) URL.revokeObjectURL(image.preview)
+  }, [image])
 
   useEffect(() => {
     if (!product) return
     setSubmitted(false)
+    setImage(null)
+    setRemoveImage(false)
+    setImageError(null)
     if (product === 'new') {
       setName('')
       setCategory('')
@@ -269,21 +305,56 @@ function ProductDialog({ product, onClose }: { product: Product | 'new' | null; 
       low_stock_threshold: thresholdN!,
       initial_stock: isNew && track ? initialN! : 0
     }
-    save.mutate(input, { onSuccess: onClose })
+    save.mutate(input, {
+      onSuccess: async (saved) => {
+        if (image || (removeImage && currentPath)) {
+          setSavingImage(true)
+          try {
+            if (image) await setProductImage(saved.id, image, currentPath)
+            else await removeProductImage(saved.id, currentPath)
+          } catch (e) {
+            toast.error(`${saved.name} was saved, but its image was not: ${errorMessage(e)}`)
+          } finally {
+            setSavingImage(false)
+            for (const key of productKeys) void qc.invalidateQueries({ queryKey: key })
+          }
+        }
+        onClose()
+      }
+    })
   }
+
+  const chooseImage = async (file: File | undefined) => {
+    if (fileInput.current) fileInput.current.value = ''
+    if (!file) return
+    setImageError(null)
+    if (!file.type.startsWith('image/')) return setImageError('Choose a picture (PNG, JPG or WebP).')
+    if (file.size > MAX_PRODUCT_ORIGINAL_BYTES) return setImageError('That picture is too large (over 20 MB).')
+    setPreparing(true)
+    try {
+      const prepared = await prepareProductImage(file)
+      setImage({ ...prepared, preview: URL.createObjectURL(prepared.blob) })
+      setRemoveImage(false)
+    } catch (e) {
+      setImageError(errorMessage(e))
+    } finally {
+      setPreparing(false)
+    }
+  }
+  const busy = save.isPending || savingImage
   const show = (e: string | null) => (submitted ? e : null)
 
   return (
     <Modal
       open={product !== null}
-      onOpenChange={(o) => !o && !save.isPending && onClose()}
+      onOpenChange={(o) => !o && !busy && onClose()}
       title={isNew ? 'Add product' : `Edit ${(product as Product | null)?.name ?? ''}`}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={save.isPending}>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={submit} loading={save.isPending}>
+          <Button variant="primary" onClick={submit} loading={busy} disabled={preparing} data-testid="save-product">
             Save product
           </Button>
         </>
@@ -296,6 +367,42 @@ function ProductDialog({ product, onClose }: { product: Product | 'new' | null; 
           submit()
         }}
       >
+        <div className="col-span-2 flex items-center gap-4 rounded-xl bg-sunken/50 p-3" data-testid="product-image-field">
+          {preview ? (
+            <span className="flex size-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1.5 ring-1 ring-forest-950/[0.07]">
+              <img src={preview} alt="" className="size-full object-contain" data-testid="product-image-preview" />
+            </span>
+          ) : (
+            <span className="flex size-[76px] shrink-0 items-center justify-center rounded-xl border border-dashed border-forest-950/15 text-fg-4">
+              <ImagePlus className="size-5" />
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-fg">Product image</p>
+            <p className="mt-0.5 text-xs text-fg-4">Optional. Shown beside the name everywhere the product appears; without one the name shows alone.</p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <Button size="sm" variant="secondary" icon={<ImagePlus className="size-4" />} loading={preparing} onClick={() => fileInput.current?.click()} data-testid="product-image-choose">
+                {preview ? 'Change image' : 'Choose image'}
+              </Button>
+              {preview && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  icon={<Trash2 className="size-4" />}
+                  onClick={() => {
+                    setImage(null)
+                    setRemoveImage(true)
+                  }}
+                  data-testid="product-image-remove"
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
+            {imageError && <p className="mt-1.5 text-xs text-claret-700">{imageError}</p>}
+          </div>
+          <input ref={fileInput} type="file" accept="image/*" hidden onChange={(e) => void chooseImage(e.target.files?.[0])} data-testid="product-image-input" />
+        </div>
         <TextField containerClassName="col-span-2" label="Name" value={name} onChange={(e) => setName(e.target.value)} error={show(errors.name)} autoFocus />
         <TextField containerClassName="col-span-2" label="Category" placeholder="e.g. Drinks, Snacks" value={category} onChange={(e) => setCategory(e.target.value)} />
         <TextField label="Cost price" prefix="PKR" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} error={show(errors.cost)} />
@@ -468,8 +575,13 @@ function StaffRestock() {
               {data.map((p) => (
                 <tr key={p.id}>
                   <td className="px-5 py-3" data-stack="title">
-                    <p className="font-semibold text-fg">{p.name}</p>
-                    <p className="text-xs text-fg-4">{p.category || 'Uncategorised'}</p>
+                    <div className="flex items-center gap-3">
+                      <ProductImage productId={p.id} name={p.name} size={40} />
+                      <div className="min-w-0">
+                        <p className="font-semibold text-fg">{p.name}</p>
+                        <p className="text-xs text-fg-4">{p.category || 'Uncategorised'}</p>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-5 py-3 text-right text-fg-2 tabular" data-label="Price">{formatMoney(p.selling_price)}</td>
                   <td className="px-5 py-3 text-center" data-label="Stock">

@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button'
 import { Drawer } from '@/components/ui/Drawer'
 import { ErrorState, LoadingBlock } from '@/components/ui/Misc'
 import { useShiftPdf } from './useShiftPdf'
+import { ProductImage } from '@/components/ui/ProductImage'
 
 export function ShiftStatusPill({ status }: { status: Shift['status'] }) {
   return (
@@ -261,9 +262,12 @@ function InvoiceRow({ invoice, tz }: { invoice: import('@/lib/types').ShiftInvoi
             </>
           )}
           {invoice.items.map((i) => (
-            <p key={i.name} className="flex justify-between text-fg-2">
-              <span>
-                {i.name} × {i.quantity} <span className="text-fg-4">@ {formatMoney(i.unit_price)}</span>
+            <p key={i.name} className="flex items-center justify-between gap-2 text-fg-2">
+              <span className="flex min-w-0 items-center gap-2">
+                <ProductImage name={i.name} size={22} />
+                <span>
+                  {i.name} × {i.quantity} <span className="text-fg-4">@ {formatMoney(i.unit_price)}</span>
+                </span>
               </span>
               <span className="tabular">{formatMoney(i.line_total)}</span>
             </p>

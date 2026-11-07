@@ -25,6 +25,7 @@ import type {
   ExpensesReport,
   FinancialReport,
   SalesByHour,
+  ProductImageRef,
   Floor,
   HistoryReport,
   MyCounter,
@@ -154,6 +155,11 @@ export const setProductActive = (id: string, active: boolean) =>
   rpc<Product>('admin_set_product_active', { p_id: id, p_active: active })
 /** Permanent delete; the database refuses (hint in_use) once a product has history. */
 export const deleteProduct = (id: string) => rpc('admin_delete_product', { p_id: id })
+/** Administrators: sets (or, with null, clears) a product's image path in the "product-images" bucket. */
+export const setProductImagePath = (productId: string, path: string | null) =>
+  rpc<Product>('admin_set_product_image', { p_product_id: productId, p_path: path })
+/** Every product that has an image (id, name, path), for any signed-in account. */
+export const getProductImages = () => rpc<ProductImageRef[]>('get_product_images')
 /** Administrators: a product's recent stock changes, newest first. */
 export const getStockAdjustments = (productId: string, limit = 5) =>
   rpc<StockAdjustment[]>('get_stock_adjustments', { p_product_id: productId, p_limit: limit })

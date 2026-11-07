@@ -35,7 +35,8 @@ export const keys = {
   productSales: (from: string, to: string) => ['product-sales', from, to] as const,
   snackSales: (from: string, to: string) => ['snack-sales', from, to] as const,
   tableSales: (from: string, to: string) => ['table-sales', from, to] as const,
-  salesByHour: (date: string, closedOnly: boolean) => ['sales-by-hour', date, closedOnly] as const
+  salesByHour: (date: string, closedOnly: boolean) => ['sales-by-hour', date, closedOnly] as const,
+  productImages: ['product-images'] as const
 }
 
 /** Everything that shows money or shift state; refreshed after any counter activity. */
@@ -58,6 +59,21 @@ export const accountingKeys: QueryKey[] = [
 ]
 
 export const useSettings = () => useQuery({ queryKey: keys.settings, queryFn: api.getSettings, staleTime: 60_000 })
+
+const normalName = (name: string) => name.trim().toLowerCase().replace(/s+/g, ' ')
+/** Product id → image path and name → image path, for every product that has an image. */
+function imageLookup(rows: import('@/lib/types').ProductImageRef[]) {
+  const byId = new Map(rows.map((r) => [r.id, r.image_path]))
+  const byName = new Map(rows.map((r) => [normalName(r.name), r.image_path]))
+  return (productId?: string | null, name?: string | null): string | null =>
+    (productId ? byId.get(productId) : undefined) ?? (name ? byName.get(normalName(name)) : undefined) ?? null
+}
+/**
+ * Which products have an image, shared by every list that names a product.
+ * Found by id, or by name where an invoice keeps only the name.
+ */
+export const useProductImages = () =>
+  useQuery({ queryKey: keys.productImages, queryFn: api.getProductImages, staleTime: 5 * 60_000, select: imageLookup })
 
 /** The signed-in staff member's counter (open shift, expenses, recent shifts). */
 export const useMyCounter = (enabled = true) =>

@@ -1058,6 +1058,57 @@ test('anyone sets a profile picture; it shows in the sidebar, and removing it br
   await expect(page.getByText('Best sellers today')).toHaveCount(0)
 })
 
+test('a product image shows beside the product everywhere; a product without one stays plain', async () => {
+  // A photo-sized 1200 × 800 image, made in the browser.
+  const dataUrl = await page.evaluate(() => {
+    const c = document.createElement('canvas')
+    c.width = 1200
+    c.height = 800
+    const x = c.getContext('2d')!
+    x.fillStyle = '#c62828'
+    x.fillRect(0, 0, 1200, 800)
+    x.fillStyle = '#ffffff'
+    x.font = 'bold 180px sans-serif'
+    x.fillText('COLA', 330, 470)
+    return c.toDataURL('image/png')
+  })
+  const png = Buffer.from(dataUrl.split(',')[1]!, 'base64')
+
+  await nav('Inventory').click()
+  const row = page.getByRole('row', { name: /Cola 345ml/ })
+  await expect(row.getByTestId('product-image')).toHaveCount(0) // no image yet: just the name
+  await row.getByRole('button', { name: 'Edit' }).click()
+  const dialog = page.getByRole('dialog', { name: /Edit Cola 345ml/ })
+  await dialog.getByTestId('product-image-input').setInputFiles({ name: 'cola.png', mimeType: 'image/png', buffer: png })
+  await expect(dialog.getByTestId('product-image-preview')).toBeVisible()
+  await dialog.getByTestId('save-product').click()
+  await expect(dialog).toHaveCount(0)
+
+  const [product] = await db<{ id: string; image_path: string }>(`select id, image_path from public.inventory_products where name = 'Cola 345ml'`)
+  expect(product!.image_path).toMatch(new RegExp(`^${product!.id}/[0-9a-f-]{36}\\.(webp|png)$`)) // in the product's own folder
+  expect(fake.files.get(`product-images/${product!.image_path}`)?.type).toMatch(/^image\/(webp|png)$/)
+
+  // Inventory: beside the name, sharp (640 px on the longest side, proportions kept); others stay plain.
+  const img = row.getByTestId('product-image').locator('img')
+  await expect(img).toHaveAttribute('src', new RegExp(`/storage/v1/object/public/product-images/${product!.image_path}$`))
+  await expect.poll(() => img.evaluate((el: HTMLImageElement) => `${el.naturalWidth}x${el.naturalHeight}`)).toBe('640x427')
+  await expect(page.getByRole('row', { name: /Doodh Patti Chai/ }).getByTestId('product-image')).toHaveCount(0)
+  await shot('46-product-images-inventory')
+
+  // Snacks floor, for the admin and for staff (who read images through get_product_images).
+  await nav('Snacks').click()
+  await expect(page.getByTestId('snack-Cola 345ml').getByTestId('product-image')).toBeVisible()
+  await expect(page.getByTestId('snack-Doodh Patti Chai').getByTestId('product-image')).toHaveCount(0)
+  const p = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })).newPage()
+  await signInAs(p, 'ali', 'ali-pass-123')
+  await p.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Snacks' }).click()
+  const tile = p.getByTestId('snack-Cola 345ml').getByTestId('product-image').locator('img')
+  await expect.poll(() => tile.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth)).toBe(640)
+  await expect(p.getByTestId('snack-Doodh Patti Chai').getByTestId('product-image')).toHaveCount(0)
+  await shotOf(p, '47-product-images-snacks')
+  await p.context().close()
+})
+
 test('Phone: staff run a table from start to payment and sell snacks, all by touch', async () => {
   const p = await device(375, 812)
   await signInAs(p, 'ali', 'ali-pass-123')

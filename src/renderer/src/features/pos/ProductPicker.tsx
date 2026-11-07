@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { PackageSearch, Search } from 'lucide-react'
 import { formatMoney } from '@shared/format'
 import { cn } from '@/lib/cn'
+import { ProductImage } from '@/components/ui/ProductImage'
 import { searchProducts } from '@/data/api'
 import { keys, useDebounced } from '@/data/hooks'
 import { inputClass } from '@/components/ui/Field'
@@ -117,11 +118,14 @@ export function ProductPicker({
                       !ok && 'opacity-45'
                     )}
                   >
-                    <span className="min-w-0">
+                    <span className="flex min-w-0 items-center gap-3">
+                      <ProductImage productId={p.id} name={p.name} size={36} />
+                      <span className="min-w-0">
                       <span className="block truncate text-sm font-semibold text-fg">{p.name}</span>
                       <span className="block text-xs text-fg-4">
                         {p.category || 'Product'}
                         {p.track_stock ? ` · ${p.stock_quantity > 0 ? `${p.stock_quantity} in stock` : 'Out of stock'}` : ''}
+                      </span>
                       </span>
                     </span>
                     <span className="shrink-0 text-sm font-bold text-forest-600 tabular">{formatMoney(p.selling_price)}</span>

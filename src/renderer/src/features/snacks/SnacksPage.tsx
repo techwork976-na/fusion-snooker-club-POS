@@ -15,6 +15,7 @@ import { EmptyState, ErrorState, LoadingBlock, Page, PageHeader } from '@/compon
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { CheckoutDialog, type CartLine } from '@/features/pos/CheckoutDialog'
+import { ProductImage } from '@/components/ui/ProductImage'
 
 /**
  * Snack and drink sales without a table: pick products into a cart, then pay
@@ -102,8 +103,13 @@ export function SnacksPage() {
                       )}
                       data-testid={`snack-${p.name}`}
                     >
-                      <span className="font-mono text-[10px] font-medium tracking-[0.12em] text-lake-600 uppercase">{p.category}</span>
-                      <span className="mt-1 text-[15px] font-semibold text-fg max-sm:leading-snug">{p.name}</span>
+                      <span className="flex items-start gap-3">
+                        <ProductImage productId={p.id} name={p.name} size={52} className="max-sm:!size-11" />
+                        <span className="min-w-0">
+                          <span className="block font-mono text-[10px] font-medium tracking-[0.12em] text-lake-600 uppercase">{p.category}</span>
+                          <span className="mt-1 block text-[15px] font-semibold text-fg max-sm:leading-snug">{p.name}</span>
+                        </span>
+                      </span>
                       <span className="mt-4 flex items-end justify-between gap-2 max-sm:mt-auto max-sm:flex-wrap max-sm:gap-x-2 max-sm:gap-y-0.5 max-sm:pt-3">
                         <span className="figure-display text-[20px] leading-none text-forest-950">{formatMoney(p.selling_price)}</span>
                         <span className={cn('flex items-center gap-1.5 text-xs font-semibold tabular', out ? 'text-claret-700' : 'text-fg-4')}>
@@ -157,9 +163,12 @@ export function SnacksPage() {
                 <ul className="mt-4 divide-y divide-line">
                   {cart.map((l) => (
                     <li key={l.key} className="flex items-center gap-3 py-3 max-sm:flex-wrap max-sm:gap-y-2">
-                      <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-6rem)]">
-                        <p className="line-clamp-2 text-sm leading-snug font-semibold text-fg">{l.name}</p>
-                        <p className="text-xs text-fg-4 tabular">{formatMoney(l.unitPrice)} each</p>
+                      <div className="flex min-w-0 flex-1 items-center gap-3 max-sm:basis-[calc(100%-6rem)]">
+                        <ProductImage productId={l.productId} name={l.name} size={36} />
+                        <div className="min-w-0">
+                          <p className="line-clamp-2 text-sm leading-snug font-semibold text-fg">{l.name}</p>
+                          <p className="text-xs text-fg-4 tabular">{formatMoney(l.unitPrice)} each</p>
+                        </div>
                       </div>
                       <div className="flex items-center rounded-xl bg-surface shadow-[var(--shadow-control)] max-sm:order-2">
                         <IconButton label="One less" size="sm" tooltip={false} onClick={() => setQuantity(l, l.quantity - 1)}>

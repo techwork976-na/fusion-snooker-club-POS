@@ -33,6 +33,7 @@ import { CheckoutDialog } from '@/features/pos/CheckoutDialog'
 import { ShiftFigures, ShiftStatusPill } from '@/features/shifts/ShiftParts'
 import { StatusPill } from '@/features/tables/TableCard'
 import { statusMeta, useLive } from '@/features/tables/session'
+import { ProductImage } from '@/components/ui/ProductImage'
 
 const rise = (i: number) => ({
   initial: { opacity: 0, y: 10 },
@@ -680,8 +681,11 @@ function LowStockAlert({ data }: { data: Dashboard }) {
       </span>
       <ul className="mt-4 space-y-2">
         {items.slice(0, 6).map((p) => (
-          <li key={p.id} className="flex justify-between gap-3 text-sm">
-            <span className="truncate text-fg">{p.name}</span>
+          <li key={p.id} className="flex items-center justify-between gap-3 text-sm">
+            <span className="flex min-w-0 items-center gap-2.5">
+              <ProductImage productId={p.id} name={p.name} size={26} />
+              <span className="truncate text-fg">{p.name}</span>
+            </span>
             <span className={cn('shrink-0 font-bold tabular', p.stock_quantity === 0 ? 'text-claret-700' : 'text-brass-700')}>
               {p.stock_quantity === 0 ? 'Out' : `${p.stock_quantity} left`}
             </span>

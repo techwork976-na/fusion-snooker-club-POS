@@ -7,6 +7,7 @@ import type { TableOverview } from '@/lib/types'
 import { useSettings } from '@/data/hooks'
 import { Drawer } from '@/components/ui/Drawer'
 import { Button, IconButton } from '@/components/ui/Button'
+import { ProductImage } from '@/components/ui/ProductImage'
 import { ConfirmDialog } from '@/components/ui/Modal'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { ProductPicker } from '@/features/pos/ProductPicker'
@@ -189,9 +190,12 @@ export function SessionPanel({
                       exit={{ opacity: 0, height: 0 }}
                       className="flex items-center gap-3 rounded-xl bg-sunken/70 px-3.5 py-2.5 max-sm:flex-wrap max-sm:gap-y-2"
                     >
-                      <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-6rem)]">
-                        <p className="truncate text-sm font-semibold text-fg">{i.name}</p>
-                        <p className="text-xs text-fg-4 tabular">{formatMoney(i.unit_price)} each</p>
+                      <div className="flex min-w-0 flex-1 items-center gap-3 max-sm:basis-[calc(100%-6rem)]">
+                        <ProductImage productId={i.product_id} name={i.name} size={36} />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-fg">{i.name}</p>
+                          <p className="text-xs text-fg-4 tabular">{formatMoney(i.unit_price)} each</p>
+                        </div>
                       </div>
                       <div className="flex items-center gap-0.5 max-sm:order-2 max-sm:rounded-xl max-sm:bg-surface max-sm:shadow-[var(--shadow-control)]">
                         <IconButton size="sm" label="Decrease" tooltip={false} disabled={tabBusy} onClick={() => actions.setQty.mutate({ itemId: i.id, quantity: i.quantity - 1 })}>
