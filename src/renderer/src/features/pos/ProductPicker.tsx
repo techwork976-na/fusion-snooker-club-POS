@@ -115,7 +115,7 @@ export function ProductPicker({
                     className={cn(
                       'flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition-colors',
                       i === active && ok ? 'bg-forest-950/[0.07]' : '',
-                      !ok && 'opacity-45'
+                      !ok && 'bg-surface opacity-45' // solid, so a faded product image still blends into the list
                     )}
                   >
                     <span className="flex min-w-0 items-center gap-3">

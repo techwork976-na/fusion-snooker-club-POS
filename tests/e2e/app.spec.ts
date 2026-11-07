@@ -1059,41 +1059,80 @@ test('anyone sets a profile picture; it shows in the sidebar, and removing it br
 })
 
 test('a product image shows beside the product everywhere; a product without one stays plain', async () => {
-  // A photo-sized 1200 × 800 image, made in the browser.
+  // A phone photo of a can (1200 × 1600 JPG): an off-white backdrop with grain, a shaded red can, a label.
   const dataUrl = await page.evaluate(() => {
     const c = document.createElement('canvas')
     c.width = 1200
-    c.height = 800
+    c.height = 1600
     const x = c.getContext('2d')!
-    x.fillStyle = '#c62828'
-    x.fillRect(0, 0, 1200, 800)
+    x.fillStyle = '#f3f3ef'
+    x.fillRect(0, 0, 1200, 1600)
+    const shade = x.createLinearGradient(420, 0, 780, 0)
+    shade.addColorStop(0, '#8e1414')
+    shade.addColorStop(0.4, '#e53935')
+    shade.addColorStop(1, '#7a1010')
+    x.fillStyle = shade
+    x.beginPath()
+    x.roundRect(420, 380, 360, 860, 40)
+    x.fill()
     x.fillStyle = '#ffffff'
-    x.font = 'bold 180px sans-serif'
-    x.fillText('COLA', 330, 470)
-    return c.toDataURL('image/png')
+    x.font = 'bold 92px sans-serif'
+    x.fillText('COLA', 488, 820)
+    x.font = '30px sans-serif'
+    x.fillText('345 ml · chilled', 495, 870)
+    const d = x.getImageData(0, 0, 1200, 1600)
+    let seed = 7
+    for (let i = 0; i < d.data.length; i += 4) {
+      seed = (seed * 1103515245 + 12345) % 2147483648
+      const n = (seed / 2147483648 - 0.5) * 14
+      for (let k = 0; k < 3; k++) d.data[i + k] = d.data[i + k]! + n
+    }
+    x.putImageData(d, 0, 0)
+    return c.toDataURL('image/jpeg', 0.92)
   })
-  const png = Buffer.from(dataUrl.split(',')[1]!, 'base64')
+  const jpg = Buffer.from(dataUrl.split(',')[1]!, 'base64')
 
   await nav('Inventory').click()
   const row = page.getByRole('row', { name: /Cola 345ml/ })
   await expect(row.getByTestId('product-image')).toHaveCount(0) // no image yet: just the name
   await row.getByRole('button', { name: 'Edit' }).click()
   const dialog = page.getByRole('dialog', { name: /Edit Cola 345ml/ })
-  await dialog.getByTestId('product-image-input').setInputFiles({ name: 'cola.png', mimeType: 'image/png', buffer: png })
+  await dialog.getByTestId('product-image-input').setInputFiles({ name: 'cola.jpg', mimeType: 'image/jpeg', buffer: jpg })
+
+  // The cropper opens first: zoom in and drag to focus on the can, then use the square.
+  const crop = page.getByRole('dialog', { name: 'Crop product image' })
+  await expect(crop.getByTestId('crop-stage').locator('img')).toBeVisible()
+  await crop.getByTestId('crop-zoom').fill('420')
+  const stage = (await crop.getByTestId('crop-stage').boundingBox())!
+  await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(stage.x + stage.width / 2 + 10, stage.y + stage.height / 2 - 30, { steps: 5 })
+  await page.mouse.up()
+  await shot('46-product-image-crop')
+  await crop.getByTestId('crop-confirm').click()
+  await expect(crop).toHaveCount(0)
   await expect(dialog.getByTestId('product-image-preview')).toBeVisible()
+  await expect(dialog.getByTestId('product-image-meta')).toHaveText(/^Square · (\d+) × \1 px · \d+ KB$/)
   await dialog.getByTestId('save-product').click()
   await expect(dialog).toHaveCount(0)
 
   const [product] = await db<{ id: string; image_path: string }>(`select id, image_path from public.inventory_products where name = 'Cola 345ml'`)
-  expect(product!.image_path).toMatch(new RegExp(`^${product!.id}/[0-9a-f-]{36}\\.(webp|png)$`)) // in the product's own folder
-  expect(fake.files.get(`product-images/${product!.image_path}`)?.type).toMatch(/^image\/(webp|png)$/)
+  expect(product!.image_path).toMatch(new RegExp(`^${product!.id}/[0-9a-f-]{36}\\.(webp|jpg)$`)) // in the product's own folder
+  const stored = fake.files.get(`product-images/${product!.image_path}`)!
+  expect(stored.type).toMatch(/^image\/(webp|jpeg)$/)
+  expect(stored.body.length).toBeGreaterThanOrEqual(50 * 1024) // 50–100 KB
+  expect(stored.body.length).toBeLessThanOrEqual(100_000)
 
-  // Inventory: beside the name, sharp (640 px on the longest side, proportions kept); others stay plain.
+  // Inventory: a square beside the name, blended into the row (no white tile); others stay plain.
   const img = row.getByTestId('product-image').locator('img')
   await expect(img).toHaveAttribute('src', new RegExp(`/storage/v1/object/public/product-images/${product!.image_path}$`))
-  await expect.poll(() => img.evaluate((el: HTMLImageElement) => `${el.naturalWidth}x${el.naturalHeight}`)).toBe('640x427')
+  await expect
+    .poll(() => img.evaluate((el: HTMLImageElement) => (el.complete && el.naturalWidth === el.naturalHeight ? el.naturalWidth : 0)))
+    .toBeGreaterThanOrEqual(640)
+  expect(await img.evaluate((el) => getComputedStyle(el).mixBlendMode)).toBe('multiply')
+  expect(await row.getByTestId('product-image').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
   await expect(page.getByRole('row', { name: /Doodh Patti Chai/ }).getByTestId('product-image')).toHaveCount(0)
-  await shot('46-product-images-inventory')
+  await shot('47-product-images-inventory')
 
   // Snacks floor, for the admin and for staff (who read images through get_product_images).
   await nav('Snacks').click()
@@ -1103,9 +1142,10 @@ test('a product image shows beside the product everywhere; a product without one
   await signInAs(p, 'ali', 'ali-pass-123')
   await p.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Snacks' }).click()
   const tile = p.getByTestId('snack-Cola 345ml').getByTestId('product-image').locator('img')
-  await expect.poll(() => tile.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth)).toBe(640)
+  await expect.poll(() => tile.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0 && el.naturalWidth === el.naturalHeight)).toBe(true)
+  expect(await tile.evaluate((el) => getComputedStyle(el).mixBlendMode)).toBe('multiply')
   await expect(p.getByTestId('snack-Doodh Patti Chai').getByTestId('product-image')).toHaveCount(0)
-  await shotOf(p, '47-product-images-snacks')
+  await shotOf(p, '48-product-images-snacks')
   await p.context().close()
 })
 

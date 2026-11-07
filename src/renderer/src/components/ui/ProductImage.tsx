@@ -6,9 +6,14 @@ import { productImageUrl } from '@/data/productImages'
 /**
  * A product's image, shown beside its name wherever the product appears.
  * A product without an image renders nothing at all — no placeholder, icon or
- * empty box — so its line looks exactly as it always has. The image keeps its
- * proportions inside a small white tile (packets and bottles are not cropped),
- * from a 640 px file, so it stays sharp on high-resolution screens.
+ * empty box — so its line looks exactly as it always has.
+ *
+ * There is no tile or frame: the image is multiplied onto whatever it sits on
+ * (mix-blend-mode: multiply), so a photo's white background takes on the
+ * card's own colour and the product looks printed on the card. For that to
+ * work, nothing between the card and the image may fade or isolate (an opacity
+ * below 1 on a see-through row, for one); give such a row the card's solid
+ * background. Files are square crops of about 800 px, sharp on any screen.
  */
 export function ProductImage({
   productId,
@@ -31,12 +36,17 @@ export function ProductImage({
   const url = productImageUrl(path)
   if (!url || failed) return null
   return (
-    <span
-      className={cn('inline-flex shrink-0 items-center justify-center overflow-hidden bg-white ring-1 ring-forest-950/[0.07]', className)}
-      style={{ width: size, height: size, borderRadius: Math.max(6, Math.round(size * 0.22)), padding: Math.max(1, Math.round(size * 0.06)) }}
-      data-testid="product-image"
-    >
-      <img src={url} alt="" loading="lazy" decoding="async" draggable={false} className="size-full object-contain" onError={() => setFailed(true)} />
+    <span className={cn('inline-flex shrink-0 items-center justify-center', className)} style={{ width: size, height: size }} data-testid="product-image">
+      <img
+        src={url}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        draggable={false}
+        className="size-full object-contain mix-blend-multiply"
+        style={{ borderRadius: Math.max(4, Math.round(size * 0.18)) }}
+        onError={() => setFailed(true)}
+      />
     </span>
   )
 }

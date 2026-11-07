@@ -1,24 +1,28 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArchiveRestore, Boxes, ImagePlus, PackagePlus, Pencil, PackageMinus, Search, Trash2 } from 'lucide-react'
+import { ArchiveRestore, Boxes, Crop, ImagePlus, PackagePlus, Pencil, PackageMinus, Search, Trash2 } from 'lucide-react'
 import { formatDateTime, formatMoney } from '@shared/format'
 import { toPaisa } from '@shared/billing'
 import { cn } from '@/lib/cn'
 import { errorMessage } from '@/lib/errors'
+import type { CropView } from '@/lib/crop'
+import { formatKb } from '@/lib/imageBudget'
 import type { Product, ProductSearchResult } from '@/lib/types'
 import { adjustStock, deleteProduct, getStockAdjustments, listProducts, saveProduct, searchProducts, setProductActive, type ProductInput } from '@/data/api'
 import { keys, useAction, useDebounced, useSettings } from '@/data/hooks'
 import { Button, IconButton } from '@/components/ui/Button'
 import { inputClass, parseAmount, parseIntStrict, Switch, TextField } from '@/components/ui/Field'
 import { ConfirmDialog, Modal } from '@/components/ui/Modal'
+import { ImageCropDialog } from '@/components/ui/ImageCropDialog'
 import { ProductImage } from '@/components/ui/ProductImage'
 import { useToast } from '@/components/ui/Toast'
 import {
   MAX_PRODUCT_ORIGINAL_BYTES,
+  compressProductImage,
   deleteProductImageFile,
-  prepareProductImage,
   productImageUrl,
+  type PreparedProductImage,
   removeProductImage,
   setProductImage
 } from '@/data/productImages'
@@ -141,7 +145,7 @@ function AdminInventory({ tabs }: { tabs: ReactNode }) {
                 const profit = (toPaisa(p.selling_price) - toPaisa(p.cost_price)) / 100
                 const margin = Number(p.selling_price) > 0 ? Math.round((profit / Number(p.selling_price)) * 100) : 0
                 return (
-                  <tr key={p.id} className={cn('transition-colors hover:bg-forest-950/[0.02]', !p.is_active && 'opacity-55')}>
+                  <tr key={p.id} className={cn('transition-colors', p.is_active ? 'hover:bg-forest-950/[0.02]' : 'bg-surface opacity-55')}>
                     <td className="px-5 py-3" data-stack="title">
                       <div className="flex items-center gap-3">
                         <ProductImage path={p.image_path ?? null} size={40} />
@@ -241,10 +245,11 @@ function ProductDialog({ product, onClose }: { product: Product | 'new' | null; 
   const qc = useQueryClient()
   const toast = useToast()
   const fileInput = useRef<HTMLInputElement>(null)
-  // A newly chosen image (prepared, uploaded after the product is saved), or the current one removed.
-  const [image, setImage] = useState<{ blob: Blob; extension: 'webp' | 'png'; preview: string } | null>(null)
+  // A newly chosen image (cropped and compressed, uploaded after the product is saved), or the current one removed.
+  const [image, setImage] = useState<(PreparedProductImage & { preview: string; file: File; view: CropView }) | null>(null)
   const [removeImage, setRemoveImage] = useState(false)
-  const [preparing, setPreparing] = useState(false)
+  // The picture being cropped (the crop dialog is open while this is set).
+  const [cropping, setCropping] = useState<{ file: File; view: CropView | null } | null>(null)
   const [savingImage, setSavingImage] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
   const currentPath = product && product !== 'new' ? (product.image_path ?? null) : null
@@ -259,6 +264,7 @@ function ProductDialog({ product, onClose }: { product: Product | 'new' | null; 
     setSubmitted(false)
     setImage(null)
     setRemoveImage(false)
+    setCropping(null)
     setImageError(null)
     if (product === 'new') {
       setName('')
@@ -324,22 +330,13 @@ function ProductDialog({ product, onClose }: { product: Product | 'new' | null; 
     })
   }
 
-  const chooseImage = async (file: File | undefined) => {
+  const chooseImage = (file: File | undefined) => {
     if (fileInput.current) fileInput.current.value = ''
     if (!file) return
     setImageError(null)
     if (!file.type.startsWith('image/')) return setImageError('Choose a picture (PNG, JPG or WebP).')
     if (file.size > MAX_PRODUCT_ORIGINAL_BYTES) return setImageError('That picture is too large (over 20 MB).')
-    setPreparing(true)
-    try {
-      const prepared = await prepareProductImage(file)
-      setImage({ ...prepared, preview: URL.createObjectURL(prepared.blob) })
-      setRemoveImage(false)
-    } catch (e) {
-      setImageError(errorMessage(e))
-    } finally {
-      setPreparing(false)
-    }
+    setCropping({ file, view: null })
   }
   const busy = save.isPending || savingImage
   const show = (e: string | null) => (submitted ? e : null)
@@ -354,7 +351,7 @@ function ProductDialog({ product, onClose }: { product: Product | 'new' | null; 
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={submit} loading={busy} disabled={preparing} data-testid="save-product">
+          <Button variant="primary" onClick={submit} loading={busy} data-testid="save-product">
             Save product
           </Button>
         </>
@@ -369,9 +366,7 @@ function ProductDialog({ product, onClose }: { product: Product | 'new' | null; 
       >
         <div className="col-span-2 flex items-center gap-4 rounded-xl bg-sunken/50 p-3" data-testid="product-image-field">
           {preview ? (
-            <span className="flex size-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1.5 ring-1 ring-forest-950/[0.07]">
-              <img src={preview} alt="" className="size-full object-contain" data-testid="product-image-preview" />
-            </span>
+            <img src={preview} alt="" className="size-[76px] shrink-0 rounded-[14px] object-contain mix-blend-multiply" data-testid="product-image-preview" />
           ) : (
             <span className="flex size-[76px] shrink-0 items-center justify-center rounded-xl border border-dashed border-forest-950/15 text-fg-4">
               <ImagePlus className="size-5" />
@@ -379,11 +374,22 @@ function ProductDialog({ product, onClose }: { product: Product | 'new' | null; 
           )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-fg">Product image</p>
-            <p className="mt-0.5 text-xs text-fg-4">Optional. Shown beside the name everywhere the product appears; without one the name shows alone.</p>
+            {image ? (
+              <p className="mt-0.5 font-mono text-[11px] text-fg-4" data-testid="product-image-meta">
+                Square · {image.side} × {image.side} px · {formatKb(image.blob.size)}
+              </p>
+            ) : (
+              <p className="mt-0.5 text-xs text-fg-4">Optional. You crop it square; it is shown beside the name everywhere the product appears. Without one the name shows alone.</p>
+            )}
             <div className="mt-2.5 flex flex-wrap gap-2">
-              <Button size="sm" variant="secondary" icon={<ImagePlus className="size-4" />} loading={preparing} onClick={() => fileInput.current?.click()} data-testid="product-image-choose">
+              <Button size="sm" variant="secondary" icon={<ImagePlus className="size-4" />} onClick={() => fileInput.current?.click()} data-testid="product-image-choose">
                 {preview ? 'Change image' : 'Choose image'}
               </Button>
+              {image && (
+                <Button size="sm" variant="ghost" icon={<Crop className="size-4" />} onClick={() => setCropping({ file: image.file, view: image.view })} data-testid="product-image-recrop">
+                  Adjust crop
+                </Button>
+              )}
               {preview && (
                 <Button
                   size="sm"
@@ -401,7 +407,21 @@ function ProductDialog({ product, onClose }: { product: Product | 'new' | null; 
             </div>
             {imageError && <p className="mt-1.5 text-xs text-claret-700">{imageError}</p>}
           </div>
-          <input ref={fileInput} type="file" accept="image/*" hidden onChange={(e) => void chooseImage(e.target.files?.[0])} data-testid="product-image-input" />
+          <input ref={fileInput} type="file" accept="image/*" hidden onChange={(e) => chooseImage(e.target.files?.[0])} data-testid="product-image-input" />
+          <ImageCropDialog
+            file={cropping?.file ?? null}
+            initialView={cropping?.view}
+            title="Crop product image"
+            onCancel={() => setCropping(null)}
+            onConfirm={async (picture, area, view) => {
+              const file = cropping!.file
+              const prepared = await compressProductImage(picture, area)
+              setImage({ ...prepared, preview: URL.createObjectURL(prepared.blob), file, view })
+              setRemoveImage(false)
+              setImageError(null)
+              setCropping(null)
+            }}
+          />
         </div>
         <TextField containerClassName="col-span-2" label="Name" value={name} onChange={(e) => setName(e.target.value)} error={show(errors.name)} autoFocus />
         <TextField containerClassName="col-span-2" label="Category" placeholder="e.g. Drinks, Snacks" value={category} onChange={(e) => setCategory(e.target.value)} />

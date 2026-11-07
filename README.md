@@ -43,7 +43,7 @@ FUSION runs FUSION Gaming Lounge: tables (snooker, pool, table tennis, PS5…), 
 | Start all business records from zero (password, optional backup, type RESET BUSINESS DATA) | Admin | **Settings → Data management** |
 | Accounts on this device: each signs in once with its password (**Add account**), then **one click** switches between them — no password, no time limit — until **Log out of all accounts** | Everyone | Account button (bottom of the sidebar; phones: More) |
 | Profile picture (shown in the sidebar and the account switcher; initials without one) | Everyone | Account button → Profile picture |
-| Product images (shown beside the product on Inventory, Snacks, table tabs, checkout, receipts, shift invoices and the low-stock alert; without one the product shows as plain text). Uploads are shrunk in the browser to a sharp 640 px WebP | Admin uploads · everyone sees | **Inventory → Edit** (or *Add product*) → Image |
+| Product images (shown beside the product on Inventory, Snacks, table tabs, checkout, receipts, shift invoices and the low-stock alert; without one the product shows as plain text). Choosing a picture opens a **square cropper** (drag, zoom, pinch); the crop is saved at 50–100 KB (about 800 px, WebP or near-lossless JPEG, the highest quality that fits), with an off-white photo backdrop turned pure white. Images have no tile: they are blended into the card (multiply), so a white background takes the card's colour | Admin uploads · everyone sees | **Inventory → Edit** (or *Add product*) → Image |
 
 Every time of day in FUSION is shown in 12-hour form (e.g. 07:15 PM).
 

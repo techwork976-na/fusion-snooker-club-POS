@@ -319,7 +319,7 @@ export function CheckoutDialog({
 
             <ProductPicker onPick={addProduct} autoFocus={isCounter && !phone} busy={tabBusy} />
 
-            <div className="rounded-2xl bg-sunken/60 sm:min-h-[220px]">
+            <div className="overflow-hidden rounded-2xl bg-sunken/60 sm:min-h-[220px]">
               {lines.length === 0 ? (
                 <EmptyState
                   className="py-10"
@@ -337,7 +337,8 @@ export function CheckoutDialog({
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="flex items-center gap-3 px-4 py-3 max-sm:flex-wrap max-sm:gap-y-2"
+                        // A solid copy of the panel colour: while a line fades or slides, product images still blend into it.
+                        className="flex items-center gap-3 bg-[color-mix(in_srgb,var(--color-sunken)_60%,var(--color-surface))] px-4 py-3 max-sm:flex-wrap max-sm:gap-y-2"
                       >
                         <div className="flex min-w-0 flex-1 items-center gap-3 max-sm:basis-[calc(100%-7rem)]">
                           <ProductImage productId={l.productId} name={l.name} size={40} />
