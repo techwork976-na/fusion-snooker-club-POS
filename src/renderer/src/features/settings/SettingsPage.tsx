@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Building2, CalendarClock, Clock3, Database, DatabaseZap, Layers, LayoutGrid, Monitor, Pencil, Plus, ShieldCheck, Tags, Trash2, ArchiveRestore, PackageMinus } from 'lucide-react'
+import { Building2, CalendarClock, Camera, Clock3, Database, DatabaseZap, Layers, LayoutGrid, Monitor, Pencil, Plus, ShieldCheck, Tags, Trash2, ArchiveRestore, PackageMinus } from 'lucide-react'
 import { describePolicy, sessionCharge, slotPrice, tierPrice, type RoundingMode } from '@shared/billing'
 import { formatHour, formatMoney, formatPricing, formatRate } from '@shared/format'
 import { RetentionSection } from './RetentionSection'
@@ -18,6 +18,8 @@ import { ConfirmDialog, Modal } from '@/components/ui/Modal'
 import { LoadingBlock, Page, PageHeader, Segmented } from '@/components/ui/Misc'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { ChangePasswordDialog } from '@/features/auth/ChangePasswordDialog'
+import { ProfilePictureDialog } from '@/features/auth/ProfilePictureDialog'
+import { Avatar } from '@/components/ui/Avatar'
 import { canChoosePrinter, getAppInfo, isDesktop, listPrinters, printReceiptDocument } from '@/lib/platform'
 import { readPrinterPrefs, writePrinterPrefs, type PrinterPrefs } from '@/features/pos/printing'
 import { useToast } from '@/components/ui/Toast'
@@ -89,7 +91,7 @@ export function SettingsPage() {
           ) : section === 'data' ? (
             <DataManagementSection />
           ) : section === 'security' ? (
-            <SecuritySection settings={settings} />
+            <SecuritySection />
           ) : (
             <TerminalSection />
           )}
@@ -240,22 +242,32 @@ function BillingSection({ settings }: { settings: Settings }) {
   )
 }
 
-function SecuritySection({ settings }: { settings: Settings }) {
-  const save = useSaveSettings()
+function SecuritySection() {
   const { profile } = useAuth()
-  const [minutes, setMinutes] = useState(String(settings.admin_idle_lock_minutes))
   const [passwordOpen, setPasswordOpen] = useState(false)
+  const [pictureOpen, setPictureOpen] = useState(false)
   return (
     <div className="space-y-5">
     <Panel
       title="Your account"
       description="The administrator login for this club."
       footer={
-        <Button variant="primary" onClick={() => setPasswordOpen(true)} data-testid="settings-change-password">
-          Change password
-        </Button>
+        <>
+          <Button variant="secondary" icon={<Camera className="size-4" />} onClick={() => setPictureOpen(true)} data-testid="settings-profile-picture">
+            Profile picture
+          </Button>
+          <Button variant="primary" onClick={() => setPasswordOpen(true)} data-testid="settings-change-password">
+            Change password
+          </Button>
+        </>
       }
     >
+      {profile && (
+        <div className="mb-5 flex items-center gap-4">
+          <Avatar name={profile.full_name} path={profile.avatar_path} role={profile.role} size={56} />
+          <p className="text-sm text-fg-3">Your profile picture shows in the sidebar and the account switcher. Every account can set its own from the account menu.</p>
+        </div>
+      )}
       <dl className="grid grid-cols-2 gap-4 text-sm">
         <div>
           <dt className="label">Name</dt>
@@ -270,27 +282,14 @@ function SecuritySection({ settings }: { settings: Settings }) {
         Changing the password signs this account out on every other computer. Staff passwords are reset from the Staff page.
       </p>
       <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
+      <ProfilePictureDialog open={pictureOpen} onOpenChange={setPictureOpen} />
     </Panel>
-    <Panel
-      title="Security"
-      description="Protects the Admin portal on shared terminals."
-      footer={
-        <Button variant="primary" loading={save.isPending} onClick={() => save.mutate({ admin_idle_lock_minutes: Number(minutes) })}>
-          Save
-        </Button>
-      }
-    >
-      <Select
-        label="Lock the Admin portal after inactivity"
-        value={minutes}
-        onChange={setMinutes}
-        options={[5, 10, 15, 30, 60, 0].map((m) => ({ value: String(m), label: m === 0 ? 'Never (not recommended)' : `${m} minutes` }))}
-        className="max-w-xs"
-      />
-      <ul className="mt-5 space-y-2 text-sm text-fg-3">
-        <li>• Switching Staff → Admin always requires the Admin master password.</li>
+    <Panel title="Signing in on this device" description="Accounts stay signed in until you log out of all of them.">
+      <ul className="space-y-2 text-sm text-fg-3">
+        <li>• Each account signs in once with its password; after that, switching between the accounts on this device takes one click — no password and no time limit.</li>
+        <li>• At the end of the night, use “Log out of all accounts” in the account menu: every account on this device is signed out and needs its password again.</li>
         <li>• Passwords are verified by Supabase Auth (bcrypt); FUSION never stores them.</li>
-        <li>• Every permission and floor restriction is checked again by the database on each request.</li>
+        <li>• Every permission and floor restriction is checked again by the database on each request, for whichever account is active.</li>
       </ul>
     </Panel>
     </div>

@@ -30,6 +30,8 @@ function productionHeaders(supabaseUrl: string | undefined): Record<string, stri
     if (key === 'Content-Security-Policy' && supabaseUrl?.startsWith('http://')) {
       const origin = new URL(supabaseUrl).origin
       v = v.replace('connect-src ', `connect-src ${origin} ${origin.replace('http://', 'ws://')} `)
+      // Profile pictures are served by that server's Storage.
+      v = v.replace('img-src ', `img-src ${origin} `)
     }
     out[key] = v
   }

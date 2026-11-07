@@ -7,7 +7,9 @@ let client: SupabaseClient | null = null
  * In the desktop app, auth tokens are persisted through the main process,
  * encrypted with the OS keychain. In the browser, supabase-js keeps them in
  * this site's local storage (the page's strict Content-Security-Policy and the
- * admin idle lock limit what that exposure can lead to).
+ * fact that every request is still authorised by the database limit what that
+ * exposure can lead to). The accounts kept for one-click switching are stored
+ * the same way (lib/accounts.ts).
  */
 const desktopStorage = {
   getItem: (key: string) => window.fusion.secureStore.get(key),

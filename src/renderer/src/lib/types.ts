@@ -11,6 +11,8 @@ export interface Profile {
   floor_id: number | null
   floor_name: string | null
   permissions: Permission[]
+  /** Path of the profile picture in the "avatars" storage bucket; null shows the initials. */
+  avatar_path?: string | null
 }
 
 export interface Settings {

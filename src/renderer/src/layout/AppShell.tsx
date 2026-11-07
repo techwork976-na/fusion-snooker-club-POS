@@ -1,8 +1,8 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { useLiveUpdates, useServerClockSync, useSettings } from '@/data/hooks'
+import { useLiveUpdates, useServerClockSync } from '@/data/hooks'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { TablesPage } from '@/features/tables/TablesPage'
 import { AllocationAlerts } from '@/features/tables/AllocationAlerts'
@@ -26,38 +26,13 @@ function Guard({ allow, children }: { allow: boolean; children: ReactNode }) {
   return allow ? <>{children}</> : <Navigate to="/" replace />
 }
 
-/** Signs an idle admin out so an unattended terminal drops back to staff use. */
-function useAdminIdleLock() {
-  const { isAdmin, signOut } = useAuth()
-  const { data: settings } = useSettings()
-  const minutes = settings?.admin_idle_lock_minutes ?? 15
-  useEffect(() => {
-    if (!isAdmin || minutes <= 0) return
-    let last = Date.now()
-    const bump = () => {
-      last = Date.now()
-    }
-    const events = ['pointerdown', 'pointermove', 'keydown', 'wheel'] as const
-    events.forEach((e) => window.addEventListener(e, bump, { passive: true }))
-    const id = setInterval(() => {
-      if (Date.now() - last > minutes * 60_000) {
-        void signOut(`The admin portal was locked after ${minutes} minutes without activity.`)
-      }
-    }, 10_000)
-    return () => {
-      events.forEach((e) => window.removeEventListener(e, bump))
-      clearInterval(id)
-    }
-  }, [isAdmin, minutes, signOut])
-}
-
 export function AppShell() {
   const location = useLocation()
-  const { isAdmin, can } = useAuth()
+  const { isAdmin, can, profile } = useAuth()
   const main = useRef<HTMLElement>(null)
   useServerClockSync()
-  useLiveUpdates(true)
-  useAdminIdleLock()
+  // Accounts stay signed in until "Log out of all accounts" (no idle lock); live updates follow the active account.
+  useLiveUpdates(true, profile?.id)
 
   return (
     <div className="flex h-full bg-canvas">

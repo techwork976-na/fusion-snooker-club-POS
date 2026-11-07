@@ -145,14 +145,15 @@ test('admin books a table and starts it from Pre-bookings', async () => {
 })
 
 test('staff opens their own counter, runs the booked table and takes the payment', async () => {
+  // Ali is added to this device once, with his own password (a wrong one is refused).
   await page.getByTestId('account-menu').click()
-  await page.getByRole('menuitem', { name: 'Switch to Staff portal' }).click()
+  await page.getByRole('menuitem', { name: 'Add account' }).click()
   await page.getByRole('button', { name: /staff ali/ }).click()
-  await page.getByLabel('Password').fill('not-it')
-  await page.getByRole('button', { name: 'Switch' }).click()
+  await page.getByTestId('add-account-password').fill('not-it')
+  await page.getByTestId('add-account-submit').click()
   await expect(page.getByText('Incorrect username or password.')).toBeVisible()
-  await page.getByLabel('Password').fill('ali-pass-123')
-  await page.getByRole('button', { name: 'Switch' }).click()
+  await page.getByTestId('add-account-password').fill('ali-pass-123')
+  await page.getByTestId('add-account-submit').click()
 
   const card = page.getByTestId('my-counter-card')
   await expect(card).toContainText('Your counter is closed')
@@ -284,7 +285,7 @@ test('staff are restricted to their own accounting and floor', async () => {
   await expect(page.getByTestId('table-card-Pool 1')).toHaveCount(0)
 })
 
-test('staff → admin needs the master password; the admin sees every staff member live', async () => {
+test('staff → admin is one click for an account signed in on this device; the admin sees every staff member live', async () => {
   // Meanwhile Sara (First floor) works her own counter: one chai, then closes.
   await fake.exclusive(async () => {
     await fake.db.rpc(sara.id, 'open_counter')
@@ -297,12 +298,10 @@ test('staff → admin needs the master password; the admin sees every staff memb
   })
 
   await page.getByTestId('account-menu').click()
-  await page.getByRole('menuitem', { name: 'Switch to Admin portal' }).click()
-  await page.getByLabel('Admin master password').fill('guess')
-  await page.getByRole('button', { name: 'Unlock Admin' }).click()
-  await expect(page.getByText('Incorrect username or password.')).toBeVisible()
-  await page.getByLabel('Admin master password').fill('owner-pass-123')
-  await page.getByRole('button', { name: 'Unlock Admin' }).click()
+  await expect(page.getByTestId('account-ali')).toHaveAttribute('aria-current', 'true')
+  await page.getByTestId('account-owner').click()
+  await expect(page.getByText('Switched to admin owner.')).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0) // no password asked
 
   await expect(page.getByTestId('today-sales')).toContainText('PKR 470')
   const aliRow = page.getByTestId('staff-row-ali')
@@ -588,10 +587,7 @@ test('Reports, Expenses and product profit come from the closed counters; the PD
 
 test('a regular pays a custom rate per minute; the discount follows and every total agrees', async () => {
   await page.getByTestId('account-menu').click()
-  await page.getByRole('menuitem', { name: 'Switch to Staff portal' }).click()
-  await page.getByRole('button', { name: /staff ali/ }).click()
-  await page.getByLabel('Password').fill('ali-pass-123')
-  await page.getByRole('button', { name: 'Switch' }).click()
+  await page.getByTestId('account-ali').click()
   const card = page.getByTestId('my-counter-card')
   await card.getByRole('button', { name: 'Open counter' }).click()
   await expect(card).toContainText('My counter · open')
@@ -749,9 +745,7 @@ test('Snacks: staff sell without a table; stock, sales and product profit follow
 
 test('the admin sees snack sales and the Table Sales Report with every date filter', async () => {
   await page.getByTestId('account-menu').click()
-  await page.getByRole('menuitem', { name: 'Switch to Admin portal' }).click()
-  await page.getByLabel('Admin master password').fill('owner-pass-123')
-  await page.getByRole('button', { name: 'Unlock Admin' }).click()
+  await page.getByTestId('account-owner').click()
   await expect(page.getByTestId('today-sales')).toBeVisible()
   // Every snack-only sale today (the Snacks page and earlier counter sales), live on the dashboard.
   const [snacks] = await db<{ total: string; n: number }>(`select sum(final_amount)::text total, count(*)::int n from public.sales where session_id is null`)
@@ -816,10 +810,7 @@ test('hourly + special 30-minute pricing: priced by duration, extensions re-pric
 
   // Ali (staff) starts an hour: the price is shown before confirming.
   await page.getByTestId('account-menu').click()
-  await page.getByRole('menuitem', { name: 'Switch to Staff portal' }).click()
-  await page.getByRole('button', { name: /staff ali/ }).click()
-  await page.getByLabel('Password').fill('ali-pass-123')
-  await page.getByRole('button', { name: 'Switch' }).click()
+  await page.getByTestId('account-ali').click()
   await nav('Tables').click()
   const card = page.getByTestId('table-card-PS5 Lounge')
   await expect(card).toContainText('PKR 600/hour · 30 min PKR 400')
@@ -881,17 +872,36 @@ test('hourly + special 30-minute pricing: priced by duration, extensions re-pric
   expect(sale!.base).toBe('1200.00')
 })
 
-test('refreshing keeps the signed-in page; signing out ends the session', async () => {
-  // Ali (staff) is signed in from the previous test.
+test('accounts stay signed in all day — refresh included — and "Log out of all accounts" ends every session', async () => {
+  // Ali (staff) is active from the previous test; the admin signed in on this device this morning.
   await nav('Tables').click()
   await expect(page).toHaveURL(E2E.appUrl + '/tables')
   await page.reload()
   await expect(page).toHaveURL(E2E.appUrl + '/tables')
   await expect(page.getByTestId('table-card-Snooker 1')).toBeVisible()
+  type Stored = { username: string; session: { refresh_token: string } }
+  const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('fusion-accounts') ?? '[]') as Stored[])
+  expect((await stored()).map((a) => a.username).sort()).toEqual(['ali', 'owner'])
+
+  // Back and forth with one click each, no password, after the refresh too.
+  for (const [who, sees] of [['owner', 'today-sales'], ['ali', 'my-counter-card'], ['owner', 'today-sales']] as const) {
+    await page.getByTestId('account-menu').click()
+    await page.getByTestId(`account-${who}`).click()
+    await expect(page.getByTestId(sees)).toBeVisible()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+  }
+
+  // End of the night.
+  const tokens = (await stored()).map((a) => a.session.refresh_token)
+  expect(tokens.every((t) => fake.refreshTokenWorks(t))).toBe(true)
   await page.getByTestId('account-menu').click()
-  await page.getByRole('menuitem', { name: /sign out/i }).click()
+  await page.getByTestId('sign-out-all').click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Log out of all' }).click()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
-  expect(await page.evaluate(() => localStorage.getItem('sb-fusion-auth'))).toBeNull()
+  await expect(page.getByText('Logged out of all accounts on this device.')).toBeVisible()
+  expect(await page.evaluate(() => [localStorage.getItem('sb-fusion-auth'), localStorage.getItem('fusion-accounts')])).toEqual([null, null])
+  // Every session ended on the server: the stored tokens can never sign anyone in again.
+  for (const t of tokens) expect(fake.refreshTokenWorks(t)).toBe(false)
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
 })
@@ -1013,6 +1023,40 @@ async function expectPagesFit(p: Page, paths: string[], label: string) {
     expect(await sideways(p), `${label} ${path} scrolls sideways`).toBe(0)
   }
 }
+
+test('anyone sets a profile picture; it shows in the sidebar, and removing it brings back the initials', async () => {
+  // A 1 × 1 PNG, as a phone photo would arrive; the app crops and shrinks it before uploading.
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+  const [owner] = await db<{ id: string }>(`select id from public.app_users where username = 'owner'`)
+  const sidebarAvatar = page.getByTestId('account-menu').getByTestId('avatar')
+  await expect(sidebarAvatar).toHaveAttribute('data-has-picture', 'false')
+
+  await page.getByTestId('account-menu').click()
+  await page.getByTestId('profile-picture').click()
+  await page.getByRole('dialog', { name: 'Profile picture' }).getByTestId('picture-input').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: png })
+  await expect(page.getByText('Profile picture updated.')).toBeVisible()
+  const [row] = await db<{ avatar_path: string }>(`select avatar_path from public.app_users where id = $1`, [owner!.id])
+  expect(row!.avatar_path).toMatch(new RegExp(`^${owner!.id}/[0-9a-f-]{36}\\.jpg$`)) // in the owner's own folder
+  expect(fake.files.get(`avatars/${row!.avatar_path}`)?.type).toBe('image/jpeg')
+  await expect(sidebarAvatar).toHaveAttribute('data-has-picture', 'true')
+  const img = sidebarAvatar.locator('img')
+  await expect(img).toHaveAttribute('src', new RegExp(`/storage/v1/object/public/avatars/${row!.avatar_path}$`))
+  await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth)).toBe(256) // it really loads
+  await shot('45-profile-picture')
+
+  await page.getByTestId('account-menu').click()
+  await page.getByTestId('profile-picture').click()
+  await page.getByTestId('remove-picture').click()
+  await expect(page.getByText('Profile picture removed.')).toBeVisible()
+  await expect(sidebarAvatar).toHaveAttribute('data-has-picture', 'false')
+  await expect(sidebarAvatar).toHaveText('AO')
+  expect(fake.files.has(`avatars/${row!.avatar_path}`)).toBe(false)
+
+  // The dashboard no longer repeats the snack best sellers (Snacks and the reports have them).
+  await nav('Dashboard').click()
+  await expect(page.getByTestId('today-sales')).toBeVisible()
+  await expect(page.getByText('Best sellers today')).toHaveCount(0)
+})
 
 test('Phone: staff run a table from start to payment and sell snacks, all by touch', async () => {
   const p = await device(375, 812)
@@ -1372,6 +1416,35 @@ test('a booking ended early charges only the time played; every period draws the
   await page.getByLabel('From', { exact: true }).fill(yesterday)
   if (!(await page.getByText('No closed shifts in this period').isVisible())) await expect(page.getByText('Final sales by day')).toBeVisible()
   await expect(lonelyBars).toHaveCount(0)
+})
+
+test("staff export their shift from My sales as a PDF for the owner, with the shift's own figures", async () => {
+  const p = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce', acceptDownloads: true })).newPage()
+  await p.goto(E2E.appUrl + '/')
+  await p.getByTestId('login-username').fill('ali')
+  await p.getByTestId('login-password').fill('ali-pass-123')
+  await p.getByRole('button', { name: 'Sign in' }).click()
+  await p.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'My sales' }).click()
+
+  // Ali's counter is open: the PDF is the shift so far, marked provisional.
+  const [shift] = await db<{ total: string; name: string; date: string }>(
+    `select (c.cash_sales + c.bank_sales)::text total, u.full_name name, c.business_date::text date
+     from public.counter_shifts c join public.app_users u on u.id = c.user_id where c.user_id = $1 and c.status = 'open'`,
+    [ali.id]
+  )
+  const downloading = p.waitForEvent('download')
+  await p.getByTestId('export-shift-pdf').click()
+  const download = await downloading
+  expect(download.suggestedFilename()).toMatch(new RegExp(`^FUSION-shift-[a-z0-9-]+-${shift!.date}\\.pdf$`))
+  const pdf = readFileSync(await download.path()).toString('latin1')
+  expect(pdf.startsWith('%PDF-')).toBe(true)
+  const total = `PKR ${Number(shift!.total).toLocaleString('en-US')}`
+  // (PDF text escapes parentheses, so "Counter shift (open)" is checked without them.)
+  for (const text of ['FUSION', 'Counter shift', shift!.name, 'Shift totals so far', 'Total sales', total, 'provisional', 'Snooker 9']) {
+    expect(pdf, text).toContain(text)
+  }
+  await expect(p.getByText('Shift exported as PDF (figures so far).')).toBeVisible()
+  await p.context().close()
 })
 
 test('the app installs on a phone home screen as FUSION GAMES with the real logo', async () => {

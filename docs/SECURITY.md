@@ -13,9 +13,9 @@
 - Changing your password (Settings → Account & security, or the account menu) asks for the current password and signs the account out everywhere else. A forgotten admin password is reset only with the secret key on the owner's computer (`npm run reset:password`); there is no public reset page.
 - Accounts are created, reset and (de)activated only via the `admin-users` Edge Function, which verifies the caller's token and admin role and then calls SQL functions with the caller's own JWT (so the database re-checks admin rights).
 - Deactivation takes effect immediately (`is_active` is checked by every policy and function) and also bans the Auth user so no new token can be issued.
-- **Portal switching** is a real sign-in: Admin → Staff requires the selected staff member's password; Staff → Admin requires the Admin master password (the admin account's password). The React Query cache is cleared on every account change, so no data leaks between accounts.
+- **Accounts on a device (owner's choice, 2026-11):** each account signs in once with its own password; its Supabase session is then kept on the device so one click switches to it — no password and no idle lock — until **Log out of all accounts**, which ends every kept session on the server (refresh tokens revoked) and clears the device. The database still authorises every request by the one account it comes from (RLS, permissions, floors); switching never widens what an account may do. Anyone using a terminal can therefore use every account signed in on it — the club accepts this for convenience. The React Query cache is cleared on every account change, so no data leaks between accounts.
 - The admin portal locks itself after configurable inactivity (default 15 min).
-- In the browser, supabase-js keeps the session in this site's local storage. The strict Content-Security-Policy (only the app's own scripts may run) and the admin idle lock limit what that exposure could lead to. In the optional desktop build, tokens are stored encrypted with Windows DPAPI.
+- In the browser, supabase-js keeps the session in this site's local storage. The strict Content-Security-Policy (only the app's own scripts may run) limits what that exposure could lead to. In the optional desktop build, tokens are stored encrypted with Windows DPAPI.
 
 ## Authorization
 

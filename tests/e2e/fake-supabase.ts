@@ -1,7 +1,9 @@
 /**
  * A minimal, local stand-in for the Supabase HTTP APIs that FUSION uses —
- * Auth (password grant), PostgREST (table reads + RPC) and the admin-users
- * Edge Function — backed by the real migrations running in PGlite.
+ * Auth (password grant, refresh, sign-out per session), PostgREST (table reads
+ * + RPC), Storage (upload, delete and public download, checked by the real
+ * storage policies) and the admin-users Edge Function — backed by the real
+ * migrations running in PGlite.
  *
  * TEST ONLY. It does not verify JWT signatures and keeps test passwords in
  * memory. It exists so the end-to-end suite drives the real Electron app,
@@ -29,22 +31,31 @@ function b64url(obj: unknown): string {
   return Buffer.from(JSON.stringify(obj)).toString('base64url')
 }
 
-function makeJwt(sub: string, email: string): string {
+function makeJwt(sub: string, email: string, sid: string): string {
   const now = Math.floor(Date.now() / 1000)
-  return `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url({ sub, email, role: 'authenticated', aud: 'authenticated', iat: now, exp: now + 3600 })}.test-signature`
+  return `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url({ sub, email, session_id: sid, role: 'authenticated', aud: 'authenticated', iat: now, exp: now + 3600 })}.test-signature`
 }
 
-function subOf(req: IncomingMessage): string | null {
+function claimsOf(req: IncomingMessage): { sub?: string; session_id?: string } | null {
   const auth = req.headers.authorization ?? ''
   const token = auth.replace(/^Bearer\s+/i, '')
   const parts = token.split('.')
   if (parts.length !== 3) return null
   try {
-    const payload = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString()) as { sub?: string }
-    return payload.sub ?? null
+    return JSON.parse(Buffer.from(parts[1]!, 'base64url').toString()) as { sub?: string; session_id?: string }
   } catch {
     return null
   }
+}
+
+function subOf(req: IncomingMessage): string | null {
+  return claimsOf(req)?.sub ?? null
+}
+
+async function readRaw(req: IncomingMessage): Promise<Buffer> {
+  const chunks: Buffer[] = []
+  for await (const c of req) chunks.push(c as Buffer)
+  return Buffer.concat(chunks)
 }
 
 async function readBody(req: IncomingMessage): Promise<unknown> {
@@ -56,7 +67,10 @@ async function readBody(req: IncomingMessage): Promise<unknown> {
 
 export class FakeSupabase {
   readonly passwords = new Map<string, { id: string; password: string }>()
-  private refresh = new Map<string, string>()
+  /** Refresh token → its account and session (a session's tokens end together at sign-out). */
+  private refresh = new Map<string, { id: string; sid: string }>()
+  /** Files in Storage, by "<bucket>/<path>". */
+  readonly files = new Map<string, { body: Buffer; type: string }>()
   url = ''
   private server = createServer((req, res) => {
     const started = Date.now()
@@ -108,11 +122,11 @@ export class FakeSupabase {
     res.end(body === undefined ? '' : JSON.stringify(body))
   }
 
-  private session(id: string, email: string) {
+  private session(id: string, email: string, sid: string = randomUUID()) {
     const refresh = randomUUID()
-    this.refresh.set(refresh, id)
+    this.refresh.set(refresh, { id, sid })
     return {
-      access_token: makeJwt(id, email),
+      access_token: makeJwt(id, email, sid),
       token_type: 'bearer',
       expires_in: 3600,
       expires_at: Math.floor(Date.now() / 1000) + 3600,
@@ -133,11 +147,16 @@ export class FakeSupabase {
 
       if (path === '/auth/v1/settings') return this.send(res, 200, { external: {}, disable_signup: true })
       if (path === '/auth/v1/token') return await this.token(req, res, url.searchParams.get('grant_type'))
-      if (path === '/auth/v1/logout') return this.send(res, 204)
+      if (path === '/auth/v1/logout') return this.logout(req, res, url.searchParams.get('scope') ?? 'global')
       if (path === '/auth/v1/user') return await this.user(req, res)
       if (path.startsWith('/rest/v1/rpc/')) return await this.rpc(req, res, path.slice('/rest/v1/rpc/'.length))
       if (path.startsWith('/rest/v1/')) return await this.select(req, res, path.slice('/rest/v1/'.length), url.searchParams)
       if (path === '/functions/v1/admin-users') return await this.adminUsers(req, res)
+      if (path.startsWith('/storage/v1/object/public/')) return this.download(res, decodeURIComponent(path.slice('/storage/v1/object/public/'.length)))
+      if (path.startsWith('/storage/v1/object/') && req.method === 'DELETE') return await this.removeFiles(req, res, path.slice('/storage/v1/object/'.length))
+      if (path.startsWith('/storage/v1/object/') && (req.method === 'POST' || req.method === 'PUT')) {
+        return await this.upload(req, res, decodeURIComponent(path.slice('/storage/v1/object/'.length)))
+      }
       return this.send(res, 404, { message: 'not found' })
     } catch (e) {
       const err = e as { message?: string; code?: string; hint?: string; detail?: string }
@@ -156,12 +175,95 @@ export class FakeSupabase {
       return this.send(res, 200, this.session(entry.id, String(body.email)))
     }
     if (grant === 'refresh_token') {
-      const id = this.refresh.get(String(body.refresh_token))
-      const email = [...this.passwords.entries()].find(([, v]) => v.id === id)?.[0]
-      if (!id || !email) return this.send(res, 400, { error: 'invalid_grant', msg: 'Invalid Refresh Token' })
-      return this.send(res, 200, this.session(id, email))
+      const known = this.refresh.get(String(body.refresh_token))
+      const email = [...this.passwords.entries()].find(([, v]) => v.id === known?.id)?.[0]
+      if (!known || !email) {
+        return this.send(res, 400, { error: 'invalid_grant', code: 'refresh_token_not_found', msg: 'Invalid Refresh Token: Refresh Token Not Found' })
+      }
+      return this.send(res, 200, this.session(known.id, email, known.sid))
     }
     return this.send(res, 400, { msg: 'unsupported grant' })
+  }
+
+  /** Sign-out ends refresh tokens like Supabase: local = this session, others = the account's other sessions, global = all. */
+  private logout(req: IncomingMessage, res: ServerResponse, scope: string) {
+    const claims = claimsOf(req)
+    if (!claims?.sub) return this.send(res, 401, { msg: 'invalid JWT' })
+    for (const [token, s] of this.refresh) {
+      if (s.id !== claims.sub) continue
+      const thisSession = s.sid === claims.session_id
+      if (scope === 'global' || (scope === 'local' && thisSession) || (scope === 'others' && !thisSession)) this.refresh.delete(token)
+    }
+    return this.send(res, 204)
+  }
+
+  /** Whether a refresh token still works (tests check that signing out really ended a session). */
+  refreshTokenWorks(token: string): boolean {
+    return this.refresh.has(token)
+  }
+
+  /** Upload as the signed-in account: the row is inserted with its JWT, so the storage policies decide. */
+  private async upload(req: IncomingMessage, res: ServerResponse, key: string) {
+    const [bucket, ...rest] = key.split('/')
+    const name = rest.join('/')
+    const sub = subOf(req)
+    const raw = await readRaw(req)
+    const type = String(req.headers['content-type'] ?? '')
+    let body = raw
+    let fileType = type
+    if (type.startsWith('multipart/form-data')) {
+      const form = await new Response(new Uint8Array(raw), { headers: { 'content-type': type } }).formData()
+      const file = [...form.values()].find((v): v is File => typeof v !== 'string')
+      if (!file) return this.send(res, 400, { statusCode: '400', error: 'Bad Request', message: 'No file' })
+      body = Buffer.from(await file.arrayBuffer())
+      fileType = file.type
+    }
+    const [b] = await this.db.sql<{ file_size_limit: number | null; allowed_mime_types: string[] | null }>(
+      `select file_size_limit, allowed_mime_types from storage.buckets where id = $1`,
+      [bucket]
+    )
+    if (!b) return this.send(res, 404, { statusCode: '404', error: 'Bucket not found', message: 'Bucket not found' })
+    if (b.file_size_limit && body.length > Number(b.file_size_limit)) {
+      return this.send(res, 413, { statusCode: '413', error: 'Payload too large', message: 'The object exceeded the maximum allowed size' })
+    }
+    if (b.allowed_mime_types && !b.allowed_mime_types.includes(fileType)) {
+      return this.send(res, 415, { statusCode: '415', error: 'invalid_mime_type', message: `mime type ${fileType} is not supported` })
+    }
+    try {
+      const rows = await this.db.as(sub, () =>
+        this.db.pg
+          .query<{ id: string }>(`insert into storage.objects (bucket_id, name, metadata) values ($1, $2, $3::jsonb) returning id`, [
+            bucket,
+            name,
+            JSON.stringify({ mimetype: fileType, size: body.length })
+          ])
+          .then((r) => r.rows)
+      )
+      this.files.set(`${bucket}/${name}`, { body, type: fileType })
+      return this.send(res, 200, { Id: rows[0]!.id, Key: `${bucket}/${name}` })
+    } catch (e) {
+      return this.send(res, 403, { statusCode: '403', error: 'Unauthorized', message: `new row violates row-level security policy (${(e as Error).message})` })
+    }
+  }
+
+  /** Delete as the signed-in account: only the rows its policies let it delete go. */
+  private async removeFiles(req: IncomingMessage, res: ServerResponse, bucket: string) {
+    const sub = subOf(req)
+    const { prefixes } = (await readBody(req)) as { prefixes?: string[] }
+    const deleted = await this.db.as(sub, () =>
+      this.db.pg
+        .query<{ name: string }>(`delete from storage.objects where bucket_id = $1 and name = any($2::text[]) returning name`, [bucket, prefixes ?? []])
+        .then((r) => r.rows)
+    )
+    for (const d of deleted) this.files.delete(`${bucket}/${d.name}`)
+    return this.send(res, 200, deleted.map((d) => ({ name: d.name, bucket_id: bucket })))
+  }
+
+  private download(res: ServerResponse, key: string) {
+    const file = this.files.get(key)
+    if (!file) return this.send(res, 404, { statusCode: '404', error: 'not_found', message: 'Object not found' })
+    res.writeHead(200, { 'Content-Type': file.type, 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' })
+    res.end(file.body)
   }
 
   private async user(req: IncomingMessage, res: ServerResponse) {

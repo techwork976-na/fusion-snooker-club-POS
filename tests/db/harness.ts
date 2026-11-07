@@ -27,6 +27,26 @@ const SUPABASE_STUB = `
   $$;
   grant usage on schema public, auth to anon, authenticated, service_role;
   grant execute on function auth.uid() to anon, authenticated, service_role;
+
+  -- Supabase Storage keeps buckets and files here; its policies run as the API roles.
+  create schema storage;
+  create table storage.buckets (
+    id text primary key, name text not null, public boolean not null default false,
+    file_size_limit bigint, allowed_mime_types text[], owner uuid,
+    created_at timestamptz default now(), updated_at timestamptz default now());
+  create table storage.objects (
+    id uuid primary key default gen_random_uuid(), bucket_id text references storage.buckets (id), name text not null,
+    owner uuid default auth.uid(), metadata jsonb, created_at timestamptz default now(), updated_at timestamptz default now(),
+    unique (bucket_id, name));
+  alter table storage.objects enable row level security;
+  -- The folders of a path ("<user id>/<file>" → {<user id>}), as Supabase defines it.
+  create function storage.foldername(name text) returns text[] language sql immutable as $$
+    select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1]
+  $$;
+  grant usage on schema storage to anon, authenticated, service_role;
+  grant select, insert, update, delete on storage.objects to authenticated;
+  grant select on storage.buckets to anon, authenticated;
+  grant execute on function storage.foldername(text) to anon, authenticated;
 `
 
 export type Role = 'admin' | 'staff'
@@ -42,7 +62,8 @@ export const TEST_PASSWORD = 'test-password-123'
 export class TestDb {
   private constructor(
     readonly pg: PGlite,
-    private pending: string[] = []
+    private pending: string[] = [],
+    private readonly shipped = false
   ) {}
 
   /**
@@ -50,7 +71,7 @@ export class TestDb {
    * that migration and later ones for `migrateRest()`, to test upgrades of a
    * database that already holds data.
    */
-  static async create(opts: { stopBefore?: string } = {}): Promise<TestDb> {
+  static async create(opts: { stopBefore?: string; shippedSettings?: boolean } = {}): Promise<TestDb> {
     const pg = new PGlite({ extensions: { pgcrypto } })
     await pg.exec(SUPABASE_STUB)
     const files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort()
@@ -59,7 +80,9 @@ export class TestDb {
     for (const file of now) {
       await pg.exec(readFileSync(join(MIGRATIONS_DIR, file), 'utf8'))
     }
-    return new TestDb(pg, stop >= 0 ? files.slice(stop) : [])
+    const db = new TestDb(pg, stop >= 0 ? files.slice(stop) : [], Boolean(opts.shippedSettings))
+    await db.pinTestPolicy()
+    return db
   }
 
   async migrateRest(): Promise<void> {
@@ -67,6 +90,21 @@ export class TestDb {
       await this.pg.exec(readFileSync(join(MIGRATIONS_DIR, file), 'utf8'))
     }
     this.pending = []
+    await this.pinTestPolicy()
+  }
+
+  /**
+   * The club bills completed minutes only since migration 1800 ("round down").
+   * The suites written for the earlier "every started minute" policy keep it,
+   * so their figures stay meaningful; `shippedSettings: true` keeps the
+   * settings exactly as the migrations leave them (the round-down tests).
+   */
+  private async pinTestPolicy(): Promise<void> {
+    if (this.shipped) return
+    const [col] = (await this.pg.query<{ n: number }>(
+      `select count(*)::int n from information_schema.columns where table_schema = 'public' and table_name = 'settings' and column_name = 'billing_rounding'`
+    )).rows
+    if (col?.n) await this.pg.exec(`update public.settings set billing_rounding = 'up' where billing_rounding <> 'up'`)
   }
 
   /** Superuser query (bypasses RLS) — used for fixtures and assertions. */

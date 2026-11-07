@@ -41,7 +41,7 @@
 | Saving a category or table fails on a computer | It runs an old copy of the desktop app that sends hourly rates; use the web app instead. |
 | Today's Sales shows "Includes archived total" | Amounts saved by the old (pre-0700) Close Day & Archive are included as legacy totals; they have no staff breakdown. |
 | "Open your counter first." | Staff take payments and record expenses on their own counter. Open it from **My counter** (or the Dashboard card). |
-| "Administrators manage the business and do not take payments." | By design. Switch to the staff member's portal (their password) to take the payment. |
+| "Administrators manage the business and do not take payments." | By design. Switch to the staff member's account from the account menu (their password is needed only the first time on that device) to take the payment. |
 | "Close these counters first: …" when closing a day | A counter that traded that day is still open. The staff member closes it in **My counter**, or the admin uses **Close** on the Dashboard's *Staff today* table. |
 | "… table session(s) started on this counter are still open" | Closing a counter with tables still running needs the handover box ticked; the next counter that checks them out takes the payment. |
 | "This sale belongs to a closed counter shift; its totals are final." | Closed shifts are permanent records. Correct it with a new transaction on an open counter. |

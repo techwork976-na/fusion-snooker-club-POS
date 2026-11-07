@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, Clock3, FileX2, ReceiptText } from 'lucide-react'
+import { ChevronDown, Clock3, FileDown, FileX2, ReceiptText } from 'lucide-react'
 import { formatBusinessDate, formatDateTime, formatDuration, formatMoney, formatRate, formatTime, paymentLabel, splitLabel } from '@shared/format'
 import { cn } from '@/lib/cn'
 import { errorMessage } from '@/lib/errors'
@@ -9,8 +9,10 @@ import { getShiftDetail } from '@/data/api'
 import { keys, useSettings } from '@/data/hooks'
 import { SERIES_COLORS, SERIES_ON_DARK as ON_DARK } from '@/components/charts/BarChart'
 import { AnimatedNumber } from '@/components/motion/AnimatedNumber'
+import { Button } from '@/components/ui/Button'
 import { Drawer } from '@/components/ui/Drawer'
 import { ErrorState, LoadingBlock } from '@/components/ui/Misc'
+import { useShiftPdf } from './useShiftPdf'
 
 export function ShiftStatusPill({ status }: { status: Shift['status'] }) {
   return (
@@ -105,6 +107,7 @@ export function ShiftDetailDrawer({ shiftId, onClose }: { shiftId: string | null
     queryFn: () => getShiftDetail(shiftId!),
     enabled: Boolean(shiftId)
   })
+  const { exporting, exportShift } = useShiftPdf()
 
   return (
     <Drawer
@@ -113,6 +116,16 @@ export function ShiftDetailDrawer({ shiftId, onClose }: { shiftId: string | null
       title={data ? data.staff_name : 'Shift'}
       subtitle={data ? shiftTimes(data, tz) : undefined}
       aside={data && <ShiftStatusPill status={data.status} />}
+      footer={
+        data && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-fg-4">{data.status === 'open' ? 'Figures so far — final once the counter is closed.' : 'The closing, ready to send to the owner.'}</p>
+            <Button variant="primary" icon={<FileDown className="size-4" />} loading={exporting} onClick={() => void exportShift(data)} data-testid="shift-export-pdf">
+              Export PDF
+            </Button>
+          </div>
+        )
+      }
     >
       {error ? (
         <ErrorState message={errorMessage(error)} onRetry={() => void refetch()} />

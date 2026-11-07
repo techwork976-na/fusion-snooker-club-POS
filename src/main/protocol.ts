@@ -38,10 +38,13 @@ export function registerPrivilegedScheme(): void {
 
 export function buildCsp(dev: boolean): string {
   const connect = ["'self'"]
+  const images = ["'self'", 'data:', 'blob:']
   const config = loadServerConfig()
   if (config) {
     const url = new URL(config.supabaseUrl)
     connect.push(url.origin, `${url.protocol === 'https:' ? 'wss:' : 'ws:'}//${url.host}`)
+    // Profile pictures (Supabase Storage).
+    images.push(url.origin)
   }
   if (dev) connect.push('ws://localhost:*', 'http://localhost:*')
   return [
@@ -49,7 +52,7 @@ export function buildCsp(dev: boolean): string {
     // Vite's React refresh preamble is an inline script in development only.
     dev ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    `img-src ${images.join(' ')}`,
     "font-src 'self' data:",
     `connect-src ${connect.join(' ')}`,
     "worker-src 'self' blob:",

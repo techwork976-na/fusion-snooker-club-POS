@@ -23,7 +23,8 @@ export interface BillingPolicy {
   minimumMinutes: number
 }
 
-export const DEFAULT_POLICY: BillingPolicy = { incrementMinutes: 1, rounding: 'up', minimumMinutes: 0 }
+/** The club's policy since migration 1800: only completed minutes are billed. */
+export const DEFAULT_POLICY: BillingPolicy = { incrementMinutes: 1, rounding: 'down', minimumMinutes: 0 }
 
 export function toPaisa(amount: number | string): number {
   return Math.round(Number(amount) * 100)

@@ -63,6 +63,8 @@ async function rows<T>(query: PromiseLike<{ data: unknown; error: unknown }>): P
 
 // --- profile, settings, structure -----------------------------------------
 export const getMyProfile = () => rpc<Profile>('get_my_profile')
+/** Sets (or, with null, clears) the signed-in account's profile picture path in the "avatars" bucket. */
+export const setMyAvatar = (path: string | null) => rpc<Profile>('set_my_avatar', { p_path: path })
 export const listSwitchTargets = () => rpc<SwitchTarget[]>('list_switch_targets')
 export const getServerTime = () => rpc<string>('get_server_time')
 export const getCurrentBusinessDate = () => rpc<string>('get_current_business_date')

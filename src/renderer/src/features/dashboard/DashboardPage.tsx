@@ -133,11 +133,14 @@ export function DashboardPage() {
                   <StaffLive rows={data.staff} today={data.today} />
                 </motion.section>
               )}
-              <motion.section {...rise(4)} className="col-span-12 lg:col-span-6 xl:col-span-7">
-                <TopLists data={data} />
-              </motion.section>
-              <motion.section {...rise(5)} className="col-span-12 lg:col-span-6 xl:col-span-5">
-                <QuickActions data={data} onCounterSale={() => setCounterOpen(true)} canCounter={canCounter} />
+              {/* Low stock is an alert, shown only when something runs low; sales figures live on Snacks and the reports. */}
+              {Boolean(data.low_stock?.length) && (
+                <motion.section {...rise(4)} className="col-span-12 lg:col-span-5">
+                  <LowStockAlert data={data} />
+                </motion.section>
+              )}
+              <motion.section {...rise(5)} className={cn('col-span-12', data.low_stock?.length && 'lg:col-span-7')}>
+                <QuickActions data={data} onCounterSale={() => setCounterOpen(true)} canCounter={canCounter} width={data.low_stock?.length ? 'half' : 'full'} />
               </motion.section>
             </>
           ) : (
@@ -153,9 +156,9 @@ export function DashboardPage() {
                   <StaffLive rows={data.staff} today={data.today} />
                 </motion.section>
               )}
-              {isAdmin && (
+              {isAdmin && Boolean(data.low_stock?.length) && (
                 <motion.section {...rise(2)} className="col-span-12">
-                  <TopLists data={data} />
+                  <LowStockAlert data={data} />
                 </motion.section>
               )}
               <motion.section {...rise(2)} className="col-span-12 xl:col-span-8">
@@ -551,7 +554,18 @@ function QuickAction({ icon, label, hint, onClick, tone = 'default' }: { icon: R
   )
 }
 
-function QuickActions({ data, onCounterSale, canCounter }: { data: Dashboard; onCounterSale: () => void; canCounter: boolean }) {
+/** `width`: the space the panel gets — a narrow side column keeps one list on large screens. */
+function QuickActions({
+  data,
+  onCounterSale,
+  canCounter,
+  width = 'narrow'
+}: {
+  data: Dashboard
+  onCounterSale: () => void
+  canCounter: boolean
+  width?: 'narrow' | 'half' | 'full'
+}) {
   const navigate = useNavigate()
   const { isAdmin, can } = useAuth()
   return (
@@ -559,7 +573,7 @@ function QuickActions({ data, onCounterSale, canCounter }: { data: Dashboard; on
       <div className="px-3 pt-3 pb-2">
         <PanelHeading>Quick actions</PanelHeading>
       </div>
-      <div className="space-y-0.5 sm:grid sm:grid-cols-2 sm:gap-x-2 sm:space-y-0 lg:block lg:space-y-0.5">
+      <div className={cn('space-y-0.5 sm:grid sm:grid-cols-2 sm:gap-x-2 sm:space-y-0', width === 'narrow' && 'xl:grid-cols-1', width === 'full' && 'xl:grid-cols-3')}>
         <QuickAction icon={<LayoutGrid className="size-[18px]" />} label="Tables" hint={`${data.tables.available} available now`} onClick={() => navigate('/tables')} />
         {!isAdmin && (
           <QuickAction
@@ -645,60 +659,36 @@ function HourlyChart({ data }: { data: Dashboard }) {
   )
 }
 
-function TopLists({ data }: { data: Dashboard }) {
+/** Products at or below their low-stock level — an alert that opens Inventory. */
+function LowStockAlert({ data }: { data: Dashboard }) {
   const navigate = useNavigate()
+  const items = data.low_stock ?? []
   return (
-    <div className={cn('card grid h-full gap-x-10 gap-y-7 p-5 sm:p-7', data.low_stock?.length && 'md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]')}>
-      <section>
-        <PanelHeading>Best sellers today</PanelHeading>
-        {data.top_products?.length ? (
-          <ul className="mt-4 space-y-3.5">
-            {data.top_products.map((p, i) => {
-              const lead = Math.max(1, ...data.top_products!.map((q) => q.revenue))
-              return (
-                <li key={p.name} className="text-sm">
-                  <div className="flex items-center gap-3">
-                    <span className="w-5 shrink-0 font-mono text-[11px] text-fg-5">{String(i + 1).padStart(2, '0')}</span>
-                    <span className="min-w-0 flex-1 truncate font-semibold text-fg">{p.name}</span>
-                    <span className="shrink-0 text-xs text-fg-4 tabular">{p.quantity} sold</span>
-                    <span className="w-20 shrink-0 text-right figure text-[14px] text-forest-950">{formatMoney(p.revenue)}</span>
-                  </div>
-                  <div className="mt-1.5 ml-8 h-[3px] overflow-hidden rounded-full bg-forest-950/[0.04]">
-                    <motion.div
-                      className="h-full rounded-full bg-lake-500"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(p.revenue / lead) * 100}%` }}
-                      transition={{ duration: 0.7, delay: 0.2 + i * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                    />
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        ) : (
-          <p className="mt-4 text-sm text-fg-4">No products sold yet today.</p>
-        )}
-      </section>
-      {Boolean(data.low_stock?.length) && (
-        <section>
-          <button onClick={() => navigate('/inventory')} className="-mx-3 -my-1 w-[calc(100%+24px)] rounded-2xl bg-brass-50 px-3 py-3 text-left transition-colors hover:bg-brass-100">
-            <span className="flex items-center gap-2">
-              <AlertTriangle className="size-4 text-brass-600" />
-              <span className="label !text-brass-700">Low stock</span>
+    <button
+      onClick={() => navigate('/inventory')}
+      className="card h-full w-full bg-brass-50 p-5 text-left transition-colors hover:bg-brass-100 sm:p-6"
+      data-testid="low-stock"
+    >
+      <span className="flex items-center justify-between gap-3">
+        <span className="flex items-center gap-2">
+          <AlertTriangle className="size-4 text-brass-600" />
+          <span className="label !text-brass-700">Low stock</span>
+        </span>
+        <span className="flex items-center gap-1 text-xs font-bold text-brass-700">
+          Inventory <ChevronRight className="size-3.5" />
+        </span>
+      </span>
+      <ul className="mt-4 space-y-2">
+        {items.slice(0, 6).map((p) => (
+          <li key={p.id} className="flex justify-between gap-3 text-sm">
+            <span className="truncate text-fg">{p.name}</span>
+            <span className={cn('shrink-0 font-bold tabular', p.stock_quantity === 0 ? 'text-claret-700' : 'text-brass-700')}>
+              {p.stock_quantity === 0 ? 'Out' : `${p.stock_quantity} left`}
             </span>
-            <ul className="mt-3 space-y-1.5">
-              {data.low_stock!.slice(0, 5).map((p) => (
-                <li key={p.id} className="flex justify-between gap-3 text-sm">
-                  <span className="truncate text-fg">{p.name}</span>
-                  <span className={cn('shrink-0 font-bold tabular', p.stock_quantity === 0 ? 'text-claret-700' : 'text-brass-700')}>
-                    {p.stock_quantity === 0 ? 'Out' : `${p.stock_quantity} left`}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </button>
-        </section>
-      )}
-    </div>
+          </li>
+        ))}
+      </ul>
+      {items.length > 6 && <p className="mt-3 text-xs text-brass-700">+{items.length - 6} more</p>}
+    </button>
   )
 }

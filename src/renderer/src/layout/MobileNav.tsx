@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Dialog } from 'radix-ui'
-import { ArrowLeftRight, KeyRound, Lock, MoreHorizontal, X } from 'lucide-react'
+import { Camera, KeyRound, Lock, LogOut, MoreHorizontal, UserPlus, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { Avatar } from '@/components/ui/Avatar'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { initials } from '@/features/auth/AccountMenu'
-import { SwitchPortalDialog } from '@/features/auth/SwitchPortalDialog'
+import { LogoutAllDialog, portalLabel, useSwitchAccount } from '@/features/auth/AccountMenu'
+import { AddAccountDialog } from '@/features/auth/AddAccountDialog'
 import { ChangePasswordDialog } from '@/features/auth/ChangePasswordDialog'
+import { ProfilePictureDialog } from '@/features/auth/ProfilePictureDialog'
 import { useNavItems, type NavItem } from './Sidebar'
 
 /** The four destinations each role reaches most; everything else sits under More. */
@@ -89,10 +91,13 @@ export function MobileNav() {
 
 /** Every page not in the tab bar, then the signed-in account and its actions. */
 function MoreSheet({ open, onOpenChange, items }: { open: boolean; onOpenChange: (o: boolean) => void; items: NavItem[] }) {
-  const { profile, isAdmin, signOut } = useAuth()
+  const { profile, isAdmin, accounts, signOut } = useAuth()
   const { pathname } = useLocation()
-  const [switchOpen, setSwitchOpen] = useState(false)
+  const switchAccount = useSwitchAccount()
+  const [addOpen, setAddOpen] = useState(false)
+  const [pictureOpen, setPictureOpen] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
+  const [logoutOpen, setLogoutOpen] = useState(false)
   const close = () => onOpenChange(false)
   const portal = isAdmin ? 'Admin portal' : `Staff portal · ${profile?.floor_name ?? 'All floors'}`
   const row = 'flex h-12 w-full items-center gap-3 rounded-xl px-3.5 text-left text-[15px] font-semibold text-fg active:bg-forest-950/[0.06]'
@@ -153,28 +158,52 @@ function MoreSheet({ open, onOpenChange, items }: { open: boolean; onOpenChange:
                     {profile && (
                       <section className="mt-5 rounded-2xl bg-sunken/60 p-2" data-testid="mobile-account">
                         <div className="flex items-center gap-3 px-2.5 pt-2 pb-3">
-                          <span
-                            className={cn(
-                              'flex size-10 shrink-0 items-center justify-center rounded-full text-[13px] font-bold tracking-wide',
-                              isAdmin ? 'bg-brass-200 text-forest-950' : 'bg-sage-200 text-forest-950'
-                            )}
-                          >
-                            {initials(profile.full_name)}
-                          </span>
+                          <Avatar name={profile.full_name} path={profile.avatar_path} role={profile.role} size={40} />
                           <span className="min-w-0">
                             <span className="block truncate text-sm font-bold text-fg">{profile.full_name}</span>
                             <span className="block truncate text-xs text-fg-3">{portal}</span>
                           </span>
                         </div>
+                        {/* The other accounts on this device: one tap, no password. */}
+                        {accounts
+                          .filter((a) => a.userId !== profile.id)
+                          .map((a) => (
+                            <button
+                              key={a.userId}
+                              className={row}
+                              onClick={() => {
+                                close()
+                                void switchAccount(a)
+                              }}
+                              data-testid={`mobile-account-${a.username}`}
+                            >
+                              <Avatar name={a.fullName} path={a.avatarPath} role={a.role} size={28} />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate">{a.fullName}</span>
+                                <span className="block truncate text-xs font-normal text-fg-4">{portalLabel(a)}</span>
+                              </span>
+                            </button>
+                          ))}
                         <button
                           className={row}
                           onClick={() => {
                             close()
-                            setSwitchOpen(true)
+                            setAddOpen(true)
+                          }}
+                          data-testid="mobile-add-account"
+                        >
+                          <UserPlus className="size-[18px] text-fg-3" />
+                          Add account
+                        </button>
+                        <button
+                          className={row}
+                          onClick={() => {
+                            close()
+                            setPictureOpen(true)
                           }}
                         >
-                          <ArrowLeftRight className="size-[18px] text-fg-3" />
-                          {isAdmin ? 'Switch to Staff portal' : 'Switch to Admin portal'}
+                          <Camera className="size-[18px] text-fg-3" />
+                          Profile picture
                         </button>
                         <button
                           className={row}
@@ -195,7 +224,18 @@ function MoreSheet({ open, onOpenChange, items }: { open: boolean; onOpenChange:
                           data-testid="mobile-sign-out"
                         >
                           <Lock className="size-[18px] text-fg-3" />
-                          Lock &amp; sign out
+                          Sign out of {profile.full_name.split(/s+/)[0]}
+                        </button>
+                        <button
+                          className={row}
+                          onClick={() => {
+                            close()
+                            setLogoutOpen(true)
+                          }}
+                          data-testid="mobile-sign-out-all"
+                        >
+                          <LogOut className="size-[18px] text-fg-3" />
+                          Log out of all accounts
                         </button>
                       </section>
                     )}
@@ -206,8 +246,10 @@ function MoreSheet({ open, onOpenChange, items }: { open: boolean; onOpenChange:
           )}
         </AnimatePresence>
       </Dialog.Root>
-      <SwitchPortalDialog open={switchOpen} onOpenChange={setSwitchOpen} target={isAdmin ? 'staff' : 'admin'} />
+      <AddAccountDialog open={addOpen} onOpenChange={setAddOpen} />
+      <ProfilePictureDialog open={pictureOpen} onOpenChange={setPictureOpen} />
       <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
+      <LogoutAllDialog open={logoutOpen} onOpenChange={setLogoutOpen} />
     </>
   )
 }

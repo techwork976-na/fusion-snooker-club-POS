@@ -188,7 +188,7 @@ export function useServerClockSync() {
  * or booking, refresh the affected screens here (Row Level Security limits
  * each user to the changes they may see). Polling remains as a fallback.
  */
-export function useLiveUpdates(enabled: boolean) {
+export function useLiveUpdates(enabled: boolean, accountId?: string) {
   const qc = useQueryClient()
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -216,7 +216,8 @@ export function useLiveUpdates(enabled: boolean) {
       if (pending.current) clearTimeout(pending.current)
       void supabase().removeChannel(channel)
     }
-  }, [enabled, qc])
+    // A new subscription for each account (it carries that account's access, checked by the database).
+  }, [enabled, qc, accountId])
 }
 
 /** Debounced value for search boxes. */

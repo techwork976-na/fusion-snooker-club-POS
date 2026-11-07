@@ -36,6 +36,8 @@
     "tests/db/**/*"
   ],
   "exclude": [
-    "tests/unit/report-pdf.test.ts"
+    "tests/unit/report-pdf.test.ts",
+    "tests/unit/shift-pdf.test.ts",
+    "tests/unit/accounts.test.ts"
   ]
 }
